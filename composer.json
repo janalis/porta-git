@@ -1,0 +1,14 @@
+{
+    "name": "porta/git",
+    "description": "Git features that do not need the workbench: blame annotations",
+    "type": "porta-plugin",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Porta\\GitPlugin\\": "src/"
+        }
+    }
+}
