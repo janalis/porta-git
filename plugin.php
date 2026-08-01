@@ -10,7 +10,7 @@ use Porta\Plugin\Api\PluginApi;
 
 /**
  * Git blame as a bundled plugin — the only slice of git that could leave
- * `src/`, and the reason the rest could not is recorded in CLAUDE.md.
+ * `src/`, and the reason the rest could not is in docs/internals/decisions.md.
  *
  * Blame qualifies because it owns nothing of the workbench: no widget, no
  * layout region, no full-screen view, and it dispatches no events. It listens
