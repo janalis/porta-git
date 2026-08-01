@@ -50,6 +50,10 @@ final class BlameClient
      */
     public function file(string $absPath, callable $onDone): void
     {
+        // The exit-code check is defensive: git prints nothing parseable when it
+        // fails, so the parser returns [] either way and deleting the check
+        // survives mutation. Kept because "a non-zero exit produced no data" is
+        // the honest reading, not because a test can tell.
         $this->runner->runStatus(['blame', '--line-porcelain', '--', $absPath], static fn (int $code, string $out) => $onDone(0 !== $code ? [] : BlameParser::parse($out)));
     }
 }

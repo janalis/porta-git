@@ -155,10 +155,21 @@ final class BlameTest extends TestCase
     {
         $api = $this->api();
         $blame = $this->openCommittedFile($api);
-        new BlameAnnotations($blame, $api)->refreshIfEnabled();
 
-        $this->pump(0.2);
-        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'disabled: no blame is run');
+        // A sentinel, so this asserts a POSITIVE: nothing overwrote it. Asserting
+        // the annotations stay EMPTY passed whether or not the run started —
+        // an async answer that has not arrived yet looks exactly like one that
+        // was never asked for.
+        //
+        // What this pins is that a disabled toggle never WRITES. It does not
+        // pin the early return in refreshIfEnabled(), which is an optimisation:
+        // deleting it leaves this green, because the callback's own !enabled
+        // guard still drops the answer. See the note on that method.
+        $api->setLineAnnotations([0 => 'sentinel']);
+        new BlameAnnotations($blame, $api)->refreshIfEnabled();
+        $this->pump(2.0); // ample: the enabled tests above resolve well inside this
+
+        $this->assertSame([0 => 'sentinel'], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'disabled: no blame is run, so nothing replaced the sentinel');
     }
 
     public function testAStaleResponseAfterTogglingOffIsDropped(): void

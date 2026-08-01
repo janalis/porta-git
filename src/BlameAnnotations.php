@@ -50,7 +50,15 @@ final class BlameAnnotations
         $this->refresh();
     }
 
-    /** The onBufferSwitched / onFileSaved hooks both land here. */
+    /**
+     * The onBufferSwitched / onFileSaved hooks both land here.
+     *
+     * The guard is an OPTIMISATION, not the gate: with blame off, refresh()'s
+     * own callback drops the answer anyway, so deleting this changes nothing a
+     * test can observe — it only stops a `git blame` subprocess being spawned on
+     * every buffer switch. Mutation-checked and recorded rather than covered,
+     * because covering it would mean exposing the process count.
+     */
     public function refreshIfEnabled(): void
     {
         if ($this->enabled) {
