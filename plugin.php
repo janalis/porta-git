@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
+use Porta\Event\GitCommitted;
+use Porta\Event\GitRemoteCompleted;
+use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\BlameAnnotations;
 use Porta\GitPlugin\BlameClient;
 use Porta\GitPlugin\BlameLine;
+use Porta\GitPlugin\ChangeMarks;
+use Porta\GitPlugin\GitClient;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
 
@@ -44,5 +49,20 @@ return new class('git') extends AbstractPlugin {
 
         $api->onBufferSwitched(static fn (string $path) => $annotations->refreshIfEnabled());
         $api->onFileSaved(static fn (string $path) => $annotations->refreshIfEnabled());
+
+        // The gutter stripe, which core used to compute itself.
+        $marks = new ChangeMarks(
+            new GitClient($api->projectRoot(), $this->coreSetting('gitPath')),
+            $api,
+            '0' !== $this->coreSetting('gitGutterMarks'),
+        );
+        $api->onFileOpened($marks->refresh(...));
+        $api->onFileSaved($marks->refresh(...));
+        $api->onFileReloaded($marks->refresh(...));
+        $api->onBufferSwitched($marks->refresh(...));
+        // A commit, a stash, a pull: whatever moved, the marks are stale.
+        $api->on(WorkingTreeChanged::class, static fn () => $marks->refresh());
+        $api->on(GitCommitted::class, static fn () => $marks->refresh());
+        $api->on(GitRemoteCompleted::class, static fn () => $marks->refresh());
     }
 };
