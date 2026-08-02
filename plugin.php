@@ -10,6 +10,7 @@ use Porta\GitPlugin\BlameClient;
 use Porta\GitPlugin\BlameLine;
 use Porta\GitPlugin\ChangeMarks;
 use Porta\GitPlugin\GitClient;
+use Porta\GitPlugin\Stash;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
 
@@ -51,11 +52,16 @@ return new class('git') extends AbstractPlugin {
         $api->onFileSaved(static fn (string $path) => $annotations->refreshIfEnabled());
 
         // The gutter stripe, which core used to compute itself.
+        $git = new GitClient($api->projectRoot(), $this->coreSetting('gitPath'));
         $marks = new ChangeMarks(
-            new GitClient($api->projectRoot(), $this->coreSetting('gitPath')),
+            $git,
             $api,
             '0' !== $this->coreSetting('gitGutterMarks'),
         );
+        $stash = new Stash($git, $api);
+        $api->adoptCommand('git_stash', $stash->push(...));
+        $api->adoptCommand('git_stash_pop', $stash->pop(...));
+
         $api->onFileOpened($marks->refresh(...));
         $api->onFileSaved($marks->refresh(...));
         $api->onFileReloaded($marks->refresh(...));

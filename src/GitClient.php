@@ -6,6 +6,7 @@ namespace Porta\GitPlugin;
 
 use Porta\Git\GitProcessRunner;
 use Porta\Git\HunkParser;
+use Porta\Support\Outcome;
 
 /**
  * The git the plugin runs, over its own {@see GitProcessRunner}.
@@ -31,6 +32,32 @@ final class GitClient
     public function isAvailable(): bool
     {
         return $this->runner->isAvailable();
+    }
+
+    /**
+     * Stash the working tree. Git's own stdout line is the message worth
+     * showing — it covers the nothing-to-stash case in git's words.
+     *
+     * @param callable(bool, string): void $onDone ok, first line of stdout
+     */
+    public function stashPush(callable $onDone): void
+    {
+        $this->runner->runStatus(['stash', 'push'], static function (int $code, string $out) use ($onDone): void {
+            // @mago-expect lint:no-literal-password -- strtok's token: is a newline delimiter, not a credential
+            $firstLine = strtok(trim($out), token: "\n");
+            $onDone(0 === $code, \is_string($firstLine) ? $firstLine : '');
+        });
+    }
+
+    /**
+     * Pop the newest stash. A conflicting pop fails with git's own stderr
+     * line and leaves the conflict markers in the working tree.
+     *
+     * @param callable(bool, string): void $onDone ok, first line of stderr
+     */
+    public function stashPop(callable $onDone): void
+    {
+        $this->runner->runWithErrors(['stash', 'pop'], static fn (Outcome $ok, string $error) => $onDone($ok->isOk(), $error));
     }
 
     /**

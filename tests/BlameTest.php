@@ -7,9 +7,12 @@ namespace Porta\GitPlugin\Tests;
 use PHPUnit\Framework\TestCase;
 use Porta\Editor\BufferManager;
 use Porta\Editor\Document;
+use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\BlameAnnotations;
 use Porta\GitPlugin\BlameClient;
 use Porta\GitPlugin\BlameLine;
+use Porta\GitPlugin\GitClient;
+use Porta\GitPlugin\Stash;
 use Porta\I18n\Translator;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Plugin\Runtime\PluginManager;
@@ -47,13 +50,14 @@ final class BlameTest extends TestCase
     private StatusBarWidget $status;
     private Tui $tui;
     private TempProject $project;
+    private EventDispatcher $events;
     private BufferManager $buffers;
 
     private function api(): PluginApi
     {
         $this->project = new TempProject(['a.txt' => "one\ntwo\n"]);
         $settings = new PluginSettings($this->project->dir, []);
-        $manager = new PluginManager(new EventDispatcher(), $settings);
+        $manager = new PluginManager($this->events = new EventDispatcher(), $settings);
         $this->tui = TestTui::create(120, 24);
         $this->status = new StatusBarWidget();
         $this->editor = new CodeEditorWidget();
@@ -88,6 +92,64 @@ final class BlameTest extends TestCase
         $this->editor->showDocument($this->project->path('a.txt'), new Document("one\ntwo\n"));
 
         return new BlameClient($this->project->dir);
+    }
+
+    public function testStashPushAndPopAnnounceTheWorkingTreeChanged(): void
+    {
+        // The verbs that proved emit(): they run git, flash git's own words,
+        // and put WorkingTreeChanged on the bus so the gutter stripe — this
+        // plugin's own, and anyone else's — knows the tree moved.
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit(name: 'tester', email: 't@t');
+        $this->project->commitAll('init');
+        $this->project->write('a.txt', "one\nCHANGED\n");
+
+        // Registered on the bus directly: on() is a REGISTRATION and refuses
+        // after the plugin is committed, which the rig has already done.
+        $announced = 0;
+        $this->events->addListener(WorkingTreeChanged::class, static function () use (&$announced): void {
+            ++$announced;
+        });
+
+        $stash = new Stash(new GitClient($this->project->dir), $api);
+        $stash->push();
+        $this->await(static function () use (&$announced): bool {
+            return $announced > 0;
+        }, what: 'the stash to announce itself');
+        $this->assertSame("one\ntwo\n", file_get_contents($this->project->path('a.txt')), 'the working tree really went back to the committed content');
+
+        $stash->pop();
+        $this->await(static function () use (&$announced): bool {
+            return $announced > 1;
+        }, what: 'the pop to announce itself');
+        $this->assertSame("one\nCHANGED\n", file_get_contents($this->project->path('a.txt')), 'and really came back');
+    }
+
+    public function testStashWithoutARepositorySaysSo(): void
+    {
+        $api = $this->api();
+        // No initGit: every run answers as a failure, so both verbs refuse.
+        $stash = new Stash(new GitClient($this->project->dir), $api);
+
+        $stash->push();
+        $this->assertStringContainsString('Git not available', $this->flashText($this->status));
+
+        $stash->pop();
+        $this->assertStringContainsString('Git not available', $this->flashText($this->status));
+    }
+
+    public function testAFailedPopReportsGitsOwnMessage(): void
+    {
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit();
+        $this->project->commitAll('init');
+
+        // Nothing stashed: git refuses and its stderr line is what shows.
+        new Stash(new GitClient($this->project->dir), $api)->pop();
+        $this->await(fn (): bool => '' !== $this->flashText($this->status), what: 'the failure to flash');
+        $this->assertStringNotContainsString('Stash popped', $this->flashText($this->status));
     }
 
     public function testBlameFileCoversCommittedDirtyAndMissingLines(): void
