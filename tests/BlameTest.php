@@ -18,6 +18,7 @@ use Porta\Plugin\Runtime\PluginSettings;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
+use Porta\Tests\Support\RecordingChangeMarkSink;
 use Porta\Tests\Support\RecordingDiagnosticsSink;
 use Porta\Tests\Support\RecordingFileOpener;
 use Porta\Tests\Support\StatusReads;
@@ -64,6 +65,7 @@ final class BlameTest extends TestCase
             $this->tui,
             new RecordingDiagnosticsSink(),
             $this->editor,
+            new RecordingChangeMarkSink(),
             $this->buffers = new BufferManager(),
             TestDockTools::controller(),
             TestDockTools::replacer(),
