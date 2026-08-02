@@ -12,6 +12,7 @@ use Porta\GitPlugin\BlameAnnotations;
 use Porta\GitPlugin\BlameClient;
 use Porta\GitPlugin\BlameLine;
 use Porta\GitPlugin\GitClient;
+use Porta\GitPlugin\IndexCommands;
 use Porta\GitPlugin\Stash;
 use Porta\I18n\Translator;
 use Porta\Plugin\Api\PluginApi;
@@ -92,6 +93,84 @@ final class BlameTest extends TestCase
         $this->editor->showDocument($this->project->path('a.txt'), new Document("one\ntwo\n"));
 
         return new BlameClient($this->project->dir);
+    }
+
+    public function testStagingTheOpenFileAnnouncesAndNamesItRelatively(): void
+    {
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit(name: 'tester', email: 't@t');
+        $this->project->commitAll('init');
+        $this->project->write('a.txt', "one\nCHANGED\n");
+        $this->buffers->open($this->project->path('a.txt'), "one\nCHANGED\n");
+
+        $announced = 0;
+        $this->events->addListener(WorkingTreeChanged::class, static function () use (&$announced): void {
+            ++$announced;
+        });
+
+        new IndexCommands(new GitClient($this->project->dir), $api)->stageCurrent();
+        $this->await(static function () use (&$announced): bool {
+            return $announced > 0;
+        }, what: 'the stage to announce itself');
+
+        $this->assertStringContainsString('a.txt', $this->flashText($this->status), 'the flash names the file');
+        $this->assertStringNotContainsString($this->project->dir, $this->flashText($this->status), 'relative to the project, not absolute');
+        $this->assertNotSame('', $this->project->git('diff', '--cached', '--name-only'), 'and it really staged');
+    }
+
+    public function testStagingWithNoFileOpenSaysSo(): void
+    {
+        $api = $this->api();
+        // No buffer opened, so activeFile() is null.
+        new IndexCommands(new GitClient($this->project->dir), $api)->stageCurrent();
+
+        $this->assertStringContainsString('Git not available', $this->flashText($this->status));
+    }
+
+    public function testUndoingTheLastCommitSoftResetsAndAnnounces(): void
+    {
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit(name: 'tester', email: 't@t');
+        $this->project->commitAll('init');
+        $this->project->write('a.txt', "one\nsecond\n");
+        $this->project->commitAll('second');
+
+        $announced = 0;
+        $this->events->addListener(WorkingTreeChanged::class, static function () use (&$announced): void {
+            ++$announced;
+        });
+
+        $index = new IndexCommands(new GitClient($this->project->dir), $api);
+        $index->undoLastCommit();
+        $this->await(static function () use (&$announced): bool {
+            return $announced > 0;
+        }, what: 'the undo to announce itself');
+        $this->assertSame('init', trim($this->project->git('log', '--format=%s')), 'the second commit is gone');
+        $this->assertNotSame('', $this->project->git('diff', '--cached', '--name-only'), 'and its changes are still staged');
+    }
+
+    public function testUndoingWithNothingToUndoSaysSo(): void
+    {
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit();
+        $this->project->commitAll('init'); // the root commit has no parent
+
+        new IndexCommands(new GitClient($this->project->dir), $api)->undoLastCommit();
+        $this->await(fn (): bool => '' !== $this->flashText($this->status), what: 'the refusal to flash');
+        $this->assertStringContainsString('Nothing to undo', $this->flashText($this->status));
+    }
+
+    public function testUndoingOutsideARepositorySaysSo(): void
+    {
+        $api = $this->api();
+        // No initGit: the runner answers every run as a failure, so the verb
+        // refuses before spawning anything.
+        new IndexCommands(new GitClient($this->project->dir), $api)->undoLastCommit();
+
+        $this->assertStringContainsString('Git not available', $this->flashText($this->status));
     }
 
     public function testStashPushAndPopAnnounceTheWorkingTreeChanged(): void

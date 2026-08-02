@@ -35,6 +35,34 @@ final class GitClient
     }
 
     /**
+     * Stage one file.
+     *
+     * @param callable(bool): void $onDone
+     */
+    public function stage(string $absPath, callable $onDone): void
+    {
+        $this->runner->runStatus(['add', '--', $absPath], static fn (int $code) => $onDone(0 === $code));
+    }
+
+    /**
+     * Undo the last commit, keeping its changes staged (`reset --soft`).
+     * Refused when HEAD has no parent — there is nothing to undo onto.
+     *
+     * @param callable(bool): void $onDone
+     */
+    public function undoLastCommit(callable $onDone): void
+    {
+        $this->runner->runStatus(['rev-parse', '--verify', 'HEAD~1'], function (int $code) use ($onDone): void {
+            if (0 !== $code) {
+                $onDone(false);
+
+                return;
+            }
+            $this->runner->runStatus(['reset', '--soft', 'HEAD~1'], static fn (int $c) => $onDone(0 === $c));
+        });
+    }
+
+    /**
      * Stash the working tree. Git's own stdout line is the message worth
      * showing — it covers the nothing-to-stash case in git's words.
      *

@@ -10,6 +10,7 @@ use Porta\GitPlugin\BlameClient;
 use Porta\GitPlugin\BlameLine;
 use Porta\GitPlugin\ChangeMarks;
 use Porta\GitPlugin\GitClient;
+use Porta\GitPlugin\IndexCommands;
 use Porta\GitPlugin\Stash;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
@@ -59,6 +60,10 @@ return new class('git') extends AbstractPlugin {
             '0' !== $this->coreSetting('gitGutterMarks'),
         );
         $stash = new Stash($git, $api);
+        $index = new IndexCommands($git, $api);
+        $api->adoptCommand('git_stage', $index->stageCurrent(...));
+        $api->adoptCommand('git_undo_commit', $index->undoLastCommit(...));
+
         $api->adoptCommand('git_stash', $stash->push(...));
         $api->adoptCommand('git_stash_pop', $stash->pop(...));
 
