@@ -11,6 +11,7 @@ use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\BlameAnnotations;
 use Porta\GitPlugin\BlameClient;
 use Porta\GitPlugin\BlameLine;
+use Porta\GitPlugin\ChangeMarks;
 use Porta\GitPlugin\GitClient;
 use Porta\GitPlugin\IndexCommands;
 use Porta\GitPlugin\Stash;
@@ -53,6 +54,7 @@ final class BlameTest extends TestCase
     private TempProject $project;
     private EventDispatcher $events;
     private BufferManager $buffers;
+    private RecordingChangeMarkSink $marks;
 
     private function api(): PluginApi
     {
@@ -70,7 +72,7 @@ final class BlameTest extends TestCase
             $this->tui,
             new RecordingDiagnosticsSink(),
             $this->editor,
-            new RecordingChangeMarkSink(),
+            $this->marks = new RecordingChangeMarkSink(),
             $this->buffers = new BufferManager(),
             TestDockTools::controller(),
             TestDockTools::replacer(),
@@ -126,6 +128,19 @@ final class BlameTest extends TestCase
         new IndexCommands(new GitClient($this->project->dir), $api)->stageCurrent();
 
         $this->assertStringContainsString('Git not available', $this->flashText($this->status));
+    }
+
+    public function testStagingOutsideARepositorySaysSo(): void
+    {
+        // A file IS open, so activeFile() is not null and only the availability
+        // check can refuse. Without this, deleting that check went unnoticed:
+        // the no-file-open test above flashes the SAME words by the other branch.
+        $api = $this->api();
+        $this->buffers->open($this->project->path('a.txt'), "one\n");
+
+        new IndexCommands(new GitClient($this->project->dir), $api)->stageCurrent();
+
+        $this->assertStringContainsString('Git not available', $this->flashText($this->status), 'refused before running anything');
     }
 
     public function testUndoingTheLastCommitSoftResetsAndAnnounces(): void
@@ -218,6 +233,28 @@ final class BlameTest extends TestCase
         $this->assertStringContainsString('Git not available', $this->flashText($this->status));
     }
 
+    public function testAFailedPushAnnouncesNothing(): void
+    {
+        // A repo with no initial commit: git is "available" (binary + .git), so
+        // the verb runs and fails outright — the one way to reach push's
+        // failure branch, since stashing with nothing to stash exits 0.
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit();
+        $this->project->write('a.txt', "one\nCHANGED\n");
+
+        $announced = 0;
+        $this->events->addListener(WorkingTreeChanged::class, static function () use (&$announced): void {
+            ++$announced;
+        });
+
+        new Stash(new GitClient($this->project->dir), $api)->push();
+        $this->await(fn (): bool => '' !== $this->flashText($this->status), what: 'the failure to flash');
+
+        $this->assertStringContainsString('Stash failed', $this->flashText($this->status));
+        $this->assertSame(0, $announced, 'nothing was stashed, so the tree did not move');
+    }
+
     public function testAFailedPopReportsGitsOwnMessage(): void
     {
         $api = $this->api();
@@ -226,9 +263,58 @@ final class BlameTest extends TestCase
         $this->project->commitAll('init');
 
         // Nothing stashed: git refuses and its stderr line is what shows.
+        $announced = 0;
+        $this->events->addListener(WorkingTreeChanged::class, static function () use (&$announced): void {
+            ++$announced;
+        });
+
         new Stash(new GitClient($this->project->dir), $api)->pop();
         $this->await(fn (): bool => '' !== $this->flashText($this->status), what: 'the failure to flash');
         $this->assertStringNotContainsString('Stash popped', $this->flashText($this->status));
+        $this->assertSame(0, $announced, 'a refused pop moved nothing, so it announced nothing');
+    }
+
+    public function testTheStripeSettingOffRunsNoDiffAtAll(): void
+    {
+        // gitGutterMarks, read once at activation. The second half is the
+        // control: without it this would pass just as well if the fixture were
+        // wrong and there were no marks to find either way.
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit(name: 'tester', email: 't@t');
+        $this->project->commitAll('init');
+        $this->project->write('a.txt', "one\nCHANGED\n");
+        $this->buffers->open($this->project->path('a.txt'), "one\nCHANGED\n");
+
+        new ChangeMarks(new GitClient($this->project->dir), $api, enabled: false)->refresh();
+        $this->pump(0.2); // a non-event: nothing is spawned, so there is nothing to await
+        $this->assertSame([], $this->marks->published, 'the setting off publishes nothing');
+
+        new ChangeMarks(new GitClient($this->project->dir), $api, enabled: true)->refresh();
+        $this->await(function (): bool {
+            return [] !== $this->marks->published;
+        }, what: 'the same fixture to publish once the setting is on');
+    }
+
+    public function testARefreshHonoursThePathItIsGivenOverTheActiveFile(): void
+    {
+        // The reload hook hands over the file that changed on disk, which need
+        // not be the one on screen. Publishing the ACTIVE file's marks instead
+        // would leave the reloaded file's stripe stale and nothing would say so.
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit(name: 'tester', email: 't@t');
+        $this->project->write('b.txt', "b one\n");
+        $this->project->commitAll('init');
+        $this->project->write('a.txt', "one\nCHANGED\n");
+        $this->buffers->open($this->project->path('b.txt'), "b one\n"); // b.txt is active
+
+        new ChangeMarks(new GitClient($this->project->dir), $api, enabled: true)->refresh($this->project->path('a.txt'));
+
+        $this->await(function (): bool {
+            return [] !== $this->marks->published;
+        }, what: 'the diff for the named file to publish');
+        $this->assertSame($this->project->path('a.txt'), $this->marks->published[0]['path'], 'published for the file it was handed');
     }
 
     public function testBlameFileCoversCommittedDirtyAndMissingLines(): void
