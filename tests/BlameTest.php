@@ -20,6 +20,7 @@ use Porta\Plugin\Api\PluginApi;
 use Porta\Plugin\Runtime\PluginManager;
 use Porta\Plugin\Runtime\PluginRuntime;
 use Porta\Plugin\Runtime\PluginSettings;
+use Porta\Support\Clipboard;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
@@ -34,6 +35,7 @@ use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\StatusBarWidget;
 use Porta\Workbench\Menu\MenuFileContext;
 use Porta\Workbench\Notifier;
+use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Tui;
 
@@ -78,6 +80,8 @@ final class BlameTest extends TestCase
             TestDockTools::replacer(),
             $this->editor,
             new MenuFileContext(),
+            new ViewRegistry(),
+            new Clipboard($this->tui),
         ));
         $api = new PluginApi('git', $manager, $this->project->dir, $settings);
         $manager->commit($api);
