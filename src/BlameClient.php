@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
-use Porta\Git\GitProcessRunner;
+use Porta\GitPlugin\GitProcessRunner;
 
 /**
  * Runs `git blame` for this plugin.

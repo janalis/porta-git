@@ -6,6 +6,8 @@ namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
+use Porta\Event\GitCommitted;
+use Porta\Event\GitRemoteCompleted;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
@@ -14,6 +16,8 @@ use Porta\Tests\Support\RunsIde;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
+use Porta\Workbench\View\ViewRegistry;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 
 /**
@@ -65,6 +69,50 @@ final class IdeGitPluginTest extends TestCase
                     ));
                     $this->assertCount(1, $git, 'the Git menu is built');
                     $this->assertContains('Git: Blame Current Line', array_map(static fn ($item): string => $item->label, $git[0]->items));
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testAFactRaisedOnThePluginBusReachesCoreListeners(): void
+    {
+        // The bridge, from the side that would actually break. The view
+        // dispatches GitCommitted on this plugin's OWN dispatcher — the code
+        // raising it cannot tell a core fact from an internal one — and every
+        // observer, including this plugin's own gutter, listens on core's.
+        // Nothing connects them but the forwarder in plugin.php; drop it and
+        // the marks stay stale after a commit, with no error anywhere.
+        $this->skipWithoutGit();
+        $project = self::repo();
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function ($tui, $terminal, $ide): void {
+                    $view = Services::resolve($ide, ViewRegistry::class)->find('git');
+                    self::assertNotNull($view, 'the git view registered');
+
+                    $seen = 0;
+                    Services::resolve($ide, EventDispatcherInterface::class)
+                        ->addListener(GitCommitted::class, static function () use (&$seen): void {
+                            ++$seen;
+                        });
+
+                    // The plugin's own bus, reached the way the widgets reach it.
+                    Probe::get($view, 'dispatcher')->dispatch(new GitCommitted());
+
+                    $this->assertSame(1, $seen, 'a core fact raised on the plugin bus arrived on core\'s');
+
+                    // And the other direction: a completed remote operation is
+                    // a fact ANYTHING may raise — a future VCS plugin, a hook —
+                    // so the view listens for it on core's bus rather than its
+                    // own. It has to survive arriving before the view is open,
+                    // which is the state here.
+                    Services::resolve($ide, EventDispatcherInterface::class)->dispatch(new GitRemoteCompleted('fetch', true));
+                    $this->assertFalse(Services::resolve($ide, ViewRegistry::class)->isOpen('git'), 'and a closed view took it without opening');
                 },
             ],
         );

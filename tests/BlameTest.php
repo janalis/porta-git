@@ -82,6 +82,8 @@ final class BlameTest extends TestCase
             new MenuFileContext(),
             new ViewRegistry(),
             new Clipboard($this->tui),
+            new StatusBarWidget(),
+            new CodeEditorWidget(),
         ));
         $api = new PluginApi('git', $manager, $this->project->dir, $settings);
         $manager->commit($api);

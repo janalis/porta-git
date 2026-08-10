@@ -1,0 +1,70 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Porta\GitPlugin;
+
+use Porta\Event\GitCommitted;
+use Porta\Event\GitRemoteCompleted;
+use Porta\Event\WorkingTreeChanged;
+
+/**
+ * Owns the branch indicator shown in the status bar, refreshed asynchronously
+ * through {@see GitInfo} on the shared event loop.
+ *
+ * Change marks used to live here too, and so did the branch cell's place in the
+ * status bar. Both are this plugin's now: the marks go out through
+ * `PluginApi::setChangeMarks()`, and the cell is an ordinary contributed
+ * segment. What is left here is when to ask git again — on a save, a commit, a
+ * completed remote operation, or anything that moved the working tree.
+ */
+final class GitRefresher
+{
+    private ?string $branch = null;
+
+    /** @param \Closure(): void $repaint tells the status bar its segment is stale */
+    public function __construct(
+        private readonly GitInfo $git,
+        private readonly \Closure $repaint,
+    ) {}
+
+    /** The branch indicator for the status bar (refreshed asynchronously). */
+    public function branch(): ?string
+    {
+        return $this->branch;
+    }
+
+    public function refreshBranch(): void
+    {
+        if (!$this->git->isAvailable()) {
+            return;
+        }
+        $this->git->branch(function (?string $branch): void {
+            $this->branch = $branch;
+            ($this->repaint)();
+        });
+    }
+
+    public function onGitRemoteCompleted(GitRemoteCompleted $event): void
+    {
+        // A fetch updates the remote-tracking state the branch segment reflects;
+        // a pull can move HEAD outright.
+        $this->refreshBranch();
+    }
+
+    /**
+     * Anything moved the working tree — a stash, a stage, an undo, and whoever
+     * did it. Core refreshes its own branch indicator rather than asking the
+     * mover to remember to, which is what lets a producer core knows nothing
+     * about keep the status bar honest.
+     */
+    public function onWorkingTreeChanged(WorkingTreeChanged $event): void
+    {
+        $this->refreshBranch();
+    }
+
+    public function onGitCommitted(GitCommitted $event): void
+    {
+        $this->refreshBranch();
+    }
+}
