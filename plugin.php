@@ -27,6 +27,7 @@ use Porta\GitPlugin\GitSettings;
 use Porta\GitPlugin\GitViewController;
 use Porta\GitPlugin\GitWiring;
 use Porta\GitPlugin\IndexCommands;
+use Porta\GitPlugin\LegacySettings;
 use Porta\GitPlugin\Modals;
 use Porta\GitPlugin\Stash;
 use Porta\GitPlugin\Translate;
@@ -87,17 +88,22 @@ return new class('git') extends AbstractPlugin {
     public function activate(PluginApi $api): void
     {
         $this->registerSettings($api);
-        $settings = new GitSettings([
-            'showBranch' => $api->setting('showBranch'),
-            'gutterMarks' => $api->setting('gutterMarks'),
-            'blameDefault' => $api->setting('blameDefault'),
-            'signCommits' => $api->setting('signCommits'),
-            'noVerify' => $api->setting('noVerify'),
-            'signoff' => $api->setting('signoff'),
-            'refreshInterval' => $api->setting('refreshInterval'),
-        ]);
-        $gitPath = (string) $api->setting('path');
         $root = $api->projectRoot();
+        // These eight were CORE settings until git became a plugin, keyed
+        // `gitShowBranch` and friends at the top level of `.porta.json`. A user
+        // who turned one off before the move keeps it off.
+        $legacy = new LegacySettings($root);
+        $settings = new GitSettings($legacy->seed($api->setting(...)));
+        $gitPath = $settings->path();
+        // Write whatever was adopted through, so the file stops answering the
+        // same question twice and the settings page shows what is in force.
+        // From onReady, because persisting is an IDE action and activate() may
+        // take none.
+        $api->onReady(static function () use ($api, $legacy): void {
+            foreach ($legacy->adoptions() as $key => $value) {
+                $api->changeSetting($key, $value);
+            }
+        });
 
         // Blame and the gutter stripe: they own no widget and no region, so
         // they were extractable long before the rest and are unchanged.

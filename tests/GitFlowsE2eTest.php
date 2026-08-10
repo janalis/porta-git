@@ -115,7 +115,8 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertSame(60, $tui->getById('git-tabs')->width(), 'the tab strip follows');
                     $this->assertSame(60, $tui->getById('git-commit')->width(), 'the commit box follows');
                     $layout = json_decode((string) file_get_contents($project->path('.porta/layout.json')), associative: true);
-                    $this->assertSame(38, $layout['gitSidebarWidthPercent'], 'saved as a percentage (round(60/160))');
+                    $this->assertSame(38, $layout['viewSidebarWidthPercent']['git'], 'saved as a percentage (round(60/160))');
+                    $this->assertArrayNotHasKey('gitSidebarWidthPercent', $layout, 'and the pre-move key is not rewritten');
                 },
             ],
         );

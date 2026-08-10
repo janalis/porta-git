@@ -226,4 +226,44 @@ final class IdeGitPluginTest extends TestCase
 
         $this->addToAssertionCount(1);
     }
+
+    public function testAProjectConfiguredBeforeTheMoveKeepsItsChoicesAndIsRewritten(): void
+    {
+        // The upgrade path, end to end: a `.porta.json` written when git was
+        // core, opened for the first time after it became a plugin. The value
+        // has to survive AND the file has to be rewritten, or it keeps
+        // answering the same question in two places and the settings page shows
+        // the default while the feature behaves otherwise.
+        $this->skipWithoutGit();
+        $project = new TempProject([
+            'src/A.php' => "<?php\n",
+            '.porta.json' => json_encode([
+                'enabledPlugins' => ['git'],
+                'settings' => [],
+                'gitShowBranch' => false,
+                'gitRefreshInterval' => 7,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        $project->initGit(name: 'tester', email: 't@t');
+        $project->commitAll('init');
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function (): void {
+                    $this->addToAssertionCount(1);
+                },
+            ],
+        );
+
+        $porta = json_decode((string) file_get_contents($project->path('.porta.json')), associative: true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($porta);
+        $this->assertFalse($porta['plugins']['git']['showBranch'], 'the pre-move choice was adopted');
+        $this->assertSame(7, $porta['plugins']['git']['refreshInterval']);
+        // The old keys are left where they are: this file is hand-editable and
+        // core skips them without warning (IdeConfig::LEGACY_SETTINGS), so
+        // rewriting a user\'s file further than needed would be the surprise.
+        $this->assertFalse($porta['gitShowBranch'], 'and the old key is not silently deleted');
+    }
 }

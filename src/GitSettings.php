@@ -15,8 +15,9 @@ namespace Porta\GitPlugin;
  * them, and a value re-read per render would still be right but a value cached
  * in six places would not.
  *
- * The git executable path is NOT here: it is consumed at construction by
- * {@see GitInfo}/{@see GitRemote} and is restart-required.
+ * The git executable path is here but read-only: it is consumed at construction
+ * by {@see GitInfo}/{@see GitRemote}, so changing it takes a restart and a
+ * setter would be a lie.
  */
 final class GitSettings
 {
@@ -27,6 +28,7 @@ final class GitSettings
     private bool $noVerify;
     private bool $signoff;
     private int $refreshInterval;
+    private readonly string $path;
 
     /** @param array<string, int|bool|string> $settings this plugin's resolved settings (defaults merged) */
     public function __construct(array $settings)
@@ -38,6 +40,13 @@ final class GitSettings
         $this->noVerify = (bool) ($settings['noVerify'] ?? false);
         $this->signoff = (bool) ($settings['signoff'] ?? false);
         $this->refreshInterval = max(1, (int) ($settings['refreshInterval'] ?? 2));
+        $this->path = (string) ($settings['path'] ?? '');
+    }
+
+    /** The configured `git` binary, or '' to discover one. Restart-required, so it has no setter. */
+    public function path(): string
+    {
+        return $this->path;
     }
 
     public function showBranch(): bool
