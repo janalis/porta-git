@@ -9,10 +9,15 @@ namespace Porta\GitPlugin;
  * exists.
  *
  * The plugin's two phases do not line up: `PluginApi` drains its buffers at
- * commit, so a command or a listener registered after that is refused — but the
- * view's factory runs after commit, because a view needs `ViewServices` and
- * those need the region core mints for it. Anything that has to reach the view
- * therefore has to be registered against a promise of one.
+ * commit, so a listener registered after that is refused — but the view's
+ * factory runs after commit, because a view needs `ViewServices` and those need
+ * the region core mints for it. A listener that has to reach the view is
+ * therefore registered against a promise of one.
+ *
+ * ONE listener needs this: `GitWiring::VIEW_CORE`, the controller's answer to
+ * core's `GitRemoteCompleted`. The toggle command used to need it too, to ask
+ * `isOpen()` before choosing open or close — `PluginApi::toggleView()` asks the
+ * registry instead, which is where the answer lived all along.
  *
  * A typed slot rather than a `use (&$view)` capture: the reference form works,
  * but the analyser narrows the captured variable to the `null` it holds at the

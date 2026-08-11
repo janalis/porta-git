@@ -196,12 +196,10 @@ return new class('git') extends AbstractPlugin {
         // fire on nothing until it does.
         $slot = new ViewSlot();
         // Toggle, not open: Ctrl+Alt+D has always closed the view it opened.
-        // The question goes to the view and the ACTION goes through the
-        // registry — calling `$view->toggle()` directly would skip the mutual
-        // exclusion that closes whatever other view owns the main area.
-        $api->adoptCommand('ide_git', static function () use ($slot, $api): void {
-            $slot->view?->isOpen() ?? false ? $api->closeView('git') : $api->openView('git');
-        });
+        // One call, because "is it open?" is the registry's question — asking
+        // it here would mean keeping the controller alive to read one bool,
+        // and the controller does not exist yet.
+        $api->adoptCommand('ide_git', static fn () => $api->toggleView('git'));
         foreach (GitWiring::VIEW_CORE as $event => $method) {
             $api->on($event, static function (PluginObservable $fact) use ($slot, $method): void {
                 // @mago-expect analysis:string-member-selector -- the method name comes from GitWiring, which GitListenerContractTest pins to a real one
