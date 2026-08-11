@@ -82,6 +82,35 @@ use Symfony\Component\Tui\Style\Style;
  * Outside a repository the plugin still loads and still registers blame's
  * verbs; it registers no view, no menu and no branch cell, so the chrome is
  * simply absent rather than present and dead.
+ *
+ * ## Where a class goes
+ *
+ * `src/` has `docs/internals/code-map.md` for this. No other plugin is large
+ * enough to need one; this one is four times the next biggest, so:
+ *
+ * - **the root** — what the plugin is from outside: `GitInfo`, the branch
+ *   segment, the menu, the refresher, the change marks, and the two value
+ *   objects both halves pass around. If core or the other half names it, it
+ *   belongs here.
+ * - **`Process/`** — subprocesses and their tracking. A `ProcessLane` is a
+ *   cancellation scope, NOT a queue: nothing serialises, and the two lanes
+ *   exist because "Cancel Remote Operation" must stop a fetch without stopping
+ *   the status poll.
+ * - **`Parse/`** — git's output in, values out. Pure functions; a parser that
+ *   needs a collaborator is in the wrong tier.
+ * - **`Diff/`** — the diff model and the algorithms over it. Render geometry
+ *   (`DiffColumn`, `DiffGeometry`, `DiffCharSelection`) is in `Widget/`,
+ *   because it is about columns on a screen rather than about a diff.
+ * - **`View/`** — everything that only exists while the view is open.
+ * - **`Command/`** — the verbs the palette, the menu and the context menus
+ *   name, plus their modes. Two command objects on purpose: the view's and the
+ *   editor half's, which works without a view.
+ * - **`Blame/`**, **`Setting/`** — one feature each.
+ * - **`Support/`** — the closure shims (`Flash`, `Modals`, `Translate`) and
+ *   `ViewSlot`. Nothing here is git; each is a core service a plugin cannot
+ *   hold, behind the method name its call sites already used.
+ * - **`Widget/`**, **`Event/`** — as in `src/`: things that render, and values
+ *   that travel on the dispatcher above.
  */
 return new class('git') extends AbstractPlugin {
     public function activate(PluginApi $api): void
