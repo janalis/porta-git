@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\Widget;
 
 use PHPUnit\Framework\TestCase;
-use Porta\GitPlugin\CommitMode;
+use Porta\GitPlugin\Command\CommitMode;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\RendersWidget;

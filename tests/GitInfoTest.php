@@ -6,8 +6,8 @@ namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\GitInfo;
-use Porta\GitPlugin\GitSettings;
-use Porta\GitPlugin\HunkParser;
+use Porta\GitPlugin\Parse\HunkParser;
+use Porta\GitPlugin\Setting\GitSettings;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PumpsLoop;

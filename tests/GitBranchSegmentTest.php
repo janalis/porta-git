@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\GitBranchSegment;
-use Porta\GitPlugin\GitCommands;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
-use Porta\GitPlugin\GitSettings;
+use Porta\GitPlugin\Setting\GitSettings;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\Probe;

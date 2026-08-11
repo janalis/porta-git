@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Widget;
 
-use Porta\GitPlugin\DiffDocument;
-use Porta\GitPlugin\DiffRowKind;
+use Porta\GitPlugin\Diff\DiffDocument;
+use Porta\GitPlugin\Diff\DiffRowKind;
 use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
 use Porta\GitPlugin\Event\GitDiffCopyRequested;
 use Porta\GitPlugin\Event\GitDiffLayoutToggled;

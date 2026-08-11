@@ -6,10 +6,10 @@ namespace Porta\GitPlugin\Tests\Support;
 
 use Porta\Editor\BufferManager;
 use Porta\Editor\EditorPanes;
-use Porta\GitPlugin\DiffPrefs;
-use Porta\GitPlugin\Flash;
-use Porta\GitPlugin\Modals;
-use Porta\GitPlugin\Translate;
+use Porta\GitPlugin\Setting\DiffPrefs;
+use Porta\GitPlugin\Support\Flash;
+use Porta\GitPlugin\Support\Modals;
+use Porta\GitPlugin\Support\Translate;
 use Porta\I18n\Translator;
 use Porta\Layout\DiffLayout;
 use Porta\Layout\EditorAreaPanes;

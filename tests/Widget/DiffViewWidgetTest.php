@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\Widget;
 
 use PHPUnit\Framework\TestCase;
-use Porta\GitPlugin\DiffDocument;
+use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\I18n\Translator;

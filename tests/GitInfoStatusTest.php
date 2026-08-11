@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Porta\GitPlugin\CommitMode;
+use Porta\GitPlugin\Command\CommitMode;
+use Porta\GitPlugin\Diff\WhitespaceMode;
 use Porta\GitPlugin\GitInfo;
-use Porta\GitPlugin\WhitespaceMode;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PumpsLoop;

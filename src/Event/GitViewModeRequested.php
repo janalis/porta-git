@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Event;
 
-use Porta\GitPlugin\GitViewMode;
+use Porta\GitPlugin\View\GitViewMode;
 
 /**
  * Show the Changes or History side of the git view.

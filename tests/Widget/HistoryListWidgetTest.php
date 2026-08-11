@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\Widget;
 
 use PHPUnit\Framework\TestCase;
+use Porta\GitPlugin\Command\GitRemoteOperation;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
-use Porta\GitPlugin\GitRemoteOperation;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\HistoryListWidget;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Event;
 
-use Porta\GitPlugin\GitRemoteOperation;
+use Porta\GitPlugin\Command\GitRemoteOperation;
 
 /** A git pane asked for fetch, pull or push. */
 final readonly class GitRemoteRequested

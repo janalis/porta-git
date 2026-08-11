@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Widget;
 
-use Porta\GitPlugin\CommitMode;
+use Porta\GitPlugin\Command\CommitMode;
 use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
 use Porta\Ui\CaretVisibility;

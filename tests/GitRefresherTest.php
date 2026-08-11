@@ -11,7 +11,7 @@ use Porta\Event\GitRemoteCompleted;
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
-use Porta\GitPlugin\GitSettings;
+use Porta\GitPlugin\Setting\GitSettings;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Presence;
 use Porta\Tests\Support\PumpsLoop;

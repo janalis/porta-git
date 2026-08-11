@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
+use Porta\GitPlugin\Command\GitCommands;
+use Porta\GitPlugin\Setting\GitSettings;
+use Porta\GitPlugin\Support\Translate;
 use Porta\Ui\Glyphs;
 use Porta\Workbench\Menu\MenuItem;
 use Porta\Workbench\StatusCell;

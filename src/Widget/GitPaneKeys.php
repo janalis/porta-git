@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Widget;
 
+use Porta\GitPlugin\Command\GitRemoteOperation;
 use Porta\GitPlugin\Event\GitRemoteRequested;
-use Porta\GitPlugin\GitRemoteOperation;
 use Porta\Widget\PaneNavigationCallbacks;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Input\Keybindings;

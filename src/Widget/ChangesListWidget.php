@@ -9,7 +9,7 @@ use Porta\GitPlugin\Event\GitChangeDiscardRequested;
 use Porta\GitPlugin\Event\GitChangeSelected;
 use Porta\GitPlugin\Event\GitChangeStageToggleRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
-use Porta\GitPlugin\GitViewMode;
+use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
 use Porta\Ui\Glyphs;

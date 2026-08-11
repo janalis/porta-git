@@ -6,7 +6,7 @@ namespace Porta\GitPlugin\Tests\Widget;
 
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Event\GitViewModeRequested;
-use Porta\GitPlugin\GitViewMode;
+use Porta\GitPlugin\View\GitViewMode;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\I18n\Translator;
 use Symfony\Component\EventDispatcher\EventDispatcher;

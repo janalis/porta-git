@@ -4,6 +4,17 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
+use Porta\GitPlugin\Command\CommitMode;
+use Porta\GitPlugin\Command\Stash;
+use Porta\GitPlugin\Diff\WhitespaceMode;
+use Porta\GitPlugin\Parse\BranchParser;
+use Porta\GitPlugin\Parse\HunkParser;
+use Porta\GitPlugin\Parse\LogParser;
+use Porta\GitPlugin\Parse\StatusParser;
+use Porta\GitPlugin\Process\GitProcesses;
+use Porta\GitPlugin\Process\GitProcessRunner;
+use Porta\GitPlugin\Process\ProcessLane;
+use Porta\GitPlugin\Setting\GitSettings;
 use Porta\Support\Outcome;
 
 /**

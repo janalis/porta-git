@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Widget;
 
 use Porta\GitPlugin\Event\GitViewModeRequested;
-use Porta\GitPlugin\GitViewMode;
+use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
 use Porta\Ui\Role;

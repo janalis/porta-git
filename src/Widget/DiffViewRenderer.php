@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Widget;
 
-use Porta\GitPlugin\DiffDocument;
-use Porta\GitPlugin\DiffLine;
-use Porta\GitPlugin\DiffRowKind;
+use Porta\GitPlugin\Diff\DiffDocument;
+use Porta\GitPlugin\Diff\DiffLine;
+use Porta\GitPlugin\Diff\DiffRowKind;
 use Porta\Support\AnsiText;
 use Porta\Ui\Glyphs;
 use Porta\Ui\Role;
