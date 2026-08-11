@@ -20,9 +20,6 @@ use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
-use Porta\GitPlugin\GitContextMenus;
-use Porta\GitPlugin\GitMouseRouter;
-use Porta\GitPlugin\GitSidebar;
 use Porta\I18n\Translator;
 use Porta\Layout\DiffLayout;
 use Porta\Layout\ViewRegion;
@@ -34,7 +31,6 @@ use Porta\Workbench\View\ViewPointer;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Revolt\EventLoop;
 use Symfony\Component\Tui\Widget\AbstractWidget;
-use Symfony\Component\Tui\Widget\ContainerWidget;
 use Symfony\Component\Tui\Widget\FocusableInterface;
 
 /**

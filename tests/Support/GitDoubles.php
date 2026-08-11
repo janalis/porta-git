@@ -77,7 +77,7 @@ final class GitDoubles
     {
         return new Modals(
             $editor->openListOverlay(...),
-            static fn (string $label, string $initial, \Closure $onSubmit) => $editor->openPrompt($label, $initial, $onSubmit),
+            $editor->openPrompt(...),
             $editor->getFilePath(...),
         );
     }

@@ -12,13 +12,10 @@ use Porta\GitPlugin\GitRefresher;
 use Porta\GitPlugin\GitSettings;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\I18n\Translator;
-use Porta\Support\Clipboard;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\TestTui;
 use Porta\Widget\CodeEditorWidget;
-use Porta\Widget\StatusBarWidget;
-use Porta\Workbench\Notifier;
 use Porta\Workbench\StatusTone;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 

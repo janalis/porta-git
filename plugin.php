@@ -37,7 +37,6 @@ use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
-use Porta\Overlay\State\ToastSeverity;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Workbench\View\ViewServices;
@@ -123,14 +122,10 @@ return new class('git') extends AbstractPlugin {
 
         // Deferred on purpose: PluginApi refuses every IDE action during
         // activate(), so each of these is a closure the callers invoke later.
-        $flash = new Flash(static fn (string $m, ToastSeverity $s, float $secs) => $api->notify($m, $s, $secs));
-        $modals = new Modals(
-            static fn (string $t, array $items, \Closure $onPick) => $api->pick($t, $items, $onPick),
-            static fn (string $l, string $initial, \Closure $onSubmit) => $api->prompt($l, $initial, $onSubmit),
-            static fn (): ?string => $api->activeFile(),
-        );
-        $repaint = static fn () => $api->refreshStatusSegments();
-        $trans = new Translate(static fn (string $id, array $params = []): string => $api->trans($id, $params));
+        $flash = new Flash($api->notify(...));
+        $modals = new Modals($api->pick(...), $api->prompt(...), $api->activeFile(...));
+        $repaint = $api->refreshStatusSegments(...);
+        $trans = new Translate($api->trans(...));
         $events = new EventDispatcher();
         // Three of the events this plugin dispatches are CORE facts —
         // `PluginObservable`, the frozen set anything may observe — and they go
@@ -213,9 +208,7 @@ return new class('git') extends AbstractPlugin {
                 $slot->view?->{$method}($fact);
             });
         }
-        $api->registerView('git', function (ViewServices $services) use ($slot, $api, $git, $settings, $events, $flash, $commands, $remote): GitViewController {
-            return $slot->view = $this->buildView($api, $services, $git, $settings, $events, $flash, $commands, $remote);
-        });
+        $api->registerView('git', fn (ViewServices $services): GitViewController => $slot->view = $this->buildView($api, $services, $git, $settings, $events, $flash, $commands, $remote));
 
         $api->onReady($refresher->refreshBranch(...));
         $api->onShutdown($git->cancelAll(...));
@@ -373,6 +366,9 @@ return new class('git') extends AbstractPlugin {
         $api->onFileReloaded($marks->refresh(...));
         $api->onBufferSwitched($marks->refresh(...));
         // A commit, a stash, a pull: whatever moved, the marks are stale.
+        // Not `$marks->refresh(...)`, which mago suggests and which would be a
+        // TypeError: refresh() takes an optional ?string $path, so the event
+        // object would land in it.
         $api->on(WorkingTreeChanged::class, static fn () => $marks->refresh());
         $api->on(GitCommitted::class, static fn () => $marks->refresh());
         $api->on(GitRemoteCompleted::class, static fn () => $marks->refresh());

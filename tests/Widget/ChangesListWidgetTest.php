@@ -15,7 +15,6 @@ use Porta\I18n\Translator;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RendersWidget;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 
 final class ChangesListWidgetTest extends TestCase

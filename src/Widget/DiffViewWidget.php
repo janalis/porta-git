@@ -11,7 +11,6 @@ use Porta\GitPlugin\Event\GitDiffCopyRequested;
 use Porta\GitPlugin\Event\GitDiffLayoutToggled;
 use Porta\GitPlugin\Event\GitDiffStagingRequested;
 use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
-use Porta\GitPlugin\Widget\DiffViewRenderer;
 use Porta\Highlight\CodeHighlighter;
 use Porta\Highlight\DarkTerminalTheme;
 use Porta\Highlight\TempestHighlightProvider;

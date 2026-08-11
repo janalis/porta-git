@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
-use Porta\GitPlugin\HunkParser;
 use Porta\Plugin\Api\PluginApi;
 
 /**

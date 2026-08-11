@@ -17,10 +17,7 @@ use Porta\Tests\Support\Presence;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
 use Porta\Widget\CodeEditorWidget;
-use Porta\Widget\StatusBarWidget;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\Tui\Terminal\VirtualTerminal;
-use Symfony\Component\Tui\Tui;
 
 /** Real git repo, virtual terminal — mirrors GitViewControllerTest's setup. */
 final class GitRefresherTest extends TestCase

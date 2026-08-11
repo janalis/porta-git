@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
-use Porta\GitPlugin\ChangeEntry;
-use Porta\GitPlugin\GitCommands;
-use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;

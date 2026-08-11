@@ -20,16 +20,7 @@ use Porta\Tests\Support\TestTui;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\StatusBarWidget;
 use Porta\Workbench\Notifier;
-use Porta\Workbench\View\ViewRegistry;
-use Revolt\EventLoop;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\Tui\Ansi\AnsiUtils;
-use Symfony\Component\Tui\Input\Keybindings;
-use Symfony\Component\Tui\Render\RenderContext;
-use Symfony\Component\Tui\Render\Renderer;
-use Symfony\Component\Tui\Style\StyleSheet;
-use Symfony\Component\Tui\Terminal\VirtualTerminal;
-use Symfony\Component\Tui\Tui;
 
 final class GitRemoteCommandsTest extends TestCase
 {

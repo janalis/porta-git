@@ -8,7 +8,6 @@ use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitSelected;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitViewModeRequested;
-use Porta\GitPlugin\GitMouseRouter;
 use Porta\GitPlugin\GitViewMode;
 use Porta\GitPlugin\LogEntry;
 use Porta\I18n\Translator;

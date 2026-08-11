@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
-use Porta\GitPlugin\GitProcessRunner;
-use Porta\GitPlugin\HunkParser;
 use Porta\Support\Outcome;
 
 /**

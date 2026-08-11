@@ -11,7 +11,6 @@ use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
-use Revolt\EventLoop;
 
 /**
  * Drives GitRemote against purely local remotes: a bare repository plus two

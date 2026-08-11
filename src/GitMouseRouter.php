@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
-use Porta\GitPlugin\GitViewMode;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
@@ -19,7 +18,6 @@ use Porta\Workbench\View\ViewHost;
 use Porta\Workbench\View\ViewPointer;
 use Porta\Workbench\View\WheelAxis;
 use Porta\Workbench\View\WheelGesture;
-use Symfony\Component\Tui\Render\WidgetRect;
 
 /**
  * Mouse routing for the git view's panes — the changes list, commit box,

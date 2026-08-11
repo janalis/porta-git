@@ -12,7 +12,6 @@ use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
-use Revolt\EventLoop;
 
 /**
  * The recount spec, both pure (exact patch text) and as real-git round trips:

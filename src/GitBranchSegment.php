@@ -46,7 +46,7 @@ final readonly class GitBranchSegment
         return new StatusCell(
             Glyphs::STATUS_BRANCH." {$branch}",
             StatusTone::Accent,
-            fn (): array => $this->branchItems(),
+            $this->branchItems(...),
         );
     }
 
