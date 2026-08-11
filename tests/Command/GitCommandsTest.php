@@ -329,8 +329,8 @@ final class GitCommandsTest extends TestCase
         $commands = $this->commands(['a.txt' => "one\n"]);
         $this->openInEditor('a.txt', "one\n");
 
-        // WorkspaceViews has no git controller here, so this is a no-op — but
-        // it must reach that branch without flashing "unavailable".
+        // No view is registered in this rig, so `openView('git')` is a no-op —
+        // but the verb must reach that branch without flashing "unavailable".
         $commands->fileHistory();
         $this->drain(); // likewise: the assertion below is that NOTHING flashed
 
