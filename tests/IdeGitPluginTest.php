@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
+use Porta\Plugin\Lifecycle\PluginLifecycle;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
@@ -16,6 +17,7 @@ use Porta\Tests\Support\RunsIde;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
+use Porta\Ui\Glyphs;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
@@ -265,5 +267,147 @@ final class IdeGitPluginTest extends TestCase
         // core skips them without warning (IdeConfig::LEGACY_SETTINGS), so
         // rewriting a user\'s file further than needed would be the surprise.
         $this->assertFalse($porta['gitShowBranch'], 'and the old key is not silently deleted');
+    }
+
+    public function testTogglingTheGutterSettingAppliesWithoutARestart(): void
+    {
+        // These two were LIVE toggles while git was core, applied by
+        // SettingsGitController. A plugin reads its settings once at
+        // activate(), so without `PluginApi::onSettingChanged()` they would
+        // both have become restart-required — and the failure is the worst
+        // kind: the row flips, the file is written, and nothing happens.
+        $this->skipWithoutGit();
+        $project = self::repo();
+        $project->write('src/A.php', "<?php\n\$a = 999;\n");
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function ($tui, $terminal, $ide): void {
+                    $editor = $tui->getById('editor');
+                    $joined = static fn (): string => implode('', $editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)));
+                    $this->await(static fn (): bool => str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
+
+                    // The seam the Settings page reaches once it has written
+                    // the value. The write itself is `SettingsPluginsController`'s
+                    // and is pinned in its own test; what is unproven without
+                    // this is that the plugin ACTS on being told.
+                    Services::resolve($ide, PluginLifecycle::class)->onPluginSettingChanged('git', 'gutterMarks', false);
+                    $tui->tick();
+
+                    $this->assertStringNotContainsString("\x1b[38;5;75m┆", $joined(), 'the strip went, and took the marks with it');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testEveryOtherSettingReachesTheHolderTheReadersShare(): void
+    {
+        // The five that apply on the NEXT action rather than on screen — a
+        // commit reads `signoff` when it commits, the poll reads the interval
+        // when it next fires. Nothing about them is visible, which is exactly
+        // why a test has to say so: an arm dropped from the match here looks
+        // identical to one that works until someone tries to sign a commit.
+        //
+        // `path` is the control, and the assertion has to be that it changes
+        // NOTHING — not that `path()` is unchanged, which is a tautology since
+        // it has no setter. The binary is baked into a process runner at
+        // construction; the match's default arm exists to say so.
+        $this->skipWithoutGit();
+        $project = self::repo();
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function ($tui, $terminal, $ide): void {
+                    $view = Services::resolve($ide, ViewRegistry::class)->find('git');
+                    self::assertNotNull($view);
+                    $settings = Probe::get($view, 'gitSettings');
+                    $lifecycle = Services::resolve($ide, PluginLifecycle::class);
+
+                    foreach ([
+                        'blameDefault' => true,
+                        'signCommits' => true,
+                        'noVerify' => true,
+                        'signoff' => true,
+                        'refreshInterval' => 9,
+                    ] as $key => $value) {
+                        $lifecycle->onPluginSettingChanged('git', $key, $value);
+                    }
+
+                    $this->assertTrue($settings->blameDefault());
+                    $this->assertTrue($settings->signCommits());
+                    $this->assertTrue($settings->noVerify());
+                    $this->assertTrue($settings->signoff());
+                    $this->assertSame(9, $settings->refreshInterval());
+
+                    // The control, and it has to start from the value an
+                    // unhandled key would OVERWRITE: every holder is truthy by
+                    // default, so a default arm that wrongly applied
+                    // `path => '/opt/git'` would be invisible against them.
+                    $lifecycle->onPluginSettingChanged('git', 'showBranch', false);
+                    $lifecycle->onPluginSettingChanged('git', 'gutterMarks', false);
+                    $before = [
+                        $settings->showBranch(),
+                        $settings->gutterMarks(),
+                        $settings->blameDefault(),
+                        $settings->signCommits(),
+                        $settings->noVerify(),
+                        $settings->signoff(),
+                        $settings->refreshInterval(),
+                        $settings->path(),
+                    ];
+                    $lifecycle->onPluginSettingChanged('git', 'path', '/opt/git');
+                    $lifecycle->onPluginSettingChanged('git', 'diffSplit', true);
+                    $after = [
+                        $settings->showBranch(),
+                        $settings->gutterMarks(),
+                        $settings->blameDefault(),
+                        $settings->signCommits(),
+                        $settings->noVerify(),
+                        $settings->signoff(),
+                        $settings->refreshInterval(),
+                        $settings->path(),
+                    ];
+
+                    $this->assertSame([false, false], [$before[0], $before[1]], 'the two live toggles are off before the control');
+                    $this->assertSame($before, $after, 'a key the match does not name changes nothing');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testTogglingTheBranchSettingHidesTheCellWithoutARestart(): void
+    {
+        $this->skipWithoutGit();
+        $project = self::repo();
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function ($tui, $terminal, $ide): void {
+                    // Read off the TERMINAL, not the widget: the cell is pulled
+                    // by the status bar's provider during a real frame, and a
+                    // bare render() of the widget re-uses its cached line.
+                    $shown = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
+                    $this->await(static fn (): bool => str_contains($shown(), Glyphs::STATUS_BRANCH), what: 'the branch to resolve');
+
+                    Services::resolve($ide, PluginLifecycle::class)->onPluginSettingChanged('git', 'showBranch', false);
+                    $terminal->clearOutput();
+                    $this->frame($tui);
+
+                    $this->assertStringNotContainsString(Glyphs::STATUS_BRANCH, $shown(), 'the cell is gone on the next frame');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
     }
 }

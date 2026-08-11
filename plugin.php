@@ -161,6 +161,39 @@ return new class('git') extends AbstractPlugin {
         $branch = new GitBranchSegment($refresher, $settings, $commands, $trans);
         $api->registerStatusSegment($branch->statusCell(...));
 
+        // The settings page writes the value; this is what makes it visible
+        // without a restart. Two apply LIVE, and they are the two a user
+        // toggles to see what happens: the branch cell and the gutter stripe.
+        // The rest only have to reach the holder, because every reader of them
+        // reads at the moment it acts — a commit reads signoff when it commits.
+        // `path` is absent on purpose: it is baked into a process runner at
+        // construction, so a setter would be a lie and the row says so.
+        $api->onSettingChanged(static function (string $key, bool|int|string $value) use ($api, $settings, $repaint): void {
+            // The holder first, always: every reader takes its value from here
+            // at the moment it acts, so a commit picks up `signoff` on the next
+            // commit without anything else happening.
+            match ($key) {
+                'showBranch' => $settings->setShowBranch((bool) $value),
+                'gutterMarks' => $settings->setGutterMarks((bool) $value),
+                'blameDefault' => $settings->setBlameDefault((bool) $value),
+                'signCommits' => $settings->setSignCommits((bool) $value),
+                'noVerify' => $settings->setNoVerify((bool) $value),
+                'signoff' => $settings->setSignoff((bool) $value),
+                'refreshInterval' => $settings->setRefreshInterval((int) $value),
+                default => null, // path, and the two diff toggles the view writes itself
+            };
+            // Then the two that also have to SHOW immediately, which are the
+            // two a user toggles to see what happens. The branch cell is pulled
+            // per render, so it only needs the bar told it is stale; the gutter
+            // strip is a layout width, so it needs the verb.
+            if ('showBranch' === $key) {
+                $repaint();
+            }
+            if ('gutterMarks' === $key) {
+                $api->showChangeMarkGutter((bool) $value);
+            }
+        });
+
         // The view is built LATER — its factory runs once, after plugins have
         // committed — but every listener has to be registered now, because the
         // buffer is drained at commit and a later `on()` is refused. So the
@@ -294,7 +327,7 @@ return new class('git') extends AbstractPlugin {
     private function registerSettings(PluginApi $api): void
     {
         $api->registerSetting('showBranch', 'Show branch in status bar', 'bool', true);
-        $api->registerSetting('gutterMarks', 'Change marks in the gutter', 'bool', true, hint: 'applies on restart');
+        $api->registerSetting('gutterMarks', 'Change marks in the gutter', 'bool', true);
         $api->registerSetting('blameDefault', 'Show blame annotations by default', 'bool', false);
         $api->registerSetting('signCommits', 'Sign commits (GPG)', 'bool', false);
         $api->registerSetting('noVerify', 'Skip commit hooks (--no-verify)', 'bool', false);
@@ -333,10 +366,7 @@ return new class('git') extends AbstractPlugin {
         $api->adoptCommand('git_stash_pop', $stash->pop(...));
 
         // From onReady, not here: PluginApi refuses every IDE action during
-        // activate(). Restart-required, like the git path — the strip's width
-        // is baked into every rendered row, so flipping it mid-session would
-        // mean re-laying out every open buffer for a setting nobody toggles
-        // twice.
+        // activate().
         $api->onReady(static fn () => $api->showChangeMarkGutter($settings->gutterMarks()));
         $api->onFileOpened($marks->refresh(...));
         $api->onFileSaved($marks->refresh(...));
