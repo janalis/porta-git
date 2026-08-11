@@ -12,7 +12,7 @@ use Porta\GitPlugin\BlameAnnotations;
 use Porta\GitPlugin\BlameClient;
 use Porta\GitPlugin\BlameLine;
 use Porta\GitPlugin\ChangeMarks;
-use Porta\GitPlugin\GitClient;
+use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\IndexCommands;
 use Porta\GitPlugin\Stash;
 use Porta\I18n\Translator;
@@ -117,7 +117,7 @@ final class BlameTest extends TestCase
             ++$announced;
         });
 
-        new IndexCommands(new GitClient($this->project->dir), $api)->stageCurrent();
+        new IndexCommands(new GitInfo($this->project->dir), $api)->stageCurrent();
         $this->await(static function () use (&$announced): bool {
             return $announced > 0;
         }, what: 'the stage to announce itself');
@@ -131,7 +131,7 @@ final class BlameTest extends TestCase
     {
         $api = $this->api();
         // No buffer opened, so activeFile() is null.
-        new IndexCommands(new GitClient($this->project->dir), $api)->stageCurrent();
+        new IndexCommands(new GitInfo($this->project->dir), $api)->stageCurrent();
 
         $this->assertStringContainsString('Git not available', $this->flashText($this->status));
     }
@@ -144,7 +144,7 @@ final class BlameTest extends TestCase
         $api = $this->api();
         $this->buffers->open($this->project->path('a.txt'), "one\n");
 
-        new IndexCommands(new GitClient($this->project->dir), $api)->stageCurrent();
+        new IndexCommands(new GitInfo($this->project->dir), $api)->stageCurrent();
 
         $this->assertStringContainsString('Git not available', $this->flashText($this->status), 'refused before running anything');
     }
@@ -163,7 +163,7 @@ final class BlameTest extends TestCase
             ++$announced;
         });
 
-        $index = new IndexCommands(new GitClient($this->project->dir), $api);
+        $index = new IndexCommands(new GitInfo($this->project->dir), $api);
         $index->undoLastCommit();
         $this->await(static function () use (&$announced): bool {
             return $announced > 0;
@@ -179,7 +179,7 @@ final class BlameTest extends TestCase
         $this->project->initGit();
         $this->project->commitAll('init'); // the root commit has no parent
 
-        new IndexCommands(new GitClient($this->project->dir), $api)->undoLastCommit();
+        new IndexCommands(new GitInfo($this->project->dir), $api)->undoLastCommit();
         $this->await(fn (): bool => '' !== $this->flashText($this->status), what: 'the refusal to flash');
         $this->assertStringContainsString('Nothing to undo', $this->flashText($this->status));
     }
@@ -189,7 +189,7 @@ final class BlameTest extends TestCase
         $api = $this->api();
         // No initGit: the runner answers every run as a failure, so the verb
         // refuses before spawning anything.
-        new IndexCommands(new GitClient($this->project->dir), $api)->undoLastCommit();
+        new IndexCommands(new GitInfo($this->project->dir), $api)->undoLastCommit();
 
         $this->assertStringContainsString('Git not available', $this->flashText($this->status));
     }
@@ -212,7 +212,7 @@ final class BlameTest extends TestCase
             ++$announced;
         });
 
-        $stash = new Stash(new GitClient($this->project->dir), $api);
+        $stash = new Stash(new GitInfo($this->project->dir), $api);
         $stash->push();
         $this->await(static function () use (&$announced): bool {
             return $announced > 0;
@@ -230,7 +230,7 @@ final class BlameTest extends TestCase
     {
         $api = $this->api();
         // No initGit: every run answers as a failure, so both verbs refuse.
-        $stash = new Stash(new GitClient($this->project->dir), $api);
+        $stash = new Stash(new GitInfo($this->project->dir), $api);
 
         $stash->push();
         $this->assertStringContainsString('Git not available', $this->flashText($this->status));
@@ -254,7 +254,7 @@ final class BlameTest extends TestCase
             ++$announced;
         });
 
-        new Stash(new GitClient($this->project->dir), $api)->push();
+        new Stash(new GitInfo($this->project->dir), $api)->push();
         $this->await(fn (): bool => '' !== $this->flashText($this->status), what: 'the failure to flash');
 
         $this->assertStringContainsString('Stash failed', $this->flashText($this->status));
@@ -274,7 +274,7 @@ final class BlameTest extends TestCase
             ++$announced;
         });
 
-        new Stash(new GitClient($this->project->dir), $api)->pop();
+        new Stash(new GitInfo($this->project->dir), $api)->pop();
         $this->await(fn (): bool => '' !== $this->flashText($this->status), what: 'the failure to flash');
         $this->assertStringNotContainsString('Stash popped', $this->flashText($this->status));
         $this->assertSame(0, $announced, 'a refused pop moved nothing, so it announced nothing');
@@ -292,11 +292,11 @@ final class BlameTest extends TestCase
         $this->project->write('a.txt', "one\nCHANGED\n");
         $this->buffers->open($this->project->path('a.txt'), "one\nCHANGED\n");
 
-        new ChangeMarks(new GitClient($this->project->dir), $api, enabled: false)->refresh();
+        new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: false)->refresh();
         $this->pump(0.2); // a non-event: nothing is spawned, so there is nothing to await
         $this->assertSame([], $this->marks->published, 'the setting off publishes nothing');
 
-        new ChangeMarks(new GitClient($this->project->dir), $api, enabled: true)->refresh();
+        new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: true)->refresh();
         $this->await(function (): bool {
             return [] !== $this->marks->published;
         }, what: 'the same fixture to publish once the setting is on');
@@ -315,7 +315,7 @@ final class BlameTest extends TestCase
         $this->project->write('a.txt', "one\nCHANGED\n");
         $this->buffers->open($this->project->path('b.txt'), "b one\n"); // b.txt is active
 
-        new ChangeMarks(new GitClient($this->project->dir), $api, enabled: true)->refresh($this->project->path('a.txt'));
+        new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: true)->refresh($this->project->path('a.txt'));
 
         $this->await(function (): bool {
             return [] !== $this->marks->published;

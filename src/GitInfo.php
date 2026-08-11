@@ -17,12 +17,18 @@ final class GitInfo
 {
     private readonly GitProcessRunner $runner;
 
+    /**
+     * $lane is optional and TRAILING so direct construction keeps working;
+     * `plugin.php` passes {@see GitProcesses::$general}, which is what puts
+     * these processes inside the one shutdown and the one completion barrier.
+     */
     public function __construct(
         string $rootDir,
         private readonly ?GitSettings $gitSettings = null,
         ?string $gitPath = null,
+        ?ProcessLane $lane = null,
     ) {
-        $this->runner = new GitProcessRunner($rootDir, $gitPath);
+        $this->runner = new GitProcessRunner($rootDir, $gitPath, $lane);
     }
 
     /** The resolved `git` binary ({@see GitProcessRunner::binary()}), or null when none was found. */

@@ -13,13 +13,13 @@ use Porta\GitPlugin\ChangeMarks;
 use Porta\GitPlugin\DiffPrefs;
 use Porta\GitPlugin\Flash;
 use Porta\GitPlugin\GitBranchSegment;
-use Porta\GitPlugin\GitClient;
 use Porta\GitPlugin\GitCommands;
 use Porta\GitPlugin\GitContextMenus;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitMenu;
 use Porta\GitPlugin\GitMouseRouter;
 use Porta\GitPlugin\GitPanes;
+use Porta\GitPlugin\GitProcesses;
 use Porta\GitPlugin\GitRefresher;
 use Porta\GitPlugin\GitRemote;
 use Porta\GitPlugin\GitRemoteCommands;
@@ -104,11 +104,20 @@ return new class('git') extends AbstractPlugin {
             }
         });
 
-        // Blame and the gutter stripe: they own no widget and no region, so
-        // they were extractable long before the rest and are unchanged.
-        $this->activateBlameAndMarks($api, $settings, $gitPath);
+        // ONE handle on git and ONE set of process lanes, shared by both halves.
+        // The editor half used to carry its own `GitClient` and its own runner,
+        // because it was written when the halves lived in different namespaces
+        // and this object was genuinely unreachable.
+        $processes = new GitProcesses();
+        $git = new GitInfo($root, $settings, '' === $gitPath ? null : $gitPath, $processes->general);
+        // Shutdown stops BOTH lanes. It used to stop one of the four the plugin
+        // had, so a fetch, a blame or a mark refresh could outlive the loop.
+        $api->onShutdown($processes->cancelAll(...));
 
-        $git = new GitInfo($root, $settings, '' === $gitPath ? null : $gitPath);
+        // Blame and the gutter stripe: they own no widget and no region, so
+        // they were extractable long before the rest.
+        $this->activateBlameAndMarks($api, $settings, $gitPath, $git, $processes);
+
         if (!$git->isRepository()) {
             // Every verb below acts on a repository. `when` would not do: it
             // gates KEY dispatch only, leaving the palette and the menus
@@ -142,7 +151,7 @@ return new class('git') extends AbstractPlugin {
 
         $refresher = new GitRefresher($git, $repaint);
         $commands = new GitCommands($git, $modals, $flash, $repaint, $trans, $refresher, $api->copyToClipboard(...), $events);
-        $remote = new GitRemoteCommands(new GitRemote($root, '' === $gitPath ? null : $gitPath), $flash, $trans, $events, $modals, $repaint);
+        $remote = new GitRemoteCommands(new GitRemote($root, '' === $gitPath ? null : $gitPath, $processes->remote), $flash, $trans, $events, $modals, $repaint);
 
         $this->registerCommands($api, $commands, $remote);
         $api->registerMenu(
@@ -209,7 +218,6 @@ return new class('git') extends AbstractPlugin {
         $api->registerView('git', fn (ViewServices $services): GitViewController => $slot->view = $this->buildView($api, $services, $git, $settings, $events, $flash, $commands, $remote));
 
         $api->onReady($refresher->refreshBranch(...));
-        $api->onShutdown($git->cancelAll(...));
         // A save, a commit, a completed fetch or pull, or anything else that
         // moved the working tree: the branch indicator may be stale.
         $api->onFileSaved(static fn (string $path) => $refresher->refreshBranch());
@@ -333,12 +341,12 @@ return new class('git') extends AbstractPlugin {
     }
 
     /** Blame annotations and the gutter stripe — the half that never needed the workbench. */
-    private function activateBlameAndMarks(PluginApi $api, GitSettings $settings, string $gitPath): void
+    private function activateBlameAndMarks(PluginApi $api, GitSettings $settings, string $gitPath, GitInfo $git, GitProcesses $processes): void
     {
         $path = '' === $gitPath ? null : $gitPath;
         // Built once, not per call: BlameAnnotations is a toggle, so it has to
         // remember whether it is on between the command and the hooks.
-        $blame = new BlameClient($api->projectRoot(), $path);
+        $blame = new BlameClient($api->projectRoot(), $path, $processes->general);
         $annotations = new BlameAnnotations($blame, $api, $settings->blameDefault());
 
         $api->adoptCommand('git_blame', new BlameLine($blame, $api)->show(...));
@@ -347,7 +355,6 @@ return new class('git') extends AbstractPlugin {
         $api->onBufferSwitched(static fn (string $path) => $annotations->refreshIfEnabled());
         $api->onFileSaved(static fn (string $path) => $annotations->refreshIfEnabled());
 
-        $git = new GitClient($api->projectRoot(), $path);
         $marks = new ChangeMarks($git, $api, $settings->gutterMarks());
         $stash = new Stash($git, $api);
         $index = new IndexCommands($git, $api);

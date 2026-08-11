@@ -26,15 +26,21 @@ final class GitRemote
 
     private readonly ?string $git;
 
-    /** @var array<int, AsyncProcess> in-flight processes */
-    private array $running = [];
+    private readonly ProcessLane $lane;
 
-    private int $nextKey = 0;
-
+    /**
+     * The lane is optional and TRAILING so direct construction keeps working;
+     * `plugin.php` passes {@see GitProcesses::$remote}, which is a lane of its
+     * own for one reason: {@see cancelOperation()} must stop a hung fetch
+     * without stopping the status poll, and {@see isBusy()} must mean "a remote
+     * operation is running" rather than "git is running".
+     */
     public function __construct(
         private readonly string $rootDir,
         ?string $gitPath = null,
+        ?ProcessLane $lane = null,
     ) {
+        $this->lane = $lane ?? new ProcessLane();
         // An explicit path (the "Git executable path" setting) wins over discovery.
         $this->git = null !== $gitPath && '' !== $gitPath ? $gitPath : new ExecutableFinder()->find('git');
         // file_exists, not is_dir: a linked worktree's and a submodule's .git is a
@@ -51,7 +57,7 @@ final class GitRemote
     /** One remote operation at a time — a second invocation must be refused. */
     public function isBusy(): bool
     {
-        return [] !== $this->running;
+        return 0 !== $this->lane->inFlight();
     }
 
     /** @param callable(Outcome, string): void $onDone (ok, trimmed stderr+stdout — stderr first: it's where git talks) */
@@ -98,10 +104,7 @@ final class GitRemote
 
     public function cancelAll(): void
     {
-        foreach ($this->running as $process) {
-            $process->cancel();
-        }
-        $this->running = [];
+        $this->lane->cancelAll();
     }
 
     /**
@@ -120,21 +123,18 @@ final class GitRemote
         $command = [$this->git, '-C', $this->rootDir, ...$args];
         $env = array_merge(getenv(), ['GIT_TERMINAL_PROMPT' => '0', 'LC_ALL' => 'C']);
         /** @var array<string, string> $env */
-        $key = $this->nextKey++;
-        $process = new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $env);
-        $started = $process->start(function (int $code, string $out) use ($key, $process, $onDone): void {
-            unset($this->running[$key]);
-            $onDone(Outcome::of(0 === $code), trim(trim($process->errorOutput())."\n".trim($out)));
-        });
+        $started = $this->lane->start(
+            new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $env),
+            static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
+                $onDone(Outcome::of(0 === $code), trim(trim($process->errorOutput())."\n".trim($out)));
+            },
+        );
         if (!$started) {
             // @codeCoverageIgnoreStart
             $reason = 'could not start git';
             $onDone(Outcome::Failed, $reason);
 
-            return;
-
             // @codeCoverageIgnoreEnd
         }
-        $this->running[$key] = $process;
     }
 }

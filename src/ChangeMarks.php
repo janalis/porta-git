@@ -22,7 +22,7 @@ use Porta\Plugin\Api\PluginApi;
 final class ChangeMarks
 {
     public function __construct(
-        private readonly GitClient $git,
+        private readonly GitInfo $git,
         private readonly PluginApi $api,
         private readonly bool $enabled = true,
     ) {}

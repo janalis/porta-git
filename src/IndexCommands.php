@@ -6,6 +6,7 @@ namespace Porta\GitPlugin;
 
 use Porta\Event\WorkingTreeChanged;
 use Porta\Plugin\Api\PluginApi;
+use Porta\Support\Outcome;
 
 /**
  * Stage the current file, and undo the last commit.
@@ -23,7 +24,7 @@ use Porta\Plugin\Api\PluginApi;
 final readonly class IndexCommands
 {
     public function __construct(
-        private GitClient $git,
+        private GitInfo $git,
         private PluginApi $api,
     ) {}
 
@@ -35,9 +36,9 @@ final readonly class IndexCommands
 
             return;
         }
-        $this->git->stage($path, function (bool $ok) use ($path): void {
+        $this->git->stage($path, function (Outcome $ok) use ($path): void {
             $this->api->flash(
-                $ok
+                $ok->isOk()
                     ? $this->api->trans('Staged %path%', ['%path%' => $this->relative($path)])
                     : $this->api->trans('Stage failed'),
             );
@@ -52,9 +53,9 @@ final readonly class IndexCommands
 
             return;
         }
-        $this->git->undoLastCommit(function (bool $ok): void {
+        $this->git->undoLastCommit(function (Outcome $ok): void {
             $this->api->flash(
-                $ok
+                $ok->isOk()
                     ? $this->api->trans('Last commit undone (changes kept staged)')
                     : $this->api->trans('Nothing to undo'),
             );

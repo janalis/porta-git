@@ -12,10 +12,12 @@ use Symfony\Component\Process\ExecutableFinder;
  * Runs `git` subprocesses for the working tree at $rootDir, on the shared event
  * loop, and tracks the ones still in flight.
  *
- * This is the only mutable state in the git layer: {@see $running} and the key
- * counter that indexes it. {@see GitInfo}'s thirty-odd porcelain verbs are, once
- * this is out of the way, stateless wrappers that build an argv and parse an
- * answer — which is the reason for the split.
+ * It holds no mutable state of its own — the in-flight set lives in the
+ * {@see ProcessLane} it is given, so that a set of processes can be cancelled
+ * and counted as a group by something that does not know what is in it.
+ * {@see GitInfo}'s thirty-odd porcelain verbs are, once this is out of the way,
+ * stateless wrappers that build an argv and parse an answer, which is the
+ * reason for the split.
  */
 final class GitProcessRunner
 {
@@ -23,14 +25,20 @@ final class GitProcessRunner
     private readonly bool $available;
     private readonly bool $repository;
 
-    /** @var array<int, AsyncProcess> in-flight processes */
-    private array $running = [];
-    private int $nextKey = 0;
+    private readonly ProcessLane $lane;
 
+    /**
+     * $lane is optional and TRAILING so every direct construction — the tests,
+     * and anything that only wants its own git — keeps working unchanged. What
+     * passes one is `plugin.php`, so that shutdown and the completion barrier
+     * can reach these processes through {@see GitProcesses}.
+     */
     public function __construct(
         private readonly string $rootDir,
         ?string $gitPath = null,
+        ?ProcessLane $lane = null,
     ) {
+        $this->lane = $lane ?? new ProcessLane();
         $this->git = self::findGit($gitPath);
         // file_exists, not is_dir: a linked worktree's and a submodule's .git is a
         // FILE holding `gitdir: …`. is_dir left the whole feature silently dead
@@ -71,10 +79,7 @@ final class GitProcessRunner
 
     public function cancelAll(): void
     {
-        foreach ($this->running as $process) {
-            $process->cancel();
-        }
-        $this->running = [];
+        $this->lane->cancelAll();
     }
 
     /**
@@ -108,23 +113,19 @@ final class GitProcessRunner
         // take the opportunistic index lock — under load it collides with a
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
         $command = [$this->git, '--no-optional-locks', '-C', $this->rootDir, ...$args];
-        $key = $this->nextKey++;
-        $process = new AsyncProcess($command, $this->rootDir, $stdin);
-        $started = $process->start(function (int $code, string $out) use ($key, $onDone): void {
-            unset($this->running[$key]);
-            $onDone($code, $out);
-        });
+        $started = $this->lane->start(
+            new AsyncProcess($command, $this->rootDir, $stdin),
+            static function (int $code, string $out) use ($onDone): void {
+                $onDone($code, $out);
+            },
+        );
         if (!$started) {
             // @codeCoverageIgnoreStart
             $empty = '';
             $onDone(1, $empty);
 
-            return;
-
             // @codeCoverageIgnoreEnd
         }
-
-        $this->running[$key] = $process;
     }
 
     /**
@@ -147,24 +148,21 @@ final class GitProcessRunner
         // take the opportunistic index lock — under load it collides with a
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
         $command = [$this->git, '--no-optional-locks', '-C', $this->rootDir, ...$args];
-        $key = $this->nextKey++;
-        $process = new AsyncProcess($command, $this->rootDir, captureStderr: true);
-        $started = $process->start(function (int $code) use ($key, $process, $onDone): void {
-            unset($this->running[$key]);
-            // @mago-expect lint:no-literal-password -- strtok's token: is a newline delimiter, not a credential
-            $firstLine = strtok(trim($process->errorOutput()), token: "\n");
-            $onDone(Outcome::of(0 === $code), \is_string($firstLine) ? $firstLine : '');
-        });
+        $started = $this->lane->start(
+            new AsyncProcess($command, $this->rootDir, captureStderr: true),
+            static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
+                // @mago-expect lint:no-literal-password -- strtok's token: is a newline delimiter, not a credential
+                $firstLine = strtok(trim($process->errorOutput()), token: "\n");
+                $onDone(Outcome::of(0 === $code), \is_string($firstLine) ? $firstLine : '');
+            },
+        );
         if (!$started) {
             // @codeCoverageIgnoreStart
             $reason = 'could not start git';
             $onDone(Outcome::Failed, $reason);
 
-            return;
-
             // @codeCoverageIgnoreEnd
         }
-        $this->running[$key] = $process;
     }
 
     private static function findGit(?string $gitPath): ?string

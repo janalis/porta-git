@@ -7,11 +7,13 @@ namespace Porta\GitPlugin;
 /**
  * Runs `git blame` for this plugin.
  *
- * It owns a {@see GitProcessRunner} of its own rather than reaching for core's
- * — a plugin class cannot be a container service, so the shared instance is
- * not reachable, and a second one is the right answer anyway: blame is a slow
- * whole-file read that has no business queueing behind the status/diff traffic
- * the view generates. `GitRemote` makes the same argument for the same reason.
+ * It shares the general {@see ProcessLane} with everything else that is not a
+ * remote operation. It used to own a runner of its own, on the stated grounds
+ * that blame "has no business queueing behind the status/diff traffic the view
+ * generates" — but {@see GitProcessRunner::runStatus()} spawns immediately and
+ * tracks only for cancellation, so there was never a queue to be behind. What
+ * the belief cost was real: shutdown and the E2e barrier each reached one lane
+ * of four.
  *
  * The runner answers a run that cannot happen as exit 1 with no output, so
  * "no git" and "not a repository" arrive here as an empty parse, not an error.
@@ -20,9 +22,9 @@ final class BlameClient
 {
     private readonly GitProcessRunner $runner;
 
-    public function __construct(string $rootDir, ?string $gitPath = null)
+    public function __construct(string $rootDir, ?string $gitPath = null, ?ProcessLane $lane = null)
     {
-        $this->runner = new GitProcessRunner($rootDir, $gitPath);
+        $this->runner = new GitProcessRunner($rootDir, $gitPath, $lane);
     }
 
     public function isAvailable(): bool

@@ -171,7 +171,8 @@ final class GitInfoTest extends TestCase
         $this->gitCommit($project, 'a.txt');
 
         $git = new GitInfo($project->dir);
-        $busy = static fn (): bool => [] !== \Porta\Tests\Support\Probe::get(\Porta\Tests\Support\Probe::get($git, 'runner'), 'running');
+        $lane = \Porta\Tests\Support\Probe::get(\Porta\Tests\Support\Probe::get($git, 'runner'), 'lane');
+        $busy = static fn (): bool => 0 !== $lane->inFlight();
         $this->assertFalse($busy(), 'idle before any op is dispatched');
 
         $project->write('a.txt', "first\nsecond\n");

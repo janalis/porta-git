@@ -111,7 +111,7 @@ final class GitViewControllerTest extends TestCase
     {
         $this->controller?->close();
         if (null !== $this->git) {
-            $this->awaitGitInfo($this->git);
+            $this->awaitLanes([Probe::get(Probe::get($this->git, 'runner'), 'lane')]);
         }
     }
 

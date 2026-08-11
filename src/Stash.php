@@ -6,6 +6,7 @@ namespace Porta\GitPlugin;
 
 use Porta\Event\WorkingTreeChanged;
 use Porta\Plugin\Api\PluginApi;
+use Porta\Support\Outcome;
 
 /**
  * Stash and pop, the two git verbs that need nothing but git and a flash.
@@ -22,7 +23,7 @@ use Porta\Plugin\Api\PluginApi;
 final readonly class Stash
 {
     public function __construct(
-        private GitClient $git,
+        private GitInfo $git,
         private PluginApi $api,
     ) {}
 
@@ -33,7 +34,8 @@ final readonly class Stash
 
             return;
         }
-        $this->git->stashPush(function (bool $ok, string $line): void {
+        $this->git->stashPush(function (Outcome $outcome, string $line): void {
+            $ok = $outcome->isOk();
             // git's own line, which says "No local changes to save" better
             // than a guess would.
             $this->api->flash($ok ? $line : $this->api->trans('Stash failed'), $ok ? 3.0 : 6.0);
@@ -50,7 +52,10 @@ final readonly class Stash
 
             return;
         }
-        $this->git->stashPop(function (bool $ok, string $error): void {
+        // null: the newest stash. The view's picker names one; this verb is
+        // the editor half's "pop what I just pushed".
+        $this->git->stashPop(null, function (Outcome $outcome, string $error): void {
+            $ok = $outcome->isOk();
             $this->api->flash($ok ? $this->api->trans('Stash popped') : ('' === $error ? $this->api->trans('Stash failed') : $error), $ok ? 2.5 : 6.0);
             if ($ok) {
                 // A pop rewrites files even when it conflicts, but only a clean

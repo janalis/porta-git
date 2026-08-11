@@ -8,7 +8,9 @@ use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
+use Porta\Event\IdeShuttingDown;
 use Porta\Plugin\Lifecycle\PluginLifecycle;
+use Porta\Support\AsyncProcess;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
@@ -404,6 +406,57 @@ final class IdeGitPluginTest extends TestCase
                     $this->frame($tui);
 
                     $this->assertStringNotContainsString(Glyphs::STATUS_BRANCH, $shown(), 'the cell is gone on the next frame');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testShutdownStopsBothLanesAndTheHalvesShareTheGeneralOne(): void
+    {
+        // Two wiring facts a mutation sweep found nothing asserting, and both
+        // are what this plugin's process group exists for.
+        //
+        // Sleepers rather than real git: the subject is the WIRING — that the
+        // shutdown hook reaches the group and the group reaches both lanes —
+        // and a real git call would make its timing the subject instead.
+        $this->skipWithoutGit();
+        $project = self::repo();
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function ($tui, $terminal, $ide) use ($project): void {
+                    $view = Services::resolve($ide, ViewRegistry::class)->find('git');
+                    self::assertNotNull($view);
+                    $general = Probe::get(Probe::get($view, 'git'), 'runner');
+                    $general = Probe::get($general, 'lane');
+                    $remote = Probe::get(Probe::get(Probe::get($view, 'remoteCommands'), 'remote'), 'lane');
+
+                    // The editor half runs in the SAME lane as the view's git,
+                    // asserted by OBSERVING it: run blame — an editor-half verb
+                    // reached through a client the view cannot see — and watch
+                    // the view's lane account for it. Comparing the two lanes by
+                    // identity is not available here and would not be worth much
+                    // if it were; this is the property the completion barrier
+                    // actually depends on.
+                    $this->assertSame(0, $general->inFlight(), 'idle before blame');
+                    Services::resolve($ide, CommandRegistry::class)->run('git_blame');
+                    $this->assertSame(1, $general->inFlight(), 'the editor half landed in the view\'s lane');
+                    $this->await(static fn (): bool => 0 === $general->inFlight(), what: 'blame to finish');
+
+                    $sleep = static fn (): AsyncProcess => new AsyncProcess(['sleep', '30'], sys_get_temp_dir());
+                    $general->start($sleep(), static function (): void {});
+                    $remote->start($sleep(), static function (): void {});
+                    $this->assertSame(1, $general->inFlight());
+                    $this->assertSame(1, $remote->inFlight());
+
+                    Services::resolve($ide, EventDispatcherInterface::class)->dispatch(new IdeShuttingDown($project->dir));
+
+                    $this->assertSame(0, $general->inFlight(), 'shutdown stopped the general lane');
+                    $this->assertSame(0, $remote->inFlight(), 'and the remote one, which it used not to');
                 },
             ],
         );
