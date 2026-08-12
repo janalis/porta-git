@@ -12,8 +12,10 @@ use Porta\Tests\Support\TempProject;
 /**
  * The one irreversible user-visible part of git becoming a plugin.
  *
- * Eight settings were core's, keyed `gitShowBranch`, `gitPath` and so on at the
- * top level of `.porta.json`, with a "Version control > Git" page. They are
+ * Eight settings were core's, keyed `gitShowBranch`, `gitPath` and so on
+ * inside the `settings` block of `.porta.json` (where the pre-move
+ * PortaJsonWriter::persistSetting always wrote), with a "Version control >
+ * Git" page. They are
  * `plugins.git.*` now, on this plugin's own page. A user who turned the branch
  * indicator off two years ago must not find it back on — and the failure is
  * silent: the old key just sits in the file, read by nobody.
@@ -48,7 +50,7 @@ final class LegacySettingsTest extends TestCase
 
     public function testAPreMoveValueIsAdoptedForAKeyNobodyHasWritten(): void
     {
-        $legacy = $this->legacy(['settings' => [], 'gitShowBranch' => false, 'gitPath' => '/opt/git']);
+        $legacy = $this->legacy(['settings' => ['gitShowBranch' => false, 'gitPath' => '/opt/git']]);
 
         $seed = $legacy->seed($this->defaults());
 
@@ -64,7 +66,7 @@ final class LegacySettingsTest extends TestCase
         // from a change made after it. Adopting the old one here would undo
         // whatever the user did most recently.
         $legacy = $this->legacy([
-            'gitShowBranch' => false,
+            'settings' => ['gitShowBranch' => false],
             'plugins' => ['git' => ['showBranch' => true]],
         ]);
 
@@ -79,7 +81,7 @@ final class LegacySettingsTest extends TestCase
         // the file distinguishes them. Adopting here is a no-op in effect, but
         // it writes the key through so the settings page shows a user's
         // deliberate choice rather than an accident of the default.
-        $legacy = $this->legacy(['gitGutterMarks' => true]);
+        $legacy = $this->legacy(['settings' => ['gitGutterMarks' => true]]);
 
         $this->assertSame(['gutterMarks' => true], $legacy->adoptions());
     }
@@ -100,7 +102,7 @@ final class LegacySettingsTest extends TestCase
     {
         // A hand-edited file can hold anything. An array where a bool belongs
         // must fall through to the current value, not become `true`.
-        $legacy = $this->legacy(['gitShowBranch' => ['yes'], 'gitRefreshInterval' => null]);
+        $legacy = $this->legacy(['settings' => ['gitShowBranch' => ['yes'], 'gitRefreshInterval' => null]]);
 
         $this->assertSame([], $legacy->adoptions());
         $this->assertTrue($legacy->seed($this->defaults())['showBranch']);
@@ -111,9 +113,20 @@ final class LegacySettingsTest extends TestCase
         // The two halves have to agree on the key names, and nothing else
         // checks that: `seed()` returning `gitShowBranch` would silently give
         // every reader the default forever.
-        $settings = new GitSettings($this->legacy(['gitShowBranch' => false, 'gitRefreshInterval' => 9])->seed($this->defaults()));
+        $settings = new GitSettings($this->legacy(['settings' => ['gitShowBranch' => false, 'gitRefreshInterval' => 9]])->seed($this->defaults()));
 
         $this->assertFalse($settings->showBranch());
         $this->assertSame(9, $settings->refreshInterval());
+    }
+
+    public function testATopLevelKeyIsNotWhereAdoptionLooks(): void
+    {
+        // No build ever wrote these keys at the top level — the pre-move
+        // writer always used the `settings` block. Reading the top level was
+        // exactly the bug that made every real upgrade adopt nothing.
+        $legacy = $this->legacy(['gitShowBranch' => false]);
+
+        $this->assertSame([], $legacy->adoptions());
+        $this->assertTrue($legacy->seed($this->defaults())['showBranch'], 'the default stands');
     }
 }

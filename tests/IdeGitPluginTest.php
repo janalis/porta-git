@@ -241,12 +241,18 @@ final class IdeGitPluginTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject([
             'src/A.php' => "<?php\n",
-            '.porta.json' => json_encode([
-                'enabledPlugins' => ['git'],
-                'settings' => [],
-                'gitShowBranch' => false,
-                'gitRefreshInterval' => 7,
-            ], JSON_THROW_ON_ERROR),
+            '.porta.json' => json_encode(
+                [
+                    'enabledPlugins' => ['git'],
+                    // Where the pre-move writer actually put them: inside the
+                    // `settings` block, never at the top level.
+                    'settings' => [
+                        'gitShowBranch' => false,
+                        'gitRefreshInterval' => 7,
+                    ],
+                ],
+                JSON_THROW_ON_ERROR,
+            ),
         ]);
         $project->initGit(name: 'tester', email: 't@t');
         $project->commitAll('init');
@@ -268,7 +274,7 @@ final class IdeGitPluginTest extends TestCase
         // The old keys are left where they are: this file is hand-editable and
         // core skips them without warning (IdeConfig::LEGACY_SETTINGS), so
         // rewriting a user\'s file further than needed would be the surprise.
-        $this->assertFalse($porta['gitShowBranch'], 'and the old key is not silently deleted');
+        $this->assertFalse($porta['settings']['gitShowBranch'], 'and the old key is not silently deleted');
     }
 
     public function testTogglingTheGutterSettingAppliesWithoutARestart(): void

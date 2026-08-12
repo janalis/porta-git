@@ -10,9 +10,11 @@ use Porta\Support\JsonFile;
  * One-time adoption of the settings this plugin's keys replaced.
  *
  * Git's eight settings were core's, keyed `gitShowBranch`, `gitPath` and so on
- * at the TOP LEVEL of `.porta.json`, with a "Version control > Git" page of
- * their own. They are `plugins.git.showBranch` and friends now, on this
- * plugin's own page, because that is what every other plugin's settings do.
+ * inside the `settings` block of `.porta.json` (where the pre-move
+ * PortaJsonWriter::persistSetting always wrote), with a "Version control >
+ * Git" page of their own. They are `plugins.git.showBranch` and friends now,
+ * on this plugin's own page, because that is what every other plugin's
+ * settings do.
  *
  * That rename is the one irreversible user-visible part of the move, and the
  * failure without this is silent: a user who turned the branch indicator off
@@ -98,8 +100,13 @@ final readonly class LegacySettings
         if (\is_array($mine) && array_key_exists($key, $mine)) {
             return null; // already answered under the new key; nothing to adopt
         }
+        // The pre-move writer put every core setting inside the `settings`
+        // block — the top level never held these keys, so only this location
+        // can hold a value worth adopting.
+        /** @var mixed $settings */
+        $settings = $this->file['settings'] ?? null;
         /** @var mixed $value */
-        $value = $this->file[$legacy] ?? null;
+        $value = \is_array($settings) ? $settings[$legacy] ?? null : null;
 
         return \is_bool($value) || \is_int($value) || \is_string($value) ? $value : null;
     }
