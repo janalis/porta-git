@@ -395,7 +395,11 @@ return new class('git') extends AbstractPlugin {
         // From onReady, not here: PluginApi refuses every IDE action during
         // activate().
         $api->onReady(static fn () => $api->showChangeMarkGutter($settings->gutterMarks()));
-        $api->onFileOpened($marks->refresh(...));
+        // No onFileOpened wiring: a fresh open also fires the deduped
+        // buffer-switch (the blame annotations above rely on exactly that),
+        // so subscribing to both spawned two identical `git diff` processes
+        // per open. The switch hook alone covers every open that lands in
+        // the editor; a viewer pane has no gutter to mark.
         $api->onFileSaved($marks->refresh(...));
         $api->onFileReloaded($marks->refresh(...));
         $api->onBufferSwitched($marks->refresh(...));
