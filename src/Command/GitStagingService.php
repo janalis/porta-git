@@ -15,6 +15,7 @@ use Porta\GitPlugin\View\GitViewController;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
 use Porta\Support\Outcome;
+use Porta\Support\ProjectPaths;
 use Porta\Support\Text;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -31,7 +32,7 @@ final class GitStagingService
 {
     public function __construct(
         private readonly GitInfo $git,
-        private readonly string $rootDir,
+        private readonly ProjectPaths $paths,
         private readonly CommitBoxWidget $commitBox,
         private readonly Flash $notifier,
         private readonly Translator $translator,
@@ -84,7 +85,7 @@ final class GitStagingService
      */
     public function toggleStage(ChangeEntry $entry, \Closure $onChanged): void
     {
-        $abs = $this->rootDir.'/'.$entry->path;
+        $abs = $this->paths->absolute($entry->path);
         $done = function (Outcome $ok) use ($onChanged): void {
             if (!$ok->isOk()) {
                 $this->notifier->flash($this->translator->trans('git refused the staging change'));
@@ -105,7 +106,7 @@ final class GitStagingService
         if ($entry->isUntracked()) {
             // @mago-expect lint:no-empty-catch-clause -- best-effort delete: a vanished or unremovable file still flashes below
             try {
-                new Filesystem()->remove($this->rootDir.'/'.$entry->path);
+                new Filesystem()->remove($this->paths->absolute($entry->path));
             } catch (IOExceptionInterface) {
             }
             $this->notifier->flash($this->translator->trans('Deleted %path%', ['%path%' => $entry->path]));
@@ -113,7 +114,7 @@ final class GitStagingService
 
             return;
         }
-        $this->git->discardFile($this->rootDir.'/'.$entry->path, function (Outcome $ok) use ($entry, $onChanged): void {
+        $this->git->discardFile($this->paths->absolute($entry->path), function (Outcome $ok) use ($entry, $onChanged): void {
             $this->notifier->flash(
                 $ok->isOk()
                     ? $this->translator->trans('Discarded changes to %path%', ['%path%' => $entry->path])

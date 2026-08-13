@@ -115,7 +115,7 @@ final class GitViewController implements ContributedView
         // view's contents — and switchMode() only refills on a CHANGE, so
         // without this the sidebar would open empty.
         $this->region->sidebar()->add($this->panes->tabs)->add($this->panes->changes)->add($this->panes->commitBox);
-        $this->staging = new GitStagingService($this->git, $this->paths->root(), $this->panes->commitBox, $this->notifier, $this->translator);
+        $this->staging = new GitStagingService($this->git, $this->paths, $this->panes->commitBox, $this->notifier, $this->translator);
 
         $exit = $this->close(...);
         $next = $this->focusNext(...);

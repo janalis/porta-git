@@ -11,6 +11,7 @@ use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
+use Porta\Support\ProjectPaths;
 use Porta\Tests\Support\StatusReads;
 use Porta\Tests\Support\TempProject;
 use Porta\Widget\StatusBarWidget;
@@ -28,7 +29,7 @@ final class GitStagingServiceTest extends TestCase
 
         return new GitStagingService(
             new GitInfo($rootDir),
-            $rootDir,
+            new ProjectPaths($rootDir),
             new CommitBoxWidget($translator),
             GitDoubles::flash(new Notifier($status, new Tui(terminal: new VirtualTerminal(columns: 80, rows: 24)))),
             $translator,
