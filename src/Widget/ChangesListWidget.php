@@ -25,8 +25,8 @@ use Porta\Widget\Support\ArrowScrollTrait;
 use Porta\Widget\Support\FillsPaneTrait;
 use Porta\Widget\Support\HoverTrait;
 use Porta\Widget\Support\InputHook;
+use Porta\Widget\Support\PanelRowStyle;
 use Porta\Widget\Support\PanelWidth;
-use Porta\Widget\Support\StylesDefault;
 use Porta\Widget\Support\WheelScrollable;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Input\Key;
@@ -54,7 +54,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     use KeybindingsTrait;
     use MenuOverlayHostTrait;
     use PanelWidth;
-    use StylesDefault;
+    use PanelRowStyle;
 
     /** @var array<string, Role> file-status char → color role */
     private const array STATUS_ROLE = [
@@ -288,11 +288,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
             $label = $entry->path.(null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '');
 
             $text = AnsiText::truncate(' '.$checkbox.' '.$statusText.' '.$label, $width, pad: true);
-            $lines[] = match (true) {
-                $this->list->isSelected($index) => $this->applyElement('selected', $text),
-                $index === $this->hoveredIndex => $this->styles->of(Role::RowHighlightBg)->apply($text),
-                default => $text,
-            };
+            $lines[] = $this->shadeRow($text, $this->list->isSelected($index), $index === $this->hoveredIndex);
         }
 
         return $this->withMenuOverlay($lines, $width);
