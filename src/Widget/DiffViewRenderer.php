@@ -228,7 +228,7 @@ final readonly class DiffViewRenderer
     private function renderHalf(int $hunkIndex, int $lineIndex, int $width, DiffColumn $side): string
     {
         if ($lineIndex < 0) {
-            return str_repeat(' ', max(0, $width));
+            return AnsiText::blank($width);
         }
         $line = $this->document->hunks[$hunkIndex]->lines[$lineIndex];
         $no = $side->lineNo($line);

@@ -266,7 +266,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             $lines[] = $this->styles->of(Role::Toolbar)->apply(AnsiText::truncate(' '.($descriptionLines[$i] ?? ''), $width, pad: true));
         }
 
-        $lines[] = str_repeat(' ', max(0, $width));
+        $lines[] = AnsiText::blank($width);
         $label = CommitMode::Amend === $this->amend ? $this->translator->trans('  Amend last commit  ') : $this->translator->trans('  Commit to branch  ');
         // SelectedRow already carries the bright fg, so the hover cue is an
         // underline — the one attribute that reads on any theme.

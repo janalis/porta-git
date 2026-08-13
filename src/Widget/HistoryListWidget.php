@@ -334,7 +334,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         for ($row = 0; $row < $commitRows; ++$row) {
             $commit = $this->commits[$scroll + $row] ?? null;
             if (null === $commit) {
-                $lines[] = str_repeat(' ', max(0, $width));
+                $lines[] = AnsiText::blank($width);
                 continue;
             }
             $selected = $this->commitList->isSelected($scroll + $row);
@@ -357,7 +357,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         for ($row = 0; $row < self::FILE_ROWS && \count($lines) < $rows; ++$row) {
             $file = $this->files[$fileScroll + $row] ?? null;
             if (null === $file) {
-                $lines[] = str_repeat(' ', max(0, $width));
+                $lines[] = AnsiText::blank($width);
                 continue;
             }
             $selected = $this->fileList->isSelected($fileScroll + $row);

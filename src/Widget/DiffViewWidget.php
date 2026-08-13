@@ -641,7 +641,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             $message = $this->styles->of(Role::Dim)->apply(' '.$this->translator->trans($this->placeholder));
             $lines[] = AnsiText::truncate($message, $width, pad: true);
             while (\count($lines) < $rows) {
-                $lines[] = str_repeat(' ', max(0, $width));
+                $lines[] = AnsiText::blank($width);
             }
 
             return $this->withMenuOverlay($lines, $width);
@@ -652,7 +652,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             $lines[] = $renderer->row($this->scroll + $i, $row, $width);
         }
         while (\count($lines) < $rows) {
-            $lines[] = str_repeat(' ', max(0, $width));
+            $lines[] = AnsiText::blank($width);
         }
 
         return $this->withMenuOverlay($lines, $width);
