@@ -84,7 +84,7 @@ final class GitViewController implements ContributedView
 
     public function __construct(
         private readonly GitInfo $git,
-        private readonly string $rootDir,
+        private readonly ProjectPaths $paths,
         private readonly GitPanes $panes,
         ViewRegion $region,
         private readonly ViewHost $host,
@@ -115,7 +115,7 @@ final class GitViewController implements ContributedView
         // view's contents — and switchMode() only refills on a CHANGE, so
         // without this the sidebar would open empty.
         $this->region->sidebar()->add($this->panes->tabs)->add($this->panes->changes)->add($this->panes->commitBox);
-        $this->staging = new GitStagingService($this->git, $this->rootDir, $this->panes->commitBox, $this->notifier, $this->translator);
+        $this->staging = new GitStagingService($this->git, $this->paths->root(), $this->panes->commitBox, $this->notifier, $this->translator);
 
         $exit = $this->close(...);
         $next = $this->focusNext(...);
@@ -248,7 +248,7 @@ final class GitViewController implements ContributedView
      */
     private function loadDiff(ChangeEntry $entry): void
     {
-        $abs = $this->rootDir.'/'.$entry->path;
+        $abs = $this->paths->absolute($entry->path);
         $show = function (string $raw) use ($entry): void {
             if (!$this->open) {
                 return;
@@ -461,7 +461,7 @@ final class GitViewController implements ContributedView
         if (!$this->open) {
             return; // not a repository — open() already flashed
         }
-        $this->historyPath = ProjectPaths::relative($this->rootDir, $absPath);
+        $this->historyPath = $this->paths->relative($absPath);
         $this->panes->history->setFilterLabel($this->historyPath);
         if (GitViewMode::History === $this->mode) {
             $this->reloadHistory(HistoryReload::SelectFirst);

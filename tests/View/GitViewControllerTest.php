@@ -47,6 +47,7 @@ use Porta\Layout\LayoutController;
 use Porta\Layout\ViewRegion;
 use Porta\Layout\ViewRegions;
 use Porta\Support\Clipboard;
+use Porta\Support\ProjectPaths;
 use Porta\Tests\Support\AwaitsGit;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Presence;
@@ -224,7 +225,7 @@ final class GitViewControllerTest extends TestCase
 
         $controller = new GitViewController(
             $this->git,
-            $this->project->dir,
+            new ProjectPaths($this->project->dir),
             new GitPanes($this->changes, $this->diffView, $this->commitBox, $this->history, $this->tabs),
             $region,
             $host,

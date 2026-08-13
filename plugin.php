@@ -39,6 +39,7 @@ use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
+use Porta\Support\ProjectPaths;
 use Porta\Workbench\View\ViewServices;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Style\Style;
@@ -295,7 +296,7 @@ return new class('git') extends AbstractPlugin {
 
         $controller = new GitViewController(
             $git,
-            $api->projectRoot(),
+            new ProjectPaths($api->projectRoot()),
             $panes,
             $s->region,
             $s->host,
