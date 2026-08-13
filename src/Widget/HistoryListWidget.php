@@ -327,7 +327,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             // An em dash, not a colon: symfony's legacy plural handling treats
             // "label: message" specially whenever %count% is a parameter.
             : $this->translator->trans(' History — %path% (%count%)', ['%path%' => $this->filterLabel, '%count%' => \count($this->commits)]);
-        $lines = [HeaderRenderer::render($header, $width, $this->styles->of(Role::HeaderBar)->withBold())];
+        $lines = [HeaderRenderer::title($header, $width, $this->styles)];
 
         $commitRows = $this->commitRowCount();
         $scroll = $this->commitList->follow($commitRows);

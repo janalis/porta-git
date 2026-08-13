@@ -262,7 +262,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         $title = 1 === $count
             ? $this->translator->trans(' %count% changed file', ['%count%' => $count])
             : $this->translator->trans(' %count% changed files', ['%count%' => $count]);
-        $lines = [HeaderRenderer::render($title, $width, $this->styles->of(Role::HeaderBar)->withBold())];
+        $lines = [HeaderRenderer::title($title, $width, $this->styles)];
 
         $scroll = $this->list->follow($rows - 1);
         for ($row = 1; $row < $rows; ++$row) {

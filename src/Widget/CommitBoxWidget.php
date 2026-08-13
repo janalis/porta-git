@@ -250,7 +250,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         // state survives a monochrome terminal. Both glyphs are three columns,
         // so the header does not jump as it flips.
         $header = $this->translator->trans(' Commit  ·  Alt+M amend ').(CommitMode::Amend === $this->amend ? Glyphs::CHECKBOX_ON : Glyphs::CHECKBOX_OFF);
-        $lines[] = HeaderRenderer::render($header, $width, $this->styles->of(Role::HeaderBar)->withBold(), suffix: 'Esc');
+        $lines[] = HeaderRenderer::title($header, $width, $this->styles, suffix: 'Esc');
 
         $summary = ' '.$this->summary->render(cursor: $focused && 0 === $this->activeField ? CaretVisibility::Shown : CaretVisibility::Hidden, width: $width - 1);
         $summaryHint = '' === $this->summary->value() && !($focused && 0 === $this->activeField)
