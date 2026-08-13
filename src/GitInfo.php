@@ -16,6 +16,7 @@ use Porta\GitPlugin\Process\GitProcessRunner;
 use Porta\GitPlugin\Process\ProcessLane;
 use Porta\GitPlugin\Setting\GitSettings;
 use Porta\Support\Outcome;
+use Porta\Support\Text;
 
 /**
  * Asynchronous git integration: current branch name and per-line change
@@ -243,9 +244,7 @@ final class GitInfo
     public function stashPush(callable $onDone): void
     {
         $this->runner->runStatus(['stash', 'push'], static function (int $code, string $out) use ($onDone): void {
-            // @mago-expect lint:no-literal-password -- strtok's token: is a newline delimiter, not a credential
-            $firstLine = strtok(trim($out), token: "\n");
-            $onDone(Outcome::of(0 === $code), \is_string($firstLine) ? $firstLine : '');
+            $onDone(Outcome::of(0 === $code), Text::firstLine($out));
         });
     }
 

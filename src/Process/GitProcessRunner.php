@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\Process;
 use Porta\GitPlugin\GitInfo;
 use Porta\Support\AsyncProcess;
 use Porta\Support\Outcome;
+use Porta\Support\Text;
 use Symfony\Component\Process\ExecutableFinder;
 
 /**
@@ -152,9 +153,7 @@ final class GitProcessRunner
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, captureStderr: true),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
-                // @mago-expect lint:no-literal-password -- strtok's token: is a newline delimiter, not a credential
-                $firstLine = strtok(trim($process->errorOutput()), token: "\n");
-                $onDone(Outcome::of(0 === $code), \is_string($firstLine) ? $firstLine : '');
+                $onDone(Outcome::of(0 === $code), Text::firstLine($process->errorOutput()));
             },
         );
         if (!$started) {

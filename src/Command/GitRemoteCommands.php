@@ -10,6 +10,7 @@ use Porta\GitPlugin\Support\Flash;
 use Porta\GitPlugin\Support\Modals;
 use Porta\GitPlugin\Support\Translate;
 use Porta\Support\Outcome;
+use Porta\Support\Text;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -161,10 +162,8 @@ final class GitRemoteCommands
 
                 return;
             }
-            // @mago-expect lint:no-literal-password -- strtok's token: is a newline delimiter, not a credential
-            $firstLine = strtok($output, token: "\n");
             $this->notifier->flash(
-                $ok->isOk() ? $succeeded : $this->translator->trans('%operation% failed: %error%', ['%operation%' => ucfirst($operation), '%error%' => \is_string($firstLine) ? $firstLine : '']),
+                $ok->isOk() ? $succeeded : $this->translator->trans('%operation% failed: %error%', ['%operation%' => ucfirst($operation), '%error%' => Text::firstLine($output)]),
                 $ok->isOk() ? 3.0 : 6.0,
             );
             $this->dispatcher->dispatch(new GitRemoteCompleted($operation, $ok->isOk()));

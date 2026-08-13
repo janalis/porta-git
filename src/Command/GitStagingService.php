@@ -15,6 +15,7 @@ use Porta\GitPlugin\View\GitViewController;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
 use Porta\Support\Outcome;
+use Porta\Support\Text;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -134,9 +135,7 @@ final class GitStagingService
         $this->git->commit(
             $message,
             function (Outcome $ok, string $out) use ($onCommitted, $onChanged): void {
-                // @mago-expect lint:no-literal-password -- strtok's token: is a newline delimiter, not a credential
-                $firstLine = strtok($out, token: "\n");
-                $summary = false === $firstLine ? '' : $firstLine;
+                $summary = Text::firstLine($out);
                 if ($ok->isOk()) {
                     $this->commitBox->clear();
                     $this->notifier->success($this->translator->trans('Committed: %summary%', ['%summary%' => $summary]));
