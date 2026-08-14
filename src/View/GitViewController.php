@@ -281,11 +281,7 @@ final class GitViewController implements ContributedView
     {
         ($this->copy)($text);
         $lines = substr_count(rtrim($text, characters: "\n"), needle: "\n") + 1;
-        $this->notifier->flash(
-            1 === $lines
-                ? $this->translator->trans('Copied %count% line', ['%count%' => $lines])
-                : $this->translator->trans('Copied %count% lines', ['%count%' => $lines]),
-        );
+        $this->notifier->flash($this->translator->trans('Copied %count% line|Copied %count% lines', ['%count%' => $lines]));
     }
 
     /** Persist the diff pane's current split/whitespace display state. */
