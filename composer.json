@@ -4,7 +4,11 @@
     "type": "porta-plugin",
     "license": "MIT",
     "require": {
-        "php": ">=8.4"
+        "php": ">=8.4",
+        "symfony/event-dispatcher": "^8.1",
+        "symfony/filesystem": "^8.1",
+        "symfony/process": "^8.1",
+        "symfony/tui": "^8.1"
     },
     "autoload": {
         "psr-4": {
