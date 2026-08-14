@@ -10,33 +10,13 @@ use Porta\GitPlugin\Setting\LegacySettings;
 use Porta\Tests\Support\TempProject;
 
 /**
- * The one irreversible user-visible part of git becoming a plugin.
- *
- * Eight settings were core's, keyed `gitShowBranch`, `gitPath` and so on
- * inside the `settings` block of `.porta.json` (where the pre-move
- * PortaJsonWriter::persistSetting always wrote), with a "Version control >
- * Git" page. They are
- * `plugins.git.*` now, on this plugin's own page. A user who turned the branch
- * indicator off two years ago must not find it back on — and the failure is
- * silent: the old key just sits in the file, read by nobody.
- *
- * Adoption is per-key, so a user who changed one setting and left the rest
- * keeps that one and gets current defaults for the others, which is what they
- * had.
+ * This plugin's half of the core-settings adoption: the RENAMED map and its
+ * agreement with what {@see GitSettings} actually reads. The adoption
+ * semantics themselves (per-key, file-read, new-key-wins) are pinned on the
+ * shared {@see \Porta\Plugin\Api\LegacyCoreSettings}.
  */
 final class LegacySettingsTest extends TestCase
 {
-    /** @param array<string, mixed> $porta */
-    private function legacy(array $porta): LegacySettings
-    {
-        $project = new TempProject(['.porta.json' => json_encode($porta, JSON_THROW_ON_ERROR)]);
-        $legacy = new LegacySettings($project->dir);
-        // The decode happens in the constructor, so the TempProject may go.
-        unset($project);
-
-        return $legacy;
-    }
-
     /** The current-value closure `PluginApi::setting()` supplies, spelled as the registered defaults. */
     private function defaults(): \Closure
     {
@@ -48,85 +28,21 @@ final class LegacySettingsTest extends TestCase
         };
     }
 
-    public function testAPreMoveValueIsAdoptedForAKeyNobodyHasWritten(): void
-    {
-        $legacy = $this->legacy(['settings' => ['gitShowBranch' => false, 'gitPath' => '/opt/git']]);
-
-        $seed = $legacy->seed($this->defaults());
-
-        $this->assertFalse($seed['showBranch'], 'the old value carried over');
-        $this->assertSame('/opt/git', $seed['path']);
-        $this->assertTrue($seed['gutterMarks'], 'and an untouched key keeps its current default');
-        $this->assertSame(['showBranch' => false, 'path' => '/opt/git'], $legacy->adoptions(), 'only what was actually adopted is written through');
-    }
-
-    public function testTheNewKeyWinsWhereBothExist(): void
-    {
-        // A file mid-migration: the old key from before the move, the new one
-        // from a change made after it. Adopting the old one here would undo
-        // whatever the user did most recently.
-        $legacy = $this->legacy([
-            'settings' => ['gitShowBranch' => false],
-            'plugins' => ['git' => ['showBranch' => true]],
-        ]);
-
-        $this->assertTrue($legacy->seed($this->defaults())['showBranch']);
-        $this->assertSame([], $legacy->adoptions(), 'nothing to write through');
-    }
-
-    public function testAKeyExplicitlySetToTheDefaultIsStillAdopted(): void
-    {
-        // The reason this reads the FILE rather than asking PluginApi: an
-        // absent key and a key set to its default are the same VALUE, and only
-        // the file distinguishes them. Adopting here is a no-op in effect, but
-        // it writes the key through so the settings page shows a user's
-        // deliberate choice rather than an accident of the default.
-        $legacy = $this->legacy(['settings' => ['gitGutterMarks' => true]]);
-
-        $this->assertSame(['gutterMarks' => true], $legacy->adoptions());
-    }
-
-    public function testNoFileAndNoOldKeysAdoptNothing(): void
-    {
-        // A fresh project, and every project created after the move.
-        $legacy = $this->legacy([]);
-
-        $this->assertSame([], $legacy->adoptions());
-        $this->assertSame(
-            ['showBranch' => true, 'gutterMarks' => true, 'blameDefault' => false, 'signCommits' => false, 'noVerify' => false, 'signoff' => false, 'refreshInterval' => 2, 'path' => ''],
-            $legacy->seed($this->defaults()),
-        );
-    }
-
-    public function testAMalformedOldValueIsIgnoredRatherThanCoerced(): void
-    {
-        // A hand-edited file can hold anything. An array where a bool belongs
-        // must fall through to the current value, not become `true`.
-        $legacy = $this->legacy(['settings' => ['gitShowBranch' => ['yes'], 'gitRefreshInterval' => null]]);
-
-        $this->assertSame([], $legacy->adoptions());
-        $this->assertTrue($legacy->seed($this->defaults())['showBranch']);
-    }
-
     public function testTheSeedIsExactlyWhatGitSettingsReads(): void
     {
         // The two halves have to agree on the key names, and nothing else
         // checks that: `seed()` returning `gitShowBranch` would silently give
-        // every reader the default forever.
-        $settings = new GitSettings($this->legacy(['settings' => ['gitShowBranch' => false, 'gitRefreshInterval' => 9]])->seed($this->defaults()));
+        // every reader the default forever. This also pins the map itself —
+        // the pre-move spellings are the upgrade contract.
+        $project = new TempProject(['.porta.json' => (string) json_encode(['settings' => ['gitShowBranch' => false, 'gitRefreshInterval' => 9, 'gitPath' => '/opt/git']])]);
+        $legacy = LegacySettings::forProject($project->dir);
+
+        $settings = new GitSettings($legacy->seed($this->defaults()));
 
         $this->assertFalse($settings->showBranch());
         $this->assertSame(9, $settings->refreshInterval());
-    }
-
-    public function testATopLevelKeyIsNotWhereAdoptionLooks(): void
-    {
-        // No build ever wrote these keys at the top level — the pre-move
-        // writer always used the `settings` block. Reading the top level was
-        // exactly the bug that made every real upgrade adopt nothing.
-        $legacy = $this->legacy(['gitShowBranch' => false]);
-
-        $this->assertSame([], $legacy->adoptions());
-        $this->assertTrue($legacy->seed($this->defaults())['showBranch'], 'the default stands');
+        $this->assertSame('/opt/git', $settings->path());
+        $this->assertSame(['showBranch' => false, 'refreshInterval' => 9, 'path' => '/opt/git'], $legacy->adoptions(), 'exactly the touched keys write through');
+        $this->assertCount(8, LegacySettings::RENAMED, 'all eight pre-move keys stay adoptable');
     }
 }

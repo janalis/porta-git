@@ -121,7 +121,7 @@ return new class('git') extends AbstractPlugin {
         // These eight were CORE settings until git became a plugin, keyed
         // `gitShowBranch` and friends at the top level of `.porta.json`. A user
         // who turned one off before the move keeps it off.
-        $legacy = new LegacySettings($root);
+        $legacy = LegacySettings::forProject($root);
         $settings = new GitSettings($legacy->seed($api->setting(...)));
         $gitPath = $settings->path();
         // Write whatever was adopted through, so the file stops answering the
