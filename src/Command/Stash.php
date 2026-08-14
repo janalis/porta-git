@@ -57,7 +57,12 @@ final readonly class Stash
         // the editor half's "pop what I just pushed".
         $this->git->stashPop(null, function (Outcome $outcome, string $error): void {
             $ok = $outcome->isOk();
-            $this->api->flash($ok ? $this->api->trans('Stash popped') : ('' === $error ? $this->api->trans('Stash failed') : $error), $ok ? 2.5 : 6.0);
+            $message = match (true) {
+                $ok => $this->api->trans('Stash popped'),
+                '' === $error => $this->api->trans('Stash failed'),
+                default => $error,
+            };
+            $this->api->flash($message, $ok ? 2.5 : 6.0);
             if ($ok) {
                 // A pop rewrites files even when it conflicts, but only a clean
                 // one is worth announcing — a conflicted tree is reported by

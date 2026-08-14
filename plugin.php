@@ -408,8 +408,14 @@ return new class('git') extends AbstractPlugin {
         // Not `$marks->refresh(...)`, which mago suggests and which would be a
         // TypeError: refresh() takes an optional ?string $path, so the event
         // object would land in it.
+        // NOT first-class callables: the listener receives the event, and
+        // refresh(?string $path) would take it as its path — a TypeError.
+        // The arrow fns exist to DROP the argument.
+        // @mago-expect lint:prefer-first-class-callable
         $api->on(WorkingTreeChanged::class, static fn () => $marks->refresh());
+        // @mago-expect lint:prefer-first-class-callable
         $api->on(GitCommitted::class, static fn () => $marks->refresh());
+        // @mago-expect lint:prefer-first-class-callable
         $api->on(GitRemoteCompleted::class, static fn () => $marks->refresh());
     }
 };

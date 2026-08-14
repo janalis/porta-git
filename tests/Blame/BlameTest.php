@@ -297,9 +297,7 @@ final class BlameTest extends TestCase
         $this->assertSame([], $this->marks->published, 'the setting off publishes nothing');
 
         new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: true)->refresh();
-        $this->await(function (): bool {
-            return [] !== $this->marks->published;
-        }, what: 'the same fixture to publish once the setting is on');
+        $this->await(fn (): bool => [] !== $this->marks->published, what: 'the same fixture to publish once the setting is on');
     }
 
     public function testARefreshHonoursThePathItIsGivenOverTheActiveFile(): void
@@ -317,9 +315,7 @@ final class BlameTest extends TestCase
 
         new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: true)->refresh($this->project->path('a.txt'));
 
-        $this->await(function (): bool {
-            return [] !== $this->marks->published;
-        }, what: 'the diff for the named file to publish');
+        $this->await(fn (): bool => [] !== $this->marks->published, what: 'the diff for the named file to publish');
         $this->assertSame($this->project->path('a.txt'), $this->marks->published[0]['path'], 'published for the file it was handed');
     }
 

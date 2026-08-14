@@ -123,6 +123,7 @@ final class GitDoubles
     }
 
     /** What {@see diffPrefs()} reads back as, for a test that seeds one. */
+    // @mago-expect lint:no-boolean-flag-parameter -- the bool IS the domain here, not a hidden second responsibility.
     public static function splitLayout(bool $split): DiffLayout
     {
         return $split ? DiffLayout::Split : DiffLayout::Unified;
