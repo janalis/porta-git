@@ -42,9 +42,7 @@ final class GitCommands
 
     public function commit(): void
     {
-        if (!$this->git->isAvailable()) {
-            $this->unavailable();
-
+        if (!$this->guardAvailable()) {
             return;
         }
         $this->editor->openPrompt($this->translator->trans('Commit message'), '', function (string $message): void {
@@ -66,9 +64,7 @@ final class GitCommands
     /** The stash picker: pick a stash, then apply, pop or drop it. */
     public function stashes(): void
     {
-        if (!$this->git->isAvailable()) {
-            $this->unavailable();
-
+        if (!$this->guardAvailable()) {
             return;
         }
         $this->git->stashList(function (array $stashes): void {
@@ -245,9 +241,7 @@ final class GitCommands
      */
     public function branches(): void
     {
-        if (!$this->git->isAvailable()) {
-            $this->unavailable();
-
+        if (!$this->guardAvailable()) {
             return;
         }
         $this->git->branches(function (array $branches): void {
@@ -282,9 +276,7 @@ final class GitCommands
     /** Direct new-branch prompt (the status-bar branch menu's "New Branch…"). */
     public function newBranch(): void
     {
-        if (!$this->git->isAvailable()) {
-            $this->unavailable();
-
+        if (!$this->guardAvailable()) {
             return;
         }
         $this->promptNewBranch();
@@ -293,9 +285,7 @@ final class GitCommands
     /** Direct delete-branch picker (the status-bar branch menu's "Delete Branch…"). */
     public function deleteBranch(): void
     {
-        if (!$this->git->isAvailable()) {
-            $this->unavailable();
-
+        if (!$this->guardAvailable()) {
             return;
         }
         $this->pickBranchToDelete();

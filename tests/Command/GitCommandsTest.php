@@ -15,13 +15,13 @@ use Porta\I18n\Translator;
 use Porta\Support\Clipboard;
 use Porta\Tests\Support\EditorState;
 use Porta\Tests\Support\GitBinary;
+use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\StatusReads;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\TestTui;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\StatusBarWidget;
 use Porta\Workbench\Notifier;
-use Revolt\EventLoop;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Tui\Tui;
@@ -40,6 +40,9 @@ final class GitCommandsTest extends TestCase
 {
     use GitBinary;
     use StatusReads;
+    use PumpsLoop {
+        pump as private pumpFixed;
+    }
 
     private EventDispatcher $events;
     private TempProject $project;
@@ -595,22 +598,9 @@ final class GitCommandsTest extends TestCase
      */
     private function pump(?callable $until = null, float $timeout = 10.0, string $what = 'a flash to land'): void
     {
-        $until ??= fn (): bool => '' !== trim($this->statusRow($this->statusBar));
-        $elapsed = 0.0;
-        while (!$until()) {
-            if ($elapsed >= $timeout) {
-                // Throws rather than falling through, like PumpsLoop::await:
-                // a silent expiry runs the assertion below it against pre-op
-                // state, which reads as a wrong result instead of a slow one.
-                throw new \RuntimeException(\sprintf('timed out after %.1fs waiting for %s', $timeout, $what));
-            }
-            $this->tick();
-            $elapsed += 0.01;
-        }
+        $this->await($until ?? fn (): bool => '' !== trim($this->statusRow($this->statusBar)), $timeout, $what);
         // Drain any callbacks the resolved op queued behind it (refreshers).
-        for ($i = 0; $i < 3; ++$i) {
-            $this->tick();
-        }
+        $this->pumpFixed(0.06);
     }
 
     /**
@@ -623,23 +613,12 @@ final class GitCommandsTest extends TestCase
      */
     private function drain(float $seconds = 0.2): void
     {
-        $elapsed = 0.0;
-        while ($elapsed < $seconds) {
-            $this->tick();
-            $elapsed += 0.01;
-        }
+        $this->pumpFixed($seconds);
     }
 
     /** Waits for the editor's list overlay (branch/stash pickers). */
     private function overlayOpens(): void
     {
         $this->pump(fn (): bool => EditorState::pickerOpen($this->editor));
-    }
-
-    private function tick(): void
-    {
-        $suspension = EventLoop::getSuspension();
-        EventLoop::delay(0.01, $suspension->resume(...));
-        $suspension->suspend();
     }
 }

@@ -7,7 +7,6 @@ namespace Porta\GitPlugin\Process;
 use Porta\GitPlugin\GitInfo;
 use Porta\Support\AsyncProcess;
 use Porta\Support\Outcome;
-use Symfony\Component\Process\ExecutableFinder;
 
 /**
  * Asynchronous git remote operations (fetch / pull / push). Separate from the
@@ -42,8 +41,7 @@ final class GitRemote
         ?ProcessLane $lane = null,
     ) {
         $this->lane = $lane ?? new ProcessLane();
-        // An explicit path (the "Git executable path" setting) wins over discovery.
-        $this->git = null !== $gitPath && '' !== $gitPath ? $gitPath : new ExecutableFinder()->find('git');
+        $this->git = GitBinary::resolve($gitPath);
         // file_exists, not is_dir: a linked worktree's and a submodule's .git is a
         // FILE holding `gitdir: …`. is_dir left the whole feature silently dead
         // in both — git ran nowhere and the view said "not a repository".

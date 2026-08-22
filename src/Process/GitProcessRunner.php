@@ -8,7 +8,6 @@ use Porta\GitPlugin\GitInfo;
 use Porta\Support\AsyncProcess;
 use Porta\Support\Outcome;
 use Porta\Support\Text;
-use Symfony\Component\Process\ExecutableFinder;
 
 /**
  * Runs `git` subprocesses for the working tree at $rootDir, on the shared event
@@ -41,7 +40,7 @@ final class GitProcessRunner
         ?ProcessLane $lane = null,
     ) {
         $this->lane = $lane ?? new ProcessLane();
-        $this->git = self::findGit($gitPath);
+        $this->git = GitBinary::resolve($gitPath);
         // file_exists, not is_dir: a linked worktree's and a submodule's .git is a
         // FILE holding `gitdir: …`. is_dir left the whole feature silently dead
         // in both — git ran nowhere and the view said "not a repository".
@@ -163,15 +162,5 @@ final class GitProcessRunner
 
             // @codeCoverageIgnoreEnd
         }
-    }
-
-    private static function findGit(?string $gitPath): ?string
-    {
-        // An explicit path (the "Git executable path" setting) wins over discovery.
-        if (null !== $gitPath && '' !== $gitPath) {
-            return $gitPath;
-        }
-
-        return new ExecutableFinder()->find('git');
     }
 }

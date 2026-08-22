@@ -12,7 +12,6 @@ use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
-use Revolt\EventLoop;
 
 final class GitInfoTest extends TestCase
 {
@@ -253,9 +252,7 @@ final class GitInfoTest extends TestCase
         $git->cancelAll();
 
         // Give any (cancelled) watchers a chance to have fired.
-        $suspension = EventLoop::getSuspension();
-        EventLoop::delay(0.2, $suspension->resume(...));
-        $suspension->suspend();
+        $this->pump(0.2);
 
         $this->assertFalse($done, 'cancelled requests never invoke their callbacks');
     }

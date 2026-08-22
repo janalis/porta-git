@@ -30,9 +30,7 @@ final readonly class Stash
 
     public function push(): void
     {
-        if (!$this->git->isAvailable()) {
-            $this->api->flash($this->api->trans('Git not available'));
-
+        if (!$this->guardAvailable()) {
             return;
         }
         $this->git->stashPush(function (Outcome $outcome, string $line): void {
@@ -48,9 +46,7 @@ final readonly class Stash
 
     public function pop(): void
     {
-        if (!$this->git->isAvailable()) {
-            $this->api->flash($this->api->trans('Git not available'));
-
+        if (!$this->guardAvailable()) {
             return;
         }
         // null: the newest stash. The view's picker names one; this verb is
@@ -70,5 +66,15 @@ final readonly class Stash
                 $this->api->emit(new WorkingTreeChanged());
             }
         });
+    }
+
+    private function guardAvailable(): bool
+    {
+        if ($this->git->isAvailable()) {
+            return true;
+        }
+        $this->api->flash($this->api->trans('Git not available'));
+
+        return false;
     }
 }

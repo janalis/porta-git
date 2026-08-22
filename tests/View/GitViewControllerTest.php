@@ -69,7 +69,6 @@ use Porta\Workbench\EditorArea;
 use Porta\Workbench\Notifier;
 use Porta\Workbench\View\ViewHost;
 use Porta\Workbench\View\ViewRegistry;
-use Revolt\EventLoop;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -524,7 +523,7 @@ final class GitViewControllerTest extends TestCase
         $this->commitBox->setFocused(true);
         $this->commitBox->handleInput("\x1bm");
         $this->commitBox->handleInput("\x1bm");
-        $this->awaitTicks(15);
+        $this->pump(0.3);
         $this->assertSame('', $this->commitBox->message());
     }
 
@@ -562,7 +561,7 @@ final class GitViewControllerTest extends TestCase
         $entry = $this->changes->selectedEntry();
         Probe::invoke($controller, 'loadDiff', $entry);
         $controller->close(); // the in-flight diff callback must no-op now
-        $this->awaitTicks(15);
+        $this->pump(0.3);
         $this->assertFalse($controller->isOpen());
     }
 
@@ -912,7 +911,7 @@ final class GitViewControllerTest extends TestCase
         $this->changes->setFocused(true);
         $this->changes->handleInput('2'); // fires git log...
         $controller->close(); // ...and closes before it lands
-        $this->awaitTicks(15);
+        $this->pump(0.3);
         $this->assertFalse($controller->isOpen());
         $controller->open();
 
@@ -923,7 +922,7 @@ final class GitViewControllerTest extends TestCase
         Probe::invoke($controller, 'loadCommitFileDiff', $commit, 'a.txt');
         $this->history->setFocused(true);
         $this->history->handleInput('1');
-        $this->awaitTicks(15);
+        $this->pump(0.3);
         $this->assertFalse(Probe::get($this->diffView, 'readOnly'), 'back on Changes, untouched by stale history data');
     }
 
@@ -989,27 +988,18 @@ final class GitViewControllerTest extends TestCase
 
         $before = $this->changes->selectedEntry();
         $controller->refresh(RefreshMode::Quiet);
-        $this->awaitTicks(10);
+        $this->pump(0.2);
         $this->assertSame($before?->path, $this->changes->selectedEntry()?->path, 'identical status output leaves state alone');
 
         $controller->close();
         $controller->refresh(); // closed: the status callback drops its result
-        $this->awaitTicks(10);
+        $this->pump(0.2);
         $this->assertFalse($controller->isOpen());
     }
 
     private function diffText(): string
     {
         return implode("\n", array_map(AnsiUtils::stripAnsiCodes(...), $this->diffView->render(new RenderContext(80, 20))));
-    }
-
-    private function awaitTicks(int $ticks): void
-    {
-        for ($i = 0; $i < $ticks; ++$i) {
-            $suspension = EventLoop::getSuspension();
-            EventLoop::delay(0.01, $suspension->resume(...));
-            $suspension->suspend();
-        }
     }
 
     public function testHistoryPagesInOlderCommitsAtTheListBottom(): void
@@ -1038,7 +1028,7 @@ final class GitViewControllerTest extends TestCase
         $this->await(fn (): bool => 5 === $this->history->commitCount(), what: 'the last page appended (partial: paging ends)');
         $this->history->handleInput("\x1b[B");
         $this->history->handleInput("\x1b[B");
-        $this->awaitTicks(5);
+        $this->pump(0.1);
         $this->assertSame(5, $this->history->commitCount(), 'no further loads past the end');
     }
 
@@ -1077,7 +1067,7 @@ final class GitViewControllerTest extends TestCase
         $this->history->setFocused(true);
         $this->history->handleInput("\x1b[B"); // bottom row: arms load-more
         $controller->close();
-        $this->awaitTicks(10);
+        $this->pump(0.2);
         $this->assertSame(1, $this->history->commitCount(), 'no page landed after close');
     }
 
