@@ -301,6 +301,25 @@ final class GitCommandsTest extends TestCase
         $this->assertStringContainsString('more', $this->readFile('a.txt'), 'a soft reset leaves the working tree untouched');
     }
 
+    public function testResetToCommitMixedUnstagesTheDiffButKeepsTheWorkingTree(): void
+    {
+        $commands = $this->commands(['a.txt' => "one\n"]);
+        $base = trim($this->project->git('rev-parse', 'HEAD'));
+        $this->write('a.txt', "one\nmore\n");
+        $this->project->git('commit', '-am', 'more');
+
+        $commands->resetToCommit(self::commitEntry($base));
+        $this->overlayOpens();
+        $this->key("\x1b[B"); // Soft → Mixed
+        $this->key("\r");
+        $this->pump();
+
+        $this->assertStringContainsString('Reset to '.substr($base, offset: 0, length: 7).' (mixed)', $this->statusRow($this->statusBar));
+        $this->assertSame($base, trim($this->project->git('rev-parse', 'HEAD')), 'HEAD moved to the chosen commit');
+        $this->assertStringContainsString('more', $this->readFile('a.txt'), 'a mixed reset leaves the working tree untouched');
+        $this->assertSame(['M a.txt'], explode("\n", $this->porcelain()), 'unstaging is the whole point of mixed vs. soft — the diff must show as unstaged, not staged');
+    }
+
     public function testResetToCommitCancelLeavesHeadAlone(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);

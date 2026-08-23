@@ -78,6 +78,21 @@ final class HistoryListWidgetTest extends TestCase
         $this->assertSame('full2', $widget->selectedCommit()?->sha);
     }
 
+    public function testEnterWithNoFilesLoadedStaysOnCommits(): void
+    {
+        $widget = new HistoryListWidget(new Translator('en'));
+        $widget->setFocused(true);
+        $widget->setCommits([
+            new LogEntry('s1', 'aaa111', 'A', 1_700_000_100, 'one'),
+            new LogEntry('s2', 'bbb222', 'B', 1_700_000_000, 'two'),
+        ]);
+        // No setFiles() call: the files list is empty.
+
+        $widget->handleInput("\r"); // must not switch focus away from the commit list
+        $widget->handleInput("\x1b[B"); // if it had switched, this would target the (empty) file list instead
+        $this->assertSame('s2', $widget->selectedCommit()?->sha, 'the down-arrow still moved the commit selection');
+    }
+
     public function testHoverTintsCommitAndFileRowsWithoutSelecting(): void
     {
         $events = new EventDispatcher();

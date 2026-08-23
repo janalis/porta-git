@@ -204,6 +204,54 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertStringContainsString("\x1b[48;5;236m", $raw[3], 'the anchor row (below the cursor) is range-highlighted');
     }
 
+    public function testCycleContextKeyFiresTheHookExceptWhenReadOnlyOrEmpty(): void
+    {
+        $events = new EventDispatcher();
+        $widget = $this->widget($events);
+        $widget->setFocused(true);
+        $fired = 0;
+        GitWidgetEvents::wire($events, onCycleContext: static function () use (&$fired): void {
+            ++$fired;
+        });
+
+        $widget->handleInput('c');
+        $this->assertSame(1, $fired, 'a normal diff cycles its context');
+
+        $widget->makeReadOnly();
+        $widget->handleInput('c');
+        $this->assertSame(1, $fired, 'read-only history diffs cannot change context');
+
+        $widget->makeEditable();
+        $empty = new DiffViewWidget(new Translator('en'), events: $events);
+        $empty->setDocument(null, null);
+        $empty->setFocused(true);
+        $empty->handleInput('c');
+        $this->assertSame(1, $fired, 'no document, no rows: nothing to cycle');
+    }
+
+    public function testScrollByMovesAndClampsInBothDirections(): void
+    {
+        $widget = $this->widget();
+        $widget->setFocused(true);
+        $this->plainLines($widget, 80, 4); // teaches the widget lastRows = 4
+
+        $widget->scrollBy(1);
+        $lines = $this->plainLines($widget, 80, 4);
+        $this->assertStringContainsString('[scrolled +1]', $lines[0]);
+
+        $widget->scrollBy(-5); // clamps at the top
+        $lines = $this->plainLines($widget, 80, 4);
+        $this->assertStringNotContainsString('[scrolled', $lines[0]);
+
+        $widget->scrollBy(50); // clamps at the bottom
+        $this->assertStringContainsString('tail!', implode("\n", $this->plainLines($widget, 80, 4)));
+
+        $empty = new DiffViewWidget(new Translator('en'));
+        $empty->setDocument(null, null);
+        $empty->scrollBy(1); // no rows: a safe no-op
+        $this->assertFalse($empty->isSplit());
+    }
+
     public function testReadOnlyIgnoresStagingKeys(): void
     {
         $events = new EventDispatcher();

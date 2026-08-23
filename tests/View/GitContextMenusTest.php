@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\TestCase;
+use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
@@ -131,5 +132,30 @@ final class GitContextMenusTest extends TestCase
 
         $this->tui->setFocus($this->history);
         $this->assertNull($menus->focusedContextMenu(), 'history');
+    }
+
+    // --- The positive path: not covered by the E2e (which only exercises the
+    // History tab's commit menu) or the rest of this file (deliberately scoped
+    // to the empty answers above) — changeItems()'s Stage/Unstage label swap
+    // has no test anywhere else in the plugin.
+
+    public function testChangeContextMenuLabelsStageOrUnstageByTheEntrysStagedState(): void
+    {
+        $menus = $this->menus();
+        $this->changes->setEntries([
+            new ChangeEntry('partial.txt', indexStatus: ' ', worktreeStatus: 'M'),
+        ]);
+        $this->frame();
+
+        $items = $menus->contextItemsAt(row: 1, col: 2);
+        $this->assertNotNull($items, 'the row is real once the list has an entry');
+        $this->assertSame('Stage', $items[0]->label, 'not fully staged: the checkbox action is to stage it');
+        $this->assertSame($this->changes, $this->tui->getFocus(), 'a right-click also focuses the list it hit');
+
+        $this->changes->setEntries([
+            new ChangeEntry('staged.txt', indexStatus: 'M', worktreeStatus: ' '),
+        ]);
+        $items = $menus->contextItemsAt(row: 1, col: 2);
+        $this->assertSame('Unstage', $items[0]->label, 'fully staged: the checkbox action is to unstage it');
     }
 }

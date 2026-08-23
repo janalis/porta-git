@@ -111,6 +111,25 @@ final class ChangesListWidgetTest extends TestCase
         $this->assertSame('src/a.php', $discarded);
     }
 
+    public function testArmedDiscardFollowsItsEntryWhenSetEntriesReorders(): void
+    {
+        $widget = new ChangesListWidget(new Translator('en'));
+        $widget->setFocused(true);
+        $widget->setEntries($this->entries()); // src/a.php at index 0
+        $widget->handleInput('d'); // arm discard for src/a.php (index 0)
+
+        // A background refresh reorders the list: src/a.php is now index 1.
+        $widget->setEntries([
+            new ChangeEntry('src/z.php', 'M', ' '),
+            new ChangeEntry('src/a.php', ' ', 'M'),
+        ]);
+
+        $screen = $this->plain($widget->render(new RenderContext(44, 8)));
+        $lines = explode("\n", $screen);
+        $this->assertStringContainsString('Discard changes?', $lines[2], 'the confirmation followed src/a.php to its new row');
+        $this->assertStringNotContainsString('Discard changes?', $lines[1], 'not left behind on the old row');
+    }
+
     public function testContextMenuTriggersReuseTheExistingCallbacks(): void
     {
         $events = new EventDispatcher();

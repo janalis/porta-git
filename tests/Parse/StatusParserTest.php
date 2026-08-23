@@ -55,4 +55,14 @@ final class StatusParserTest extends TestCase
         $this->assertSame([], StatusParser::parse("\0"));
         $this->assertSame([], StatusParser::parse("junk-without-space-at-2\0xy\0"));
     }
+
+    public function testARenameAsTheLastRecordHasNoOriginalPathToken(): void
+    {
+        // Nothing follows the rename record but the trailing empty split
+        // artifact — must not treat it as (or crash on) a real original path.
+        $entries = StatusParser::parse("R  new/name.php\0");
+
+        $this->assertCount(1, $entries);
+        $this->assertNull($entries[0]->renamedFrom);
+    }
 }

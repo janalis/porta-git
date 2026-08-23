@@ -289,6 +289,41 @@ final class GitInfoStatusTest extends TestCase
         $this->assertFalse($refused, 'the root commit has no parent to reset onto');
     }
 
+    public function testResetToSoftKeepsTheIndexAndMixedUnstagesIt(): void
+    {
+        $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
+        $base = trim($project->git('rev-parse', 'HEAD'));
+        $project->write('a.txt', "one\nmore\n");
+        $project->git('commit', '-am', 'more');
+
+        $ok = null;
+        $git->resetTo($base, 'soft', static function (Outcome $o) use (&$ok): void {
+            $ok = $o->isOk();
+        });
+        $this->await(static function () use (&$ok): bool {
+            return null !== $ok;
+        });
+        $this->assertTrue($ok);
+        $this->assertSame($base, trim($project->git('rev-parse', 'HEAD')));
+        $this->assertSame(['M  a.txt'], explode("\n", $project->git('status', '--porcelain')), 'soft leaves the change staged');
+
+        $project->git('commit', '-am', 'more again');
+        $ok = null;
+        $git->resetTo($base, 'mixed', static function (Outcome $o) use (&$ok): void {
+            $ok = $o->isOk();
+        });
+        $this->await(static function () use (&$ok): bool {
+            return null !== $ok;
+        });
+        $this->assertTrue($ok);
+        $this->assertSame($base, trim($project->git('rev-parse', 'HEAD')));
+        $this->assertSame(
+            ['M a.txt'],
+            explode("\n", $project->git('status', '--porcelain')),
+            'mixed unstages the change but keeps it in the working tree (the leading index-status space is trimmed by the helper)',
+        );
+    }
+
     public function testEveryNewVerbShortCircuitsWithoutARepo(): void
     {
         $project = new TempProject(['a.txt' => "x\n"]);

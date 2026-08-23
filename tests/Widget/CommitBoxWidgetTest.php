@@ -107,6 +107,17 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertSame(1, $focusNext);
     }
 
+    public function testTabFromDescriptionWithNoNextPaneHookStaysOnDescription(): void
+    {
+        $widget = $this->widget(); // no onFocusNext wired
+        $widget->handleInput("\t"); // summary -> description
+        $widget->handleInput("\t"); // no hook to advance past it: must stay put
+
+        $this->type($widget, 'body text');
+        $this->assertStringContainsString('body text', $this->rendered($widget), 'the typed text landed in the description, so focus never left it');
+        $this->assertStringNotContainsString('body text', explode("\n", $this->rendered($widget))[1], 'and specifically not in the summary row');
+    }
+
     public function testRenderShowsPlaceholdersButtonStateAndClearResets(): void
     {
         $widget = new CommitBoxWidget(new Translator('en'));

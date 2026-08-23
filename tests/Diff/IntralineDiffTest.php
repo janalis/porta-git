@@ -70,4 +70,29 @@ final class IntralineDiffTest extends TestCase
         $this->assertNull($doc->hunks[0]->lines[0]->changedRange, 'disjoint pair: no emphasis');
         $this->assertNull($doc->hunks[0]->lines[2]->changedRange, 'the surplus addition has no partner');
     }
+
+    public function testSurplusDeletionsHaveNoPartner(): void
+    {
+        // The mirror of the surplus-addition case: more deletions than
+        // additions in the run — only the first min(dels, adds) pair up.
+        $doc = DiffDocument::parse("@@ -1,2 +1,1 @@\n-\$a = 1;\n-extra removed\n+\$a = 2;\n");
+
+        [$del1, $del2, $add1] = $doc->hunks[0]->lines;
+        $this->assertSame([5, 6], $del1->changedRange, 'paired first del: only the digit differs');
+        $this->assertSame([5, 6], $add1->changedRange);
+        $this->assertNull($del2->changedRange, 'the surplus deletion has no partner');
+    }
+
+    public function testTwoSeparateRunsInOneHunkEachPairIndependently(): void
+    {
+        // Two ±runs split by a context line: the loop must resume scanning
+        // for the second run's own start, not get stuck after the first.
+        $doc = DiffDocument::parse("@@ -1,4 +1,4 @@\n-\$a = 1;\n+\$a = 2;\n ctx\n-\$b = 3;\n+\$b = 4;\n");
+
+        [$del1, $add1, , $del2, $add2] = $doc->hunks[0]->lines;
+        $this->assertSame([5, 6], $del1->changedRange);
+        $this->assertSame([5, 6], $add1->changedRange);
+        $this->assertSame([5, 6], $del2->changedRange, 'the second run pairs independently of the first');
+        $this->assertSame([5, 6], $add2->changedRange);
+    }
 }
