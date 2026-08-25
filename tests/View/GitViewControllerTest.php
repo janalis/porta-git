@@ -609,7 +609,10 @@ final class GitViewControllerTest extends TestCase
         // Page up pins the cursor on the hunk header before unstaging the WHOLE hunk.
         $this->diffView->handleInput("\x1b[5~");
         $this->diffView->handleInput(' ');
-        $this->await(fn (): bool => 'none' === ($this->changes->selectedEntry()?->stagedState() ?? 'gone'), what: 'the hunk unstage to reach git status');
+        // 20s, not the default: this barrier spans TWO serial git subprocesses
+        // (the unstage apply, then the status refresh), and the default timed
+        // out three times in one day under external load waves (30-75).
+        $this->await(fn (): bool => 'none' === ($this->changes->selectedEntry()?->stagedState() ?? 'gone'), timeout: 20.0, what: 'the hunk unstage to reach git status');
         $this->addToAssertionCount(1); // the throwing awaits above are the assertions
     }
 
