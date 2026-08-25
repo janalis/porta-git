@@ -21,6 +21,7 @@ use Porta\Plugin\Runtime\PluginManager;
 use Porta\Plugin\Runtime\PluginRuntime;
 use Porta\Plugin\Runtime\PluginSettings;
 use Porta\Support\Clipboard;
+use Porta\Tests\Support\FakePluginLifecycle;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
@@ -84,6 +85,7 @@ final class BlameTest extends TestCase
             new Clipboard($this->tui),
             new StatusBarWidget(),
             new CodeEditorWidget(),
+            new FakePluginLifecycle(),
         ));
         $api = new PluginApi('git', $manager, $this->project->dir, $settings);
         $manager->commit($api);
