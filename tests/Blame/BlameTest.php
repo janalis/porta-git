@@ -321,6 +321,28 @@ final class BlameTest extends TestCase
         $this->assertSame($this->project->path('a.txt'), $this->marks->published[0]['path'], 'published for the file it was handed');
     }
 
+    public function testRefreshesLandingWhileADiffIsInFlightCoalesceIntoOneRerun(): void
+    {
+        // Holding Ctrl+Tab through the same buffers fired one `git diff` per
+        // revisit. In-flight refreshes for a path now coalesce: one rerun
+        // follows the answer (a plain skip would drop a save's fresh marks).
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit(name: 'tester', email: 't@t');
+        $this->project->commitAll('init');
+        $this->project->write('a.txt', "one\nCHANGED\n");
+        $path = $this->project->path('a.txt');
+
+        $marks = new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: true);
+        $marks->refresh($path); // spawns the diff
+        $marks->refresh($path); // in flight: coalesces
+        $marks->refresh($path); // still ONE pending rerun, not two
+
+        $this->await(fn (): bool => \count($this->marks->published) >= 2, what: 'the run and its one coalesced rerun to publish');
+        $this->pump(0.3); // room for a third publish that must not exist
+        $this->assertCount(2, $this->marks->published, 'three refreshes while in flight = the run plus one rerun');
+    }
+
     public function testBlameFileCoversCommittedDirtyAndMissingLines(): void
     {
         $this->api();

@@ -982,6 +982,33 @@ final class GitViewControllerTest extends TestCase
         $this->assertSame($this->changes, $this->tui->getFocus());
     }
 
+    public function testAQuietTickWithAStatusInFlightSkipsInsteadOfStacking(): void
+    {
+        $controller = $this->controller();
+        $this->project->write('a.txt', "poked\ntwo\n");
+        $controller->open();
+        $this->await(fn (): bool => null !== $this->changes->selectedEntry());
+        $this->assertFalse((bool) Probe::get($controller, 'statusInFlight'), 'a completed status clears the guard');
+
+        // Simulate a status still running: the quiet tick must not spawn
+        // another — a change on disk stays unseen while the guard holds.
+        Probe::set($controller, 'statusInFlight', true);
+        $this->project->write('extra.txt', "new\n");
+        $controller->refresh(RefreshMode::Quiet);
+        $this->pump(0.3);
+        $entries = array_map(static fn ($e) => $e->path, Probe::get($controller, 'entries'));
+        $this->assertNotContains('extra.txt', $entries, 'the guarded quiet tick spawned nothing');
+
+        // An EAGER refresh (the user asked) bypasses the guard...
+        $controller->refresh();
+        $this->await(fn (): bool => \in_array('extra.txt', array_map(static fn ($e) => $e->path, Probe::get($controller, 'entries')), true), what: 'the eager refresh to land');
+        // ...and its completion re-clears the guard for the poll — which is
+        // also why a close() cancelling a status mid-flight cannot wedge it:
+        // open()'s eager refresh ignores the guard and always answers.
+        $this->assertFalse((bool) Probe::get($controller, 'statusInFlight'));
+        $controller->close();
+    }
+
     public function testQuietRefreshSkipsRepaintWhenNothingChanged(): void
     {
         $controller = $this->controller();

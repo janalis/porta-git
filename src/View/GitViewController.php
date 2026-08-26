@@ -56,6 +56,17 @@ use Symfony\Component\Tui\Widget\FocusableInterface;
 final class GitViewController implements ContributedView
 {
     private bool $open = false;
+
+    /**
+     * Whether a `git status` is already running. The quiet poll skips its tick
+     * instead of stacking another process — {@see \Porta\GitPlugin\Process\ProcessLane}
+     * is a cancellation scope, not a queue, so on a large repository a status
+     * slower than the interval would pile up subprocesses unbounded. A close()
+     * cancelling a status mid-flight (its answer never comes) cannot wedge the
+     * guard: only the QUIET poll honors it, and open()'s eager refresh always
+     * answers and clears it before the next poll is armed.
+     */
+    private bool $statusInFlight = false;
     /** @var list<ChangeEntry> */
     private array $entries = [];
     private string $lastStatusRaw = "\0unset";
@@ -215,7 +226,12 @@ final class GitViewController implements ContributedView
     /** Re-read `git status`; {@see RefreshMode::Quiet} skips the repaint when nothing changed. */
     public function refresh(RefreshMode $mode = RefreshMode::Eager): void
     {
+        if (RefreshMode::Quiet === $mode && $this->statusInFlight) {
+            return; // this tick's answer is already on its way
+        }
+        $this->statusInFlight = true;
         $this->git->status(function (array $entries, string $raw) use ($mode): void {
+            $this->statusInFlight = false;
             if (!$this->open || RefreshMode::Quiet === $mode && $raw === $this->lastStatusRaw) {
                 return;
             }
