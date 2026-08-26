@@ -54,7 +54,7 @@ final class GitFlowsE2eTest extends TestCase
                     $rect = $renderer->getWidgetRect($status);
                     $col = $rect->col + (int) self::clickableColumn($status);
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $col + 1, $rect->row + 1)); // right-click (1-based)
-                    $tui->tick();
+                    $this->frame($tui);
 
                     $menu = Services::resolve($ide, ContextMenu::class);
                     $this->assertTrue($menu->isOpen(), 'the branch menu opened');
@@ -68,9 +68,9 @@ final class GitFlowsE2eTest extends TestCase
                     // A right-click elsewhere on the status bar (the legend area,
                     // outside the branch cell) offers no branch menu.
                     $tui->handleInput("\x1b"); // dismiss the menu
-                    $tui->tick();
+                    $this->frame($tui);
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + $rect->columns - 3, $rect->row + 1));
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertFalse($menu->isOpen(), 'a right-click off the branch opens no menu');
                 },
             ],
@@ -469,8 +469,8 @@ final class GitFlowsE2eTest extends TestCase
                     }
                     $tui->handleInput("\r");
                 },
-                700 => static function ($tui): void {
-                    $tui->tick();
+                700 => function ($tui): void {
+                    $this->frame($tui);
                     $tui->handleInput("\x1b[B"); // the "− Delete branch…" row
                     $tui->handleInput("\r");
                 },
@@ -636,7 +636,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertContains('M  src/A.php', explode("\n", $project->git('status', '--porcelain')), 'the row staged');
                 },
                 1000 => function ($tui, $terminal, $ide): void {
-                    $tui->tick();
+                    $this->frame($tui);
                     // Keyboard parity: Ctrl+F10 on the (focused) changes list —
                     // a staged row offers Unstage; Discard… arms the confirm bar.
                     $this->assertSame('git-changes', $tui->getFocus()?->getId());
@@ -648,7 +648,7 @@ final class GitFlowsE2eTest extends TestCase
 
                     $tui->handleInput("\x1b[B"); // → Discard…
                     $tui->handleInput("\r");
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('Discard changes?', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Discard… armed the two-press confirmation');
                     $tui->handleInput('n'); // decline
                 },
@@ -724,13 +724,13 @@ final class GitFlowsE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
-                600 => static function ($tui): void {
-                    $tui->tick();
+                600 => function ($tui): void {
+                    $this->frame($tui);
                     // F10 opens the app menu OVER the git view now.
                     $tui->handleInput("\x1b[21~");
                 },
                 900 => function ($tui, $terminal): void {
-                    $tui->tick();
+                    $this->frame($tui);
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertSame('menu', $tui->getFocus()?->getId(), 'F10 focused the menu bar');
                     $this->assertStringContainsString('Save File', $screen, 'the File dropdown composites over the git panes');
@@ -744,7 +744,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;5;3m");
                 },
                 1150 => function ($tui): void {
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertSame('git-changes', $tui->getFocus()?->getId(), 'closing the menu restores the git focus target');
                     // Click the 'File' title (row 1) to open, then again to close.
                     $tui->handleInput("\x1b[<0;3;1M");
@@ -763,7 +763,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<35;10;5M");
                 },
                 1700 => function ($tui, $terminal): void {
-                    $tui->tick();
+                    $this->frame($tui);
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertStringNotContainsString('+new', $screen, 'hover alone must not load the hovered diff');
                     $this->assertStringContainsString('three changed', $screen, "a.txt's diff is still shown");
@@ -846,8 +846,8 @@ final class GitFlowsE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
-                600 => static function ($tui): void {
-                    $tui->tick();
+                600 => function ($tui): void {
+                    $this->frame($tui);
                     // Click the [History] tab cell (tab strip = screen row 2).
                     $tui->handleInput("\x1b[<0;14;2M");
                     $tui->handleInput("\x1b[<0;14;2m");
@@ -921,18 +921,18 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertSame('git-changes', $tui->getFocus()?->getId());
 
                     // Pointer motion over the git mode tabs tints the inactive one.
-                    $tui->tick();
+                    $this->frame($tui);
                     $renderer = Services::resolve($ide, Renderer::class);
                     $tabsRect = $renderer->getWidgetRect($tui->getById('git-tabs'));
                     $tui->handleInput(\sprintf("\x1b[<35;%d;%dM", $tabsRect->col + 12, $tabsRect->row + 1)); // over 'History'
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString(
                         "\x1b[48;5;240m",
                         implode('', $tui->getById('git-tabs')->render(new \Symfony\Component\Tui\Render\RenderContext(44, 1))),
                         'the hovered git tab tints',
                     );
                     $tui->handleInput(\sprintf("\x1b[<35;%d;%dM", $tabsRect->col + 2, $tabsRect->row + 3)); // off the strip
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringNotContainsString(
                         "\x1b[48;5;240m",
                         implode('', $tui->getById('git-tabs')->render(new \Symfony\Component\Tui\Render\RenderContext(44, 1))),
@@ -943,12 +943,12 @@ final class GitFlowsE2eTest extends TestCase
                     // used to leave the focus wherever it happened to be.
                     $tui->setFocus($tui->getById('git-diff'));
                     $tui->handleInput(\sprintf("\x1b[<0;%d;%dM", $tabsRect->col + 12, $tabsRect->row + 1)); // click 'History'
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertSame('git-history', $tui->getFocus()?->getId(), 'clicking the History tab brings you to the history list');
 
                     $tui->setFocus($tui->getById('git-diff'));
                     $tui->handleInput(\sprintf("\x1b[<0;%d;%dM", $tabsRect->col + 2, $tabsRect->row + 1)); // click 'Changes'
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertSame('git-changes', $tui->getFocus()?->getId(), 'and back to the changes list');
                 },
             ],

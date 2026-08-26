@@ -65,7 +65,7 @@ final class GitContextMenuE2eTest extends TestCase
                     $tui->handleInput("\x1b"); // close the menu
                 },
                 900 => function ($tui, $terminal): void {
-                    $tui->tick();
+                    $this->frame($tui);
                     // Keyboard parity: Ctrl+F10 on the (focused) history list.
                     $this->assertSame('git-history', $tui->getFocus()?->getId());
                     $terminal->clearOutput();

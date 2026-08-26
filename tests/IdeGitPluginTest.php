@@ -302,7 +302,7 @@ final class IdeGitPluginTest extends TestCase
                     // and is pinned in its own test; what is unproven without
                     // this is that the plugin ACTS on being told.
                     Services::resolve($ide, PluginLifecycle::class)->onPluginSettingChanged('git', 'gutterMarks', false);
-                    $tui->tick();
+                    $this->frame($tui);
 
                     $this->assertStringNotContainsString("\x1b[38;5;75m┆", $joined(), 'the strip went, and took the marks with it');
                 },
