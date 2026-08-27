@@ -433,6 +433,41 @@ final class BlameTest extends TestCase
         $this->assertNotSame([], Probe::get($this->editor, 'decorations')->lineAnnotations());
     }
 
+    public function testTheBlameDefaultSettingTurnsAnnotationsOnAndOffLive(): void
+    {
+        // The setting seeds a toggle whose live state lives HERE, so reaching
+        // the GitSettings holder was never enough — setBlameDefault() had no
+        // readers at all, which is why flipping the row did nothing until a
+        // restart. Two directions, because only showing would pass with a
+        // setter that ignores false.
+        $api = $this->api();
+        $blame = $this->openCommittedFile($api);
+        $annotations = new BlameAnnotations($blame, $api);
+        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'off to begin with');
+
+        $annotations->setEnabled(true);
+        $this->await(fn (): bool => [] !== Probe::get($this->editor, 'decorations')->lineAnnotations(), what: 'the setting to show annotations');
+
+        $annotations->setEnabled(false);
+        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'and to hide them again');
+    }
+
+    public function testSettingBlameDefaultToTheStateItAlreadyHasIsANoOp(): void
+    {
+        // Every settings write on this plugin reaches the hook, so a setter
+        // that acted unconditionally would spawn a `git blame` — and flash —
+        // on each one. The sentinel asserts a POSITIVE: nothing overwrote it.
+        $api = $this->api();
+        $blame = $this->openCommittedFile($api);
+        $annotations = new BlameAnnotations($blame, $api);
+        Probe::get($this->editor, 'decorations')->setLineAnnotations(['sentinel']);
+
+        $annotations->setEnabled(false);
+        $this->pump(0.2); // a non-event: nothing is spawned, so there is nothing to await
+
+        $this->assertSame(['sentinel'], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'already off: nothing ran');
+    }
+
     public function testWithBlameOffTheHooksDoNothing(): void
     {
         $api = $this->api();

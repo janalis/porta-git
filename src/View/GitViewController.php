@@ -205,9 +205,28 @@ final class GitViewController implements ContributedView
         $this->hideWhitespace = $prefs['hideWhitespace'];
         $this->hideWhitespace ? $this->panes->diffView->hideWhitespace() : $this->panes->diffView->showWhitespace();
         $this->refresh();
+        $this->armPoll();
+        $this->host->invalidate();
+    }
+
+    /**
+     * (Re-)arm the status poll at the interval currently configured.
+     *
+     * Also the settings hook's entry point: the interval is baked into an
+     * `EventLoop::repeat` when the view opens, so editing it with the view up
+     * would otherwise do nothing until the view was closed and reopened.
+     * A no-op while closed — {@see open()} will arm it with the new value.
+     */
+    public function armPoll(): void
+    {
+        if (!$this->open) {
+            return;
+        }
+        if (null !== $this->poll) {
+            EventLoop::cancel($this->poll);
+        }
         $interval = (float) ($this->gitSettings?->refreshInterval() ?? 2);
         $this->poll = EventLoop::repeat($interval, fn () => $this->refresh(RefreshMode::Quiet));
-        $this->host->invalidate();
     }
 
     public function close(): void

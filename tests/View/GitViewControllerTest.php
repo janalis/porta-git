@@ -69,6 +69,8 @@ use Porta\Workbench\EditorArea;
 use Porta\Workbench\Notifier;
 use Porta\Workbench\View\ViewHost;
 use Porta\Workbench\View\ViewRegistry;
+use Revolt\EventLoop;
+use Revolt\EventLoop\InvalidCallbackError;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -325,6 +327,50 @@ final class GitViewControllerTest extends TestCase
 
         $this->assertFalse($controller->isOpen());
         $this->assertStringContainsString('Not a git repository', $this->statusRow($this->statusBar));
+    }
+
+    public function testArmPollReplacesTheTimerSoAnIntervalEditAppliesToAnOpenView(): void
+    {
+        // The interval is baked into an EventLoop::repeat when the view opens,
+        // so a Settings edit made with the view UP reached the holder and
+        // nothing else. armPoll() is what the settings hook calls; it must
+        // CANCEL the old timer, not merely add a second one.
+        $controller = $this->controller();
+        $controller->open();
+        $first = Probe::get($controller, 'poll');
+        $this->assertIsString($first, 'open() armed the poll');
+
+        $controller->armPoll();
+
+        $second = Probe::get($controller, 'poll');
+        $this->assertIsString($second);
+        $this->assertNotSame($first, $second, 'a fresh timer, at whatever interval is configured now');
+        $this->assertTrue(self::cancelled($first), 'and the old one is gone, not left running beside it');
+        $this->assertFalse(self::cancelled($second));
+    }
+
+    public function testArmPollIsANoOpWhileTheViewIsClosed(): void
+    {
+        // Every settings write on this plugin reaches the hook, so arming a
+        // poll for a closed view would leak a repeating timer per edit — and
+        // open() arms it with the current value anyway.
+        $controller = $this->controller();
+
+        $controller->armPoll();
+
+        $this->assertNull(Probe::get($controller, 'poll'));
+    }
+
+    /** Whether $id has been cancelled: the driver forgets a cancelled callback entirely. */
+    private static function cancelled(string $id): bool
+    {
+        try {
+            EventLoop::isEnabled($id);
+
+            return false;
+        } catch (InvalidCallbackError) {
+            return true;
+        }
     }
 
     public function testToggleSwapsTheMainChildrenAndRestoresThem(): void

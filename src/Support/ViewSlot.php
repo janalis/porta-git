@@ -17,10 +17,12 @@ use Porta\GitPlugin\View\GitWiring;
  * the region core mints for it. A listener that has to reach the view is
  * therefore registered against a promise of one.
  *
- * ONE listener needs this: `GitWiring::VIEW_CORE`, the controller's answer to
- * core's `GitRemoteCompleted`. The toggle command used to need it too, to ask
- * `isOpen()` before choosing open or close — `PluginApi::toggleView()` asks the
- * registry instead, which is where the answer lived all along.
+ * Two registrations need this: `GitWiring::VIEW_CORE`, the controller's answer
+ * to core's `GitRemoteCompleted`; and the `onSettingChanged` hook, which
+ * re-arms the status poll when `refreshInterval` changes with the view open.
+ * The toggle command used to need it too, to ask `isOpen()` before choosing
+ * open or close — `PluginApi::toggleView()` asks the registry instead, which is
+ * where the answer lived all along.
  *
  * A typed slot rather than a `use (&$view)` capture: the reference form works,
  * but the analyser narrows the captured variable to the `null` it holds at the

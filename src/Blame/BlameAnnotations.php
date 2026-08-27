@@ -26,9 +26,26 @@ final class BlameAnnotations
         private readonly PluginApi $api,
         bool $showByDefault = false,
     ) {
-        // The core "Show blame annotations by default" setting seeds this; the
-        // first buffer switch then fetches (see refreshIfEnabled).
+        // The "Show blame annotations by default" setting seeds this; the
+        // first buffer switch then fetches (see refreshIfEnabled), and a later
+        // edit arrives through setEnabled().
         $this->enabled = $showByDefault;
+    }
+
+    /**
+     * The Settings row wrote "Show blame annotations by default".
+     *
+     * It drives the SAME state the toggle command does, so flipping the row
+     * shows or hides annotations at once rather than waiting for a restart —
+     * a "default" nobody can see take effect is indistinguishable from a
+     * setting that does not work. Already-in-that-state is a no-op, so an
+     * unrelated settings write cannot spawn a `git blame`.
+     */
+    public function setEnabled(bool $on): void
+    {
+        if ($on !== $this->enabled) {
+            $this->toggle();
+        }
     }
 
     public function toggle(): void

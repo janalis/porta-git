@@ -117,6 +117,9 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
     /** Held for {@see deactivate()}: the lanes outlive every registration. */
     private ?GitProcesses $processes = null;
 
+    /** Held so a `blameDefault` edit reaches the toggle state it seeds. */
+    private ?BlameAnnotations $annotations = null;
+
     /**
      * A live disable strips the listener set — including the onShutdown hook
      * below — so without this the process lanes (and any in-flight fetch,
@@ -216,13 +219,20 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         $branch = new GitBranchSegment($refresher, $settings, $commands, $trans);
         $api->registerStatusSegment($branch->statusCell(...));
 
+        // The view is built LATER — its factory runs after plugins have
+        // committed — but every listener has to be registered now, because the
+        // buffer is drained at commit and a later `on()` is refused. So the
+        // things that reach the view go up front over a holder the factory
+        // fills, and fire on nothing until it does.
+        $slot = new ViewSlot();
+
         // The settings page writes the value; this is what makes it visible
         // without a restart. Two apply LIVE, and they are the two a user
         // toggles to see what happens: the branch cell and the gutter stripe.
         // The rest only have to reach the holder, because every reader of them
         // reads at the moment it acts — a commit reads signoff when it commits,
         // and `path` is resolved by the runners on the next spawn.
-        $api->onSettingChanged(static function (string $key, bool|int|string $value) use ($api, $settings, $repaint): void {
+        $api->onSettingChanged(function (string $key, bool|int|string $value) use ($api, $settings, $repaint, $slot): void {
             // The holder first, always: every reader takes its value from here
             // at the moment it acts, so a commit picks up `signoff` on the next
             // commit without anything else happening.
@@ -237,6 +247,18 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
                 'path' => $settings->setPath((string) $value),
                 default => null, // the two diff toggles the view writes itself
             };
+            // `blameDefault` seeds a toggle whose live state lives in the
+            // annotations object, so reaching the holder is not enough — that
+            // is what made its setter a write-only mutator with no readers.
+            if ('blameDefault' === $key) {
+                $this->annotations?->setEnabled((bool) $value);
+            }
+            // The poll interval is baked into an EventLoop::repeat when the
+            // view opens, so an edit made with the view UP needs it re-armed;
+            // armPoll() is a no-op while it is closed.
+            if ('refreshInterval' === $key) {
+                $slot->view?->armPoll();
+            }
             // Then the two that also have to SHOW immediately, which are the
             // two a user toggles to see what happens. The branch cell is pulled
             // per render, so it only needs the bar told it is stale; the gutter
@@ -249,12 +271,6 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
             }
         });
 
-        // The view is built LATER — its factory runs once, after plugins have
-        // committed — but every listener has to be registered now, because the
-        // buffer is drained at commit and a later `on()` is refused. So the
-        // core-bus listeners go up front over a holder the factory fills, and
-        // fire on nothing until it does.
-        $slot = new ViewSlot();
         // Toggle, not open: Ctrl+Alt+D has always closed the view it opened.
         // One call, because "is it open?" is the registry's question — asking
         // it here would mean keeping the controller alive to read one bool,
@@ -399,6 +415,7 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         // remember whether it is on between the command and the hooks.
         $blame = new BlameClient($api->projectRoot(), $gitPath, $processes->general);
         $annotations = new BlameAnnotations($blame, $api, $settings->blameDefault());
+        $this->annotations = $annotations;
 
         $api->adoptCommand('git_blame', new BlameLine($blame, $api)->show(...));
         $api->adoptCommand('git_toggle_blame', $annotations->toggle(...));
