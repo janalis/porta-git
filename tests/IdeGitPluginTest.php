@@ -470,6 +470,59 @@ final class IdeGitPluginTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function testTheGitViewTogglesLiveWithItsMenuAndBranchCell(): void
+    {
+        // The real consumer of the live view lifecycle: enable git mid-session
+        // in a repo (Git menu + view arrive), disable while the VIEW IS OPEN
+        // (editor restored, menu and view gone), re-enable (fresh view works).
+        $this->skipWithoutGit();
+        $project = new TempProject([
+            'src/A.php' => "<?php\n\$x = 1;\n",
+            '.porta.json' => '{"enabledPlugins":[]}', // git OFF at boot
+        ]);
+        $project->initGit(name: 'tester', email: 't@t');
+        $project->commitAll('init');
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                300 => function ($tui, $terminal, $ide): void {
+                    $views = Services::resolve($ide, ViewRegistry::class);
+                    $lifecycle = Services::resolve($ide, PluginLifecycle::class);
+                    $menuTitles = fn (): array => array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
+
+                    $this->frame($tui);
+                    $this->assertNull($views->find('git'), 'off at boot');
+                    $this->assertNotContains('Git', $menuTitles());
+
+                    $lifecycle->enable('git');
+                    $this->frame($tui);
+                    $this->assertNotNull($views->find('git'), 'a first-time enable builds the git view');
+                    $this->assertContains('Git', $menuTitles(), 'and its menu');
+
+                    Services::resolve($ide, CommandRegistry::class)->run('ide_git');
+                    $this->frame($tui);
+                    $this->assertTrue($views->isOpen('git'), 'the adopted toggle opens the fresh view');
+
+                    $lifecycle->disable('git');
+                    $this->frame($tui);
+                    $this->assertNull($views->find('git'), 'disabling while open retracts the view');
+                    $this->assertNotContains('Git', $menuTitles());
+                    $this->assertSame('editor', $tui->getFocus()?->getId(), 'the editor got the workspace back');
+
+                    $lifecycle->enable('git');
+                    $this->frame($tui);
+                    Services::resolve($ide, CommandRegistry::class)->run('ide_git');
+                    $this->frame($tui);
+                    $this->assertTrue($views->isOpen('git'), 're-enable round-trips to a working view');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
     public function testALiveDisableStopsBothLanesTheShutdownHookNoLongerCovers(): void
     {
         // The disable path strips the plugin's listeners — the onShutdown hook
