@@ -284,9 +284,9 @@ final class BlameTest extends TestCase
 
     public function testTheStripeSettingOffRunsNoDiffAtAll(): void
     {
-        // gitGutterMarks, read once at activation. The second half is the
-        // control: without it this would pass just as well if the fixture were
-        // wrong and there were no marks to find either way.
+        // The `gutterMarks` guard. The second half is the control: without it
+        // this would pass just as well if the fixture were wrong and there were
+        // no marks to find either way.
         $api = $this->api();
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
@@ -300,6 +300,33 @@ final class BlameTest extends TestCase
 
         new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: true)->refresh();
         $this->await(fn (): bool => [] !== $this->marks->published, what: 'the same fixture to publish once the setting is on');
+    }
+
+    public function testTheStripeSettingIsReReadPerRefreshSoTurningItOffStopsTheDiffs(): void
+    {
+        // The plugin hands a closure over the live holder. Baking the flag at
+        // construction left a `git diff` spawning per buffer switch for a
+        // feature the user had just switched off, until the next launch.
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit(name: 'tester', email: 't@t');
+        $this->project->commitAll('init');
+        $this->project->write('a.txt', "one\nCHANGED\n");
+        $this->buffers->open($this->project->path('a.txt'), "one\nCHANGED\n");
+
+        $wanted = true;
+        $marks = new ChangeMarks(new GitInfo($this->project->dir), $api, static function () use (&$wanted): bool {
+            return $wanted;
+        });
+        $marks->refresh();
+        $this->await(fn (): bool => [] !== $this->marks->published, what: 'the stripe while the setting is on');
+
+        $wanted = false;
+        $this->marks->published = [];
+        $marks->refresh();
+        $this->pump(0.2); // a non-event: nothing is spawned, so there is nothing to await
+
+        $this->assertSame([], $this->marks->published, 'turning it off stopped the diff with no rebuild');
     }
 
     public function testARefreshHonoursThePathItIsGivenOverTheActiveFile(): void

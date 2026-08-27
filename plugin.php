@@ -406,7 +406,7 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         $api->onBufferSwitched(static fn (string $path) => $annotations->refreshIfEnabled());
         $api->onFileSaved(static fn (string $path) => $annotations->refreshIfEnabled());
 
-        $marks = new ChangeMarks($git, $api, $settings->gutterMarks());
+        $marks = new ChangeMarks($git, $api, static fn (): bool => $settings->gutterMarks());
         $stash = new Stash($git, $api);
         $index = new IndexCommands($git, $api);
         $api->adoptCommand('git_stage', $index->stageCurrent(...));
