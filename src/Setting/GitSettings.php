@@ -18,9 +18,9 @@ use Porta\GitPlugin\Process\GitRemote;
  * them, and a value re-read per render would still be right but a value cached
  * in six places would not.
  *
- * The git executable path is here but read-only: it is consumed at construction
- * by {@see GitInfo}/{@see GitRemote}, so changing it takes a restart and a
- * setter would be a lie.
+ * The git executable path is here too, and live like the rest: the runners
+ * resolve it per spawn through a closure over this holder, so an edit reaches
+ * the next git command with no restart.
  */
 final class GitSettings
 {
@@ -31,7 +31,7 @@ final class GitSettings
     private bool $noVerify;
     private bool $signoff;
     private int $refreshInterval;
-    private readonly string $path;
+    private string $path;
 
     /** @param array<string, int|bool|string> $settings this plugin's resolved settings (defaults merged) */
     public function __construct(array $settings)
@@ -46,10 +46,15 @@ final class GitSettings
         $this->path = (string) ($settings['path'] ?? '');
     }
 
-    /** The configured `git` binary, or '' to discover one. Restart-required, so it has no setter. */
+    /** The configured `git` binary, or '' to discover one. */
     public function path(): string
     {
         return $this->path;
+    }
+
+    public function setPath(string $path): void
+    {
+        $this->path = $path;
     }
 
     public function showBranch(): bool

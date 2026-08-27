@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Process\GitRemote;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
+use Porta\Tests\Support\PreservesPath;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
@@ -20,6 +21,7 @@ use Porta\Tests\Support\TempProject;
 final class GitRemoteTest extends TestCase
 {
     use GitBinary;
+    use PreservesPath;
     use PumpsLoop;
 
     private TempProject $bare;
@@ -184,9 +186,32 @@ final class GitRemoteTest extends TestCase
 
     public function testExplicitGitPathWinsOverDiscovery(): void
     {
-        $plain = new TempProject();
-        $remote = new GitRemote($plain->dir, '/custom/bin/git');
-        $this->assertSame('/custom/bin/git', Probe::get($remote, 'git'));
+        $project = new TempProject();
+        $project->initGit(name: 'tester', email: 't@t');
+        $remote = new GitRemote($project->dir, '/custom/bin/git');
+
+        // Availability is the observable: a configured path is used verbatim,
+        // so a repository with one set reads as available whatever discovery
+        // would have found.
+        $this->assertTrue($remote->isAvailable());
+    }
+
+    public function testAClosurePathIsReReadPerCallSoASettingsEditApplies(): void
+    {
+        // The plugin hands a closure over its `path` setting; resolving once at
+        // construction is what used to make the setting restart-required.
+        putenv('PATH=/nonexistent');
+        $project = new TempProject();
+        $project->initGit(name: 'tester', email: 't@t');
+        $configured = null;
+        $remote = new GitRemote($project->dir, static function () use (&$configured): ?string {
+            return $configured;
+        });
+        $this->assertFalse($remote->isAvailable(), 'nothing configured, nothing on PATH');
+
+        $configured = '/custom/bin/git';
+
+        $this->assertTrue($remote->isAvailable(), 'the new value is picked up with no rebuild');
     }
 
     public function testUnavailableOutsideARepository(): void

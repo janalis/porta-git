@@ -343,6 +343,7 @@ final class IdeGitPluginTest extends TestCase
                         'noVerify' => true,
                         'signoff' => true,
                         'refreshInterval' => 9,
+                        'path' => '/opt/git',
                     ] as $key => $value) {
                         $lifecycle->onPluginSettingChanged('git', $key, $value);
                     }
@@ -352,11 +353,14 @@ final class IdeGitPluginTest extends TestCase
                     $this->assertTrue($settings->noVerify());
                     $this->assertTrue($settings->signoff());
                     $this->assertSame(9, $settings->refreshInterval());
+                    // `path` reaches the holder like the rest now; the runners
+                    // read it through a closure per spawn, so it is live too.
+                    $this->assertSame('/opt/git', $settings->path());
 
                     // The control, and it has to start from the value an
                     // unhandled key would OVERWRITE: every holder is truthy by
                     // default, so a default arm that wrongly applied
-                    // `path => '/opt/git'` would be invisible against them.
+                    // `diffSplit => true` would be invisible against them.
                     $lifecycle->onPluginSettingChanged('git', 'showBranch', false);
                     $lifecycle->onPluginSettingChanged('git', 'gutterMarks', false);
                     $before = [
@@ -369,8 +373,10 @@ final class IdeGitPluginTest extends TestCase
                         $settings->refreshInterval(),
                         $settings->path(),
                     ];
-                    $lifecycle->onPluginSettingChanged('git', 'path', '/opt/git');
+                    // The two diff toggles the VIEW writes itself: the match
+                    // must not name them, and must not fall through to a holder.
                     $lifecycle->onPluginSettingChanged('git', 'diffSplit', true);
+                    $lifecycle->onPluginSettingChanged('git', 'diffHideWhitespace', true);
                     $after = [
                         $settings->showBranch(),
                         $settings->gutterMarks(),
@@ -384,6 +390,39 @@ final class IdeGitPluginTest extends TestCase
 
                     $this->assertSame([false, false], [$before[0], $before[1]], 'the two live toggles are off before the control');
                     $this->assertSame($before, $after, 'a key the match does not name changes nothing');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testTheGitPathSettingAppliesWithoutARestart(): void
+    {
+        // `path` used to be baked into a process runner at construction — the
+        // holder said so, and the setting had no setter at all. The runners
+        // resolve it per spawn now, so pointing it at nothing breaks the next
+        // git command and restoring it fixes the one after, with no restart.
+        $this->skipWithoutGit();
+        $project = self::repo();
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function ($tui, $terminal, $ide): void {
+                    $view = Services::resolve($ide, ViewRegistry::class)->find('git');
+                    self::assertNotNull($view);
+                    $git = Probe::get($view, 'git');
+                    $lifecycle = Services::resolve($ide, PluginLifecycle::class);
+                    $discovered = $git->binary();
+                    $this->assertNotNull($discovered, 'a real repo with git on PATH');
+
+                    $lifecycle->onPluginSettingChanged('git', 'path', '/custom/bin/git');
+                    $this->assertSame('/custom/bin/git', $git->binary(), 'the edited path is what the next spawn would use');
+
+                    $lifecycle->onPluginSettingChanged('git', 'path', '');
+                    $this->assertSame($discovered, $git->binary(), 'and clearing it goes back to discovery');
                 },
             ],
         );

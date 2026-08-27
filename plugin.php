@@ -139,7 +139,11 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         // who turned one off before the move keeps it off.
         $legacy = LegacySettings::forProject($root);
         $settings = new GitSettings($legacy->seed($api->setting(...)));
-        $gitPath = $settings->path();
+        // A CLOSURE over the holder, not a resolved string: every runner below
+        // asks per spawn, so editing the `path` setting reaches the next git
+        // command with no restart. '' means "discover", which the runners spell
+        // as null.
+        $gitPath = static fn (): ?string => '' === $settings->path() ? null : $settings->path();
         // Write whatever was adopted through, so the file stops answering the
         // same question twice and the settings page shows what is in force.
         // From onReady, because persisting is an IDE action and activate() may
@@ -156,7 +160,7 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         // and this object was genuinely unreachable.
         $processes = new GitProcesses();
         $this->processes = $processes;
-        $git = new GitInfo($root, $settings, '' === $gitPath ? null : $gitPath, $processes->general);
+        $git = new GitInfo($root, $settings, $gitPath, $processes->general);
         // Shutdown stops BOTH lanes. It used to stop one of the four the plugin
         // had, so a fetch, a blame or a mark refresh could outlive the loop.
         $api->onShutdown($processes->cancelAll(...));
@@ -198,7 +202,7 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
 
         $refresher = new GitRefresher($git, $repaint);
         $commands = new GitCommands($git, $modals, $flash, $repaint, $trans, $refresher, $api->copyToClipboard(...), $events);
-        $remote = new GitRemoteCommands(new GitRemote($root, '' === $gitPath ? null : $gitPath, $processes->remote), $flash, $trans, $events, $modals, $repaint);
+        $remote = new GitRemoteCommands(new GitRemote($root, $gitPath, $processes->remote), $flash, $trans, $events, $modals, $repaint);
 
         $this->registerCommands($api, $commands, $remote);
         $api->registerMenu(
@@ -216,9 +220,8 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         // without a restart. Two apply LIVE, and they are the two a user
         // toggles to see what happens: the branch cell and the gutter stripe.
         // The rest only have to reach the holder, because every reader of them
-        // reads at the moment it acts — a commit reads signoff when it commits.
-        // `path` is absent on purpose: it is baked into a process runner at
-        // construction, so a setter would be a lie and the row says so.
+        // reads at the moment it acts — a commit reads signoff when it commits,
+        // and `path` is resolved by the runners on the next spawn.
         $api->onSettingChanged(static function (string $key, bool|int|string $value) use ($api, $settings, $repaint): void {
             // The holder first, always: every reader takes its value from here
             // at the moment it acts, so a commit picks up `signoff` on the next
@@ -231,7 +234,8 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
                 'noVerify' => $settings->setNoVerify((bool) $value),
                 'signoff' => $settings->setSignoff((bool) $value),
                 'refreshInterval' => $settings->setRefreshInterval((int) $value),
-                default => null, // path, and the two diff toggles the view writes itself
+                'path' => $settings->setPath((string) $value),
+                default => null, // the two diff toggles the view writes itself
             };
             // Then the two that also have to SHOW immediately, which are the
             // two a user toggles to see what happens. The branch cell is pulled
@@ -388,12 +392,12 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
     }
 
     /** Blame annotations and the gutter stripe — the half that never needed the workbench. */
-    private function activateBlameAndMarks(PluginApi $api, GitSettings $settings, string $gitPath, GitInfo $git, GitProcesses $processes): void
+    /** @param \Closure(): ?string $gitPath resolved per spawn, so the `path` setting is live */
+    private function activateBlameAndMarks(PluginApi $api, GitSettings $settings, \Closure $gitPath, GitInfo $git, GitProcesses $processes): void
     {
-        $path = '' === $gitPath ? null : $gitPath;
         // Built once, not per call: BlameAnnotations is a toggle, so it has to
         // remember whether it is on between the command and the hooks.
-        $blame = new BlameClient($api->projectRoot(), $path, $processes->general);
+        $blame = new BlameClient($api->projectRoot(), $gitPath, $processes->general);
         $annotations = new BlameAnnotations($blame, $api, $settings->blameDefault());
 
         $api->adoptCommand('git_blame', new BlameLine($blame, $api)->show(...));

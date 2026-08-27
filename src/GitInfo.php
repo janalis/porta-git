@@ -34,10 +34,11 @@ final class GitInfo
      * `plugin.php` passes {@see GitProcesses::$general}, which is what puts
      * these processes inside the one shutdown and the one completion barrier.
      */
+    /** @param null|(\Closure(): ?string)|string $gitPath read per call when a closure, so the setting is live */
     public function __construct(
         string $rootDir,
         private readonly ?GitSettings $gitSettings = null,
-        ?string $gitPath = null,
+        \Closure|string|null $gitPath = null,
         ?ProcessLane $lane = null,
     ) {
         $this->runner = new GitProcessRunner($rootDir, $gitPath, $lane);

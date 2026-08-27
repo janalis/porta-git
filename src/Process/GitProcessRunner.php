@@ -22,8 +22,6 @@ use Porta\Support\Text;
  */
 final class GitProcessRunner
 {
-    private readonly ?string $git;
-    private readonly bool $available;
     private readonly bool $repository;
 
     private readonly ProcessLane $lane;
@@ -33,34 +31,40 @@ final class GitProcessRunner
      * and anything that only wants its own git — keeps working unchanged. What
      * passes one is `plugin.php`, so that shutdown and the completion barrier
      * can reach these processes through {@see GitProcesses}.
+     *
+     * @param null|(\Closure(): ?string)|string $gitPath the configured `git` path, or a CLOSURE read per
+     *                                                   call so a Settings edit applies without a restart
      */
     public function __construct(
         private readonly string $rootDir,
-        ?string $gitPath = null,
+        private readonly \Closure|string|null $gitPath = null,
         ?ProcessLane $lane = null,
     ) {
         $this->lane = $lane ?? new ProcessLane();
-        $this->git = GitBinary::resolve($gitPath);
         // file_exists, not is_dir: a linked worktree's and a submodule's .git is a
         // FILE holding `gitdir: …`. is_dir left the whole feature silently dead
         // in both — git ran nowhere and the view said "not a repository".
         $this->repository = file_exists($rootDir.'/.git');
-        $this->available = null !== $this->git && $this->repository;
     }
 
     /**
      * The resolved `git` binary: the explicitly configured path when one is set,
      * else whatever discovery found, else null. Exposed so the path-resolution
      * rule is testable without reflecting on a private field.
+     *
+     * Resolved PER CALL rather than cached, so editing the `path` setting takes
+     * effect on the next spawn — the AbstractToolPlugin::binary() idiom. The
+     * cost is an ExecutableFinder walk only while the setting is empty, which a
+     * process spawn dwarfs.
      */
     public function binary(): ?string
     {
-        return $this->git;
+        return GitBinary::resolve($this->gitPath instanceof \Closure ? ($this->gitPath)() : $this->gitPath);
     }
 
     public function isAvailable(): bool
     {
-        return $this->available;
+        return null !== $this->binary() && $this->repository;
     }
 
     /**
@@ -103,7 +107,8 @@ final class GitProcessRunner
         // caller already handles that shape — the Outcome verbs read the code,
         // and every parser returns its empty value for an empty string — so this
         // is the whole availability rule, in the one place that knows it.
-        if (!$this->available) {
+        $git = $this->binary();
+        if (null === $git || !$this->repository) {
             $empty = '';
             $onDone(1, $empty);
 
@@ -113,7 +118,7 @@ final class GitProcessRunner
         // --no-optional-locks: the porcelain readers (status/diff) must never
         // take the opportunistic index lock — under load it collides with a
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
-        $command = [$this->git, '--no-optional-locks', '-C', $this->rootDir, ...$args];
+        $command = [$git, '--no-optional-locks', '-C', $this->rootDir, ...$args];
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, $stdin),
             static function (int $code, string $out) use ($onDone): void {
@@ -138,7 +143,8 @@ final class GitProcessRunner
      */
     public function runWithErrors(array $args, callable $onDone): void
     {
-        if (!$this->available) {
+        $git = $this->binary();
+        if (null === $git || !$this->repository) {
             $reason = 'git is not available';
             $onDone(Outcome::Failed, $reason);
 
@@ -148,7 +154,7 @@ final class GitProcessRunner
         // --no-optional-locks: the porcelain readers (status/diff) must never
         // take the opportunistic index lock — under load it collides with a
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
-        $command = [$this->git, '--no-optional-locks', '-C', $this->rootDir, ...$args];
+        $command = [$git, '--no-optional-locks', '-C', $this->rootDir, ...$args];
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, captureStderr: true),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {

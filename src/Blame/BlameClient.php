@@ -26,7 +26,8 @@ final class BlameClient
 {
     private readonly GitProcessRunner $runner;
 
-    public function __construct(string $rootDir, ?string $gitPath = null, ?ProcessLane $lane = null)
+    /** @param null|(\Closure(): ?string)|string $gitPath read per call when a closure, so the setting is live */
+    public function __construct(string $rootDir, \Closure|string|null $gitPath = null, ?ProcessLane $lane = null)
     {
         $this->runner = new GitProcessRunner($rootDir, $gitPath, $lane);
     }
