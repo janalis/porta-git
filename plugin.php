@@ -113,7 +113,23 @@ use Symfony\Component\Tui\Style\Style;
  * - **`Widget/`**, **`Event/`** — as in `src/`: things that render, and values
  *   that travel on the dispatcher above.
  */
-return new class('git') extends AbstractPlugin {
+return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\DisposablePlugin {
+    /** Held for {@see deactivate()}: the lanes outlive every registration. */
+    private ?GitProcesses $processes = null;
+
+    /**
+     * A live disable strips the listener set — including the onShutdown hook
+     * below — so without this the process lanes (and any in-flight fetch,
+     * blame or status poll callback) would be orphaned in a still-running IDE.
+     * The view's own repeat timer is not this hook's job: it belongs to
+     * {@see GitViewController::close()}, which runs when the view leaves the
+     * workspace.
+     */
+    public function deactivate(): void
+    {
+        $this->processes?->cancelAll();
+    }
+
     public function activate(PluginApi $api): void
     {
         $this->registerSettings($api);
@@ -139,6 +155,7 @@ return new class('git') extends AbstractPlugin {
         // because it was written when the halves lived in different namespaces
         // and this object was genuinely unreachable.
         $processes = new GitProcesses();
+        $this->processes = $processes;
         $git = new GitInfo($root, $settings, '' === $gitPath ? null : $gitPath, $processes->general);
         // Shutdown stops BOTH lanes. It used to stop one of the four the plugin
         // had, so a fetch, a blame or a mark refresh could outlive the loop.

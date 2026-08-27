@@ -469,4 +469,40 @@ final class IdeGitPluginTest extends TestCase
 
         $this->addToAssertionCount(1);
     }
+
+    public function testALiveDisableStopsBothLanesTheShutdownHookNoLongerCovers(): void
+    {
+        // The disable path strips the plugin's listeners — the onShutdown hook
+        // among them — so cancellation must arrive through DisposablePlugin
+        // instead. Sleepers again: the subject is that the teardown reaches
+        // the lanes, not git's timing.
+        $this->skipWithoutGit();
+        $project = self::repo();
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function ($tui, $terminal, $ide): void {
+                    $view = Services::resolve($ide, ViewRegistry::class)->find('git');
+                    self::assertNotNull($view);
+                    $general = Probe::get(Probe::get(Probe::get($view, 'git'), 'runner'), 'lane');
+                    $remote = Probe::get(Probe::get(Probe::get($view, 'remoteCommands'), 'remote'), 'lane');
+
+                    $sleep = static fn (): AsyncProcess => new AsyncProcess(['sleep', '30'], sys_get_temp_dir());
+                    $general->start($sleep(), static function (): void {});
+                    $remote->start($sleep(), static function (): void {});
+                    $this->assertSame(1, $general->inFlight());
+                    $this->assertSame(1, $remote->inFlight());
+
+                    Services::resolve($ide, PluginLifecycle::class)->disable('git');
+
+                    $this->assertSame(0, $general->inFlight(), 'the live disable stopped the general lane');
+                    $this->assertSame(0, $remote->inFlight(), 'and the remote one');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
 }
