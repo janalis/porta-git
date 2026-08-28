@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Setting;
 
-use Porta\GitPlugin\GitInfo;
-use Porta\GitPlugin\Process\GitRemote;
-
 /**
  * The mutable holder for this plugin's settings, shared by everything git-facing
  * (status cell, gutter, refresher, blame, commit, poll).

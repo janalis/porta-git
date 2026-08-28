@@ -9,7 +9,6 @@ use Porta\GitPlugin\Process\GitRemote;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
-use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
 

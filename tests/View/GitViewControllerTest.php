@@ -1047,7 +1047,7 @@ final class GitViewControllerTest extends TestCase
 
         // An EAGER refresh (the user asked) bypasses the guard...
         $controller->refresh();
-        $this->await(fn (): bool => \in_array('extra.txt', array_map(static fn ($e) => $e->path, Probe::get($controller, 'entries')), true), what: 'the eager refresh to land');
+        $this->await(static fn (): bool => \in_array('extra.txt', array_map(static fn ($e) => $e->path, Probe::get($controller, 'entries')), true), what: 'the eager refresh to land');
         // ...and its completion re-clears the guard for the poll — which is
         // also why a close() cancelling a status mid-flight cannot wedge it:
         // open()'s eager refresh ignores the guard and always answers.

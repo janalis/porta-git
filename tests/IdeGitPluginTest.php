@@ -529,7 +529,7 @@ final class IdeGitPluginTest extends TestCase
                 300 => function ($tui, $terminal, $ide): void {
                     $views = Services::resolve($ide, ViewRegistry::class);
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
-                    $menuTitles = fn (): array => array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
+                    $menuTitles = static fn (): array => array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
 
                     $this->frame($tui);
                     $this->assertNull($views->find('git'), 'off at boot');
