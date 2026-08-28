@@ -421,6 +421,7 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         $api->adoptCommand('git_toggle_blame', $annotations->toggle(...));
 
         $api->onBufferSwitched(static fn (string $path) => $annotations->refreshIfEnabled());
+        // @mago-expect lint:prefer-first-class-callable -- refreshIfEnabled() takes no path; the arrow function is where "the saved file is deliberately ignored" is visible
         $api->onFileSaved(static fn (string $path) => $annotations->refreshIfEnabled());
 
         $marks = new ChangeMarks($git, $api, static fn (): bool => $settings->gutterMarks());

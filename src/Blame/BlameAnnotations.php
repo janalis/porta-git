@@ -41,6 +41,7 @@ final class BlameAnnotations
      * setting that does not work. Already-in-that-state is a no-op, so an
      * unrelated settings write cannot spawn a `git blame`.
      */
+    // @mago-expect lint:no-boolean-flag-parameter -- $on is the desired STATE, which is this setter's whole subject
     public function setEnabled(bool $on): void
     {
         if ($on !== $this->enabled) {
