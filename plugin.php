@@ -398,7 +398,7 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         $api->registerSetting('signCommits', 'Sign commits (GPG)', 'bool', false);
         $api->registerSetting('noVerify', 'Skip commit hooks (--no-verify)', 'bool', false);
         $api->registerSetting('signoff', 'Add Signed-off-by trailer', 'bool', false);
-        $api->registerSetting('refreshInterval', 'Status refresh interval (seconds)', 'int', 2);
+        $api->registerSetting('refreshInterval', 'Status refresh interval (seconds)', 'int', 2, min: 1, max: 3_600);
         $api->registerSetting('path', 'Git executable path', 'text', '', hint: 'auto-detect');
         // The diff pane's two display toggles. Not on the page — the view sets
         // them from its own toolbar — but registered so they persist and so
