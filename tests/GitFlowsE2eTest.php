@@ -152,23 +152,45 @@ final class GitFlowsE2eTest extends TestCase
             [
                 // `git_stage` is the git plugin's now, so the index is staged
                 // with git directly — this test is about core's commit prompt.
-                400 => static function ($tui) use ($project, $palette): void {
+                100 => static function ($tui) use ($project, $palette): void {
                     $project->git('add', '-A');
                     $palette($tui, label: 'Git: Commit'); // opens the message prompt
                 },
-                850 => static function ($tui): void {
+                200 => function ($tui): void {
+                    // Every keystroke below only means something while the
+                    // prompt is up, and the palette opens it through a command
+                    // rather than on the keypress — so the three gaps here were
+                    // bets on a prompt, not waits for one.
+                    $editor = $tui->getById('editor');
+                    $this->await(
+                        static fn (): bool => EditorState::promptOpen($editor),
+                        what: 'the commit-message prompt to open',
+                    );
+
                     $tui->handleInput("\r"); // empty message -> no-op, prompt closes
                 },
-                1000 => static function ($tui) use ($palette): void {
+                300 => function ($tui) use ($palette): void {
+                    $editor = $tui->getById('editor');
+                    $this->await(
+                        static fn (): bool => !EditorState::promptOpen($editor),
+                        what: 'the empty message to close the prompt',
+                    );
+
                     $palette($tui, label: 'Git: Commit');
                 },
-                1150 => static function ($tui): void {
+                400 => function ($tui): void {
+                    $editor = $tui->getById('editor');
+                    $this->await(
+                        static fn (): bool => EditorState::promptOpen($editor),
+                        what: 'the commit-message prompt to reopen',
+                    );
+
                     foreach (str_split('my commit') as $ch) {
                         $tui->handleInput($ch);
                     }
                     $tui->handleInput("\r"); // commit
                 },
-                1450 => function ($tui, $terminal, $ide) use ($project): void {
+                500 => function ($tui, $terminal, $ide) use ($project): void {
                     $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Committed: my commit'), what: 'the async commit to flash');
                     // Undoing it is `git_undo_commit`, which the git plugin owns
                     // now; its own suite covers that half.
