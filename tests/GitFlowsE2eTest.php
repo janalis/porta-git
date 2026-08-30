@@ -19,6 +19,7 @@ use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\ContextMenu;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
+use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Render\Renderer;
 
 /**
@@ -721,15 +722,15 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('a.txt'),
             [
-                300 => static function ($tui): void {
+                150 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
-                600 => function ($tui): void {
+                250 => function ($tui): void {
                     $this->frame($tui);
                     // F10 opens the app menu OVER the git view now.
                     $tui->handleInput("\x1b[21~");
                 },
-                900 => function ($tui, $terminal): void {
+                350 => function ($tui, $terminal): void {
                     $this->frame($tui);
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertSame('menu', $tui->getFocus()?->getId(), 'F10 focused the menu bar');
@@ -743,9 +744,13 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;5;3M");
                     $tui->handleInput("\x1b[<0;5;3m");
                 },
-                1150 => function ($tui): void {
+                450 => function ($tui, $terminal, $ide): void {
                     $this->frame($tui);
                     $this->assertSame('git-changes', $tui->getFocus()?->getId(), 'closing the menu restores the git focus target');
+                    // The row clicked below only exists once `git status` has
+                    // answered and the list has painted it.
+                    $this->awaitGit($ide);
+                    $this->awaitPainted($tui, $terminal, 'a.txt');
                     // Click the 'File' title (row 1) to open, then again to close.
                     $tui->handleInput("\x1b[<0;3;1M");
                     $tui->handleInput("\x1b[<0;3;1m");
@@ -756,24 +761,39 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;3;4M");
                     $tui->handleInput("\x1b[<0;3;4m");
                 },
-                1500 => function ($tui, $terminal) use ($project): void {
-                    $lines = explode("\n", $project->git('status', '--porcelain'));
-                    $this->assertContains('M  a.txt', $lines, 'checkbox click staged the file');
+                550 => function ($tui, $terminal) use ($project): void {
+                    // Staging is a git subprocess, so this waits — but on the
+                    // VIEW's reading of it, never on `git status --porcelain` in
+                    // a poll loop. Shelling out every 20 ms takes the index lock
+                    // the in-flight `git add` needs: with the earlier steps'
+                    // slack removed, that poll starved the very effect it was
+                    // waiting for and the stage failed on every single run.
+                    // Await the checkbox, then read the disk once.
+                    $this->await(
+                        static fn (): bool => str_contains(
+                            AnsiUtils::stripAnsiCodes($tui->getById('git-changes')->render(new RenderContext(44, 4))[1] ?? ''),
+                            '[x]',
+                        ),
+                        what: 'the changes list to show a.txt staged',
+                    );
+                    $this->assertContains('M  a.txt', explode("\n", $project->git('status', '--porcelain')), 'checkbox click staged the file');
                     // Hover row 5 (b.txt): a tint only — the diff must NOT load.
                     $tui->handleInput("\x1b[<35;10;5M");
                 },
-                1700 => function ($tui, $terminal): void {
-                    $this->frame($tui);
+                650 => function ($tui, $terminal): void {
+                    // The POSITIVE first: a.txt's diff on screen is what makes
+                    // "+new is absent" mean the hover declined to load, rather
+                    // than that nothing has happened yet.
+                    $this->awaitPainted($tui, $terminal, 'three changed');
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertStringNotContainsString('+new', $screen, 'hover alone must not load the hovered diff');
-                    $this->assertStringContainsString('three changed', $screen, "a.txt's diff is still shown");
                     // Moving the pointer onto the diff pane clears the tint...
                     $tui->handleInput("\x1b[<35;80;6M");
                     // ...and a CLICK on b.txt selects it and loads its diff.
                     $tui->handleInput("\x1b[<0;10;5M");
                     $tui->handleInput("\x1b[<0;10;5m");
                 },
-                1950 => function ($tui, $terminal): void {
+                750 => function ($tui, $terminal): void {
                     $this->awaitPainted($tui, $terminal, '+new');
                     $this->assertStringContainsString('+new', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the click loaded the untracked diff');
                     // Horizontal wheel (trackpad code 67) over the diff pane
@@ -797,7 +817,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;5;20M");
                     $tui->handleInput("\x1b[<0;5;20m");
                 },
-                2250 => function ($tui, $terminal): void {
+                850 => function ($tui, $terminal): void {
                     $raw = $terminal->getOutput();
                     // Text col 2..12 of '+new long-tail …' (pane text starts at
                     // SGR col 58): the exact ten chars, no markers, no newline.
