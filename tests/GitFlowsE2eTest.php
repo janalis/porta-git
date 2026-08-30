@@ -863,18 +863,23 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('a.txt'),
             [
-                300 => static function ($tui): void {
+                100 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
-                600 => function ($tui): void {
+                200 => function ($tui): void {
                     $this->frame($tui);
                     // Click the [History] tab cell (tab strip = screen row 2).
                     $tui->handleInput("\x1b[<0;14;2M");
                     $tui->handleInput("\x1b[<0;14;2m");
                 },
-                1000 => function ($tui, $terminal): void {
+                300 => function ($tui, $terminal): void {
+                    // TWO subprocesses, not one: `git log` fills the history
+                    // list, and selecting its top commit then loads that
+                    // commit's file list. Awaiting the first (History (2))
+                    // left the second racing, which failed 2 runs in 30 under
+                    // load — so await the LAST effect this step asserts on.
+                    $this->awaitPainted($tui, $terminal, 'M a.txt');
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
-                    $this->assertStringContainsString('History (2)', $screen);
                     $this->assertStringContainsString('second commit', $screen);
                     $this->assertStringContainsString('M a.txt', $screen, 'the newest commit file list loads');
                     // Mouse: hover tints a commit row (no selection change),
@@ -885,19 +890,22 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;10;4M");
                     $tui->handleInput("\x1b[<0;10;4m");
                 },
-                1200 => function ($tui, $terminal): void {
+                400 => function ($tui, $terminal): void {
                     // The clicked commit's files settled AND its first file's
                     // patch auto-loaded — no keystroke needed to see a diff.
-                    $this->assertStringContainsString('+more', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'first file auto-selected');
+                    $this->awaitPainted($tui, $terminal, '+more');
                     $tui->handleInput("\r"); // into the files list
                     $tui->handleInput("\x1b[B"); // wiggle selection to refire the load
                     $tui->handleInput("\x1b[A");
                 },
-                1500 => function ($tui, $terminal): void {
+                500 => function ($tui, $terminal): void {
                     $this->assertStringContainsString('+more', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the commit patch renders read-only');
-                    // Click the [Changes] tab to switch back.
+                    // Click the [Changes] tab to switch back, and await the
+                    // paint the post-run assertion reads — the loop stops 80 ms
+                    // after this step, which was the only thing making it true.
                     $tui->handleInput("\x1b[<0;4;2M");
                     $tui->handleInput("\x1b[<0;4;2m");
+                    $this->awaitPainted($tui, $terminal, 'Working tree clean');
                 },
             ],
         );
