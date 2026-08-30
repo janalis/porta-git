@@ -29,6 +29,7 @@ use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
 use Porta\GitPlugin\Process\GitRemote;
+use Porta\GitPlugin\Process\ProcessLane;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\View\GitContextMenus;
 use Porta\GitPlugin\View\GitMouseRouter;
@@ -92,6 +93,10 @@ final class GitViewControllerTest extends TestCase
     use PumpsLoop;
     use StatusReads;
 
+    /** Under .porta/, which the fixture gitignores — see {@see installShim()}. */
+    private const string SHIM_RELEASE = '.porta/release-git';
+    private const string SHIM_CAPTURED = '.porta/captured-git';
+
     private TempProject $project;
     /** @var array<string, bool|int|string> the plugin settings DiffPrefs persists into */
     private array $diffPrefs = [];
@@ -133,7 +138,12 @@ final class GitViewControllerTest extends TestCase
     private LayoutController $layoutController;
     private EventDispatcher $dispatcher;
 
-    private function controller(Presence $realRepo = Presence::With, int $historyPageSize = 200): GitViewController
+    /**
+     * @param (\Closure(): ?string)|null $gitPath a live `git` path, for the two tests
+     *                                            that force one call through a
+     *                                            blocking shim to ORDER two answers
+     */
+    private function controller(Presence $realRepo = Presence::With, int $historyPageSize = 200, ?\Closure $gitPath = null): GitViewController
     {
         if (Presence::With === $realRepo && null === $this->whichGit()) {
             $this->markTestSkipped('git not available');
@@ -145,7 +155,7 @@ final class GitViewControllerTest extends TestCase
             $this->project->initGit();
             $this->project->commitAll('init');
         }
-        $this->git = new GitInfo($this->project->dir);
+        $this->git = new GitInfo($this->project->dir, gitPath: $gitPath);
 
         $this->dispatcher = new EventDispatcher();
         $dispatcher = $this->dispatcher;
@@ -642,14 +652,21 @@ final class GitViewControllerTest extends TestCase
         $stable = 0;
         $this->await(
             function () use (&$snapshot, &$stable): bool {
-                $now = $this->diffText().Probe::get($this->diffView, 'cursor');
+                $diff = $this->diffText();
+                $now = $diff.Probe::get($this->diffView, 'cursor');
                 $stable = $now === $snapshot ? $stable + 1 : 0;
                 $snapshot = $now;
 
-                return $stable >= 8;
+                // Stability AND the content, because stability alone is a
+                // property an EMPTY pane has perfectly. This loop used to
+                // return on eight identical turns of "No changes" — the state a
+                // superseded `git status` left behind before GitViewController
+                // learned to drop stale answers — and everything after it then
+                // waited twenty seconds for an unstage that never went out.
+                return $stable >= 8 && str_contains($diff, '+two CHANGED');
             },
             timeout: 5.0,
-            what: 'diff reloads settled',
+            what: 'the cached diff to settle',
         );
 
         // Page up pins the cursor on the hunk header before unstaging the WHOLE hunk.
@@ -660,6 +677,231 @@ final class GitViewControllerTest extends TestCase
         // out three times in one day under external load waves (30-75).
         $this->await(fn (): bool => 'none' === ($this->changes->selectedEntry()?->stagedState() ?? 'gone'), timeout: 20.0, what: 'the hunk unstage to reach git status');
         $this->addToAssertionCount(1); // the throwing awaits above are the assertions
+    }
+
+    /**
+     * A shim `git` that runs NOW and then holds its bytes until released: the
+     * caller gets a genuinely OLD answer, late. The stale `git status`
+     * snapshot.
+     *
+     * Pair it with {@see awaitCapture()} — proc_open returning is not the
+     * child having run.
+     *
+     * @param-out string $shim
+     */
+    private function gitHoldingItsAnswer(?string &$shim): \Closure
+    {
+        return $this->installShim(
+            $shim,
+            'tmp=$(mktemp)'
+            ."\n"
+            .$this->gitBinary()
+            .' "$@" > "$tmp"'
+            ."\n"
+            .'rc=$?'
+            ."\n"
+            .'touch '
+            .escapeshellarg($this->project->path(self::SHIM_CAPTURED))
+            ."\n"
+            .$this->waitForRelease()
+            ."\n"
+            .'cat "$tmp"'
+            ."\n"
+            .'rm -f "$tmp"'
+            ."\n"
+            .'exit $rc',
+        );
+    }
+
+    /**
+     * A shim `git` that holds the CALL and runs only once released: an old
+     * request answered against today's tree. The stale `git diff` SIDE, chosen
+     * from an entry that has since been staged.
+     *
+     * The distinction from {@see gitHoldingItsAnswer()} is not cosmetic. Using
+     * this one for the status race is not a failing test but a passing one: a
+     * held-then-run `git status` returns the post-staging porcelain and races
+     * nothing at all.
+     *
+     * @param-out string $shim
+     */
+    private function gitHoldingItsCall(?string &$shim): \Closure
+    {
+        return $this->installShim($shim, $this->waitForRelease()."\n".'exec '.$this->gitBinary().' "$@"');
+    }
+
+    /**
+     * Write $script as the project's shim `git` and return the closure that
+     * releases whatever it is holding.
+     *
+     * Blocking the PROCESS rather than sleeping in the test is what makes the
+     * ordering a fact and not another timing bet: the older answer cannot
+     * arrive until the newer one already has, whatever the machine is doing.
+     *
+     * @param-out string $shim
+     */
+    private function installShim(?string &$shim, string $script): \Closure
+    {
+        // Under .porta/, which this fixture gitignores: a shim script sitting
+        // in the worktree would show up as `?? ` in the very porcelain these
+        // tests compare.
+        $shim = $this->project->write('.porta/shim/git', '#!/bin/sh'."\n".$script."\n");
+        chmod($shim, permissions: 0o755);
+        $project = $this->project;
+
+        return static function () use ($project): void {
+            touch($project->path(self::SHIM_RELEASE));
+        };
+    }
+
+    /** Single-quoted on purpose: PHP would eat $tmp and $rc out of these scripts. */
+    private function gitBinary(): string
+    {
+        return escapeshellarg((string) $this->whichGit());
+    }
+
+    private function waitForRelease(): string
+    {
+        return 'while [ ! -f '.escapeshellarg($this->project->path(self::SHIM_RELEASE)).' ]; do sleep 0.02; done';
+    }
+
+    /**
+     * Wait until the capture shim has actually RUN git, not merely been spawned.
+     *
+     * proc_open returns as soon as the child exists; the child is a /bin/sh that
+     * still has to be scheduled before it reaches its `git status` line. Without
+     * this barrier the capture happened after the test's next `git add` and the
+     * "stale" answer carried today's porcelain — a test that passes against the
+     * bug, which is how it read the first time.
+     */
+    private function awaitCapture(): void
+    {
+        $marker = $this->project->path(self::SHIM_CAPTURED);
+        $this->await(static fn (): bool => is_file($marker), what: 'the held status to capture its answer');
+    }
+
+    /**
+     * Stop the 2s status poll from healing the damage a test is looking for.
+     *
+     * Disabled rather than cancelled so tearDown's close() still has a
+     * callback to cancel. The poll is not what these two tests are about: a
+     * refresh landing between the stale answer and the assertion would repair
+     * the pane and read as a pass.
+     */
+    private function freezeStatusPoll(GitViewController $controller): void
+    {
+        EventLoop::disable((string) Probe::get($controller, 'poll'));
+    }
+
+    public function testAStaleStatusAnswerCannotRepublishThePreStagingSnapshot(): void
+    {
+        // Two `git status` calls overlap in ordinary use — a staging completion
+        // refreshes while the quiet poll's status is still out — and their
+        // answers come back in ARRIVAL order, which under load is not issue
+        // order. Applying the older one republishes the pre-staging entry list,
+        // whose entry still reads "worktree dirty"; the reload it then drives
+        // asks for the WORKTREE diff of a now-fully-staged file, gets nothing,
+        // and leaves shownDocument null — after which every space in the diff
+        // pane silently no-ops. That is what timed out
+        // testLineStagingAndUnstagingThroughTheDiffPane at 1 run in 30 on a
+        // loaded machine, twenty seconds spent waiting for an unstage that was
+        // never requested.
+        $this->skipWithoutGit();
+        $useShim = true;
+        $shim = null;
+        // By REFERENCE, and a closure rather than an arrow fn: $shim is assigned
+        // below and $useShim is flipped three times, so a by-value capture would
+        // pin both at their values here and quietly run the real binary
+        // throughout — which is a test that passes against the bug.
+        $controller = $this->controller(gitPath: static function () use (&$useShim, &$shim): ?string {
+            return true === $useShim ? $shim : null;
+        });
+        $release = $this->gitHoldingItsAnswer($shim);
+        $useShim = false; // open() and everything up to the forced race runs on the real binary
+
+        $this->project->write('a.txt', "one CHANGED\ntwo\n");
+        $controller->open();
+        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'), what: 'the worktree diff to load');
+        $this->awaitLanes([$this->lane()]); // a clean start: nothing else is in flight
+        $this->freezeStatusPoll($controller);
+
+        // The soon-to-be-stale status, blocked in the shim mid-call. It carries
+        // the worktree-dirty snapshot that is about to stop being true.
+        $useShim = true;
+        $controller->refresh();
+        $useShim = false;
+        $this->awaitCapture(); // its answer is now genuinely older than the tree
+
+        // The newer truth, on the real binary, overtaking it.
+        $this->project->git('add', 'a.txt');
+        $controller->refresh();
+        $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState(), what: 'the newer status to apply');
+        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'), what: 'the cached diff to load');
+
+        // Let the older answer come back last. awaitLanes is the barrier that
+        // it was not merely spawned but REAPED — ProcessLane drops a process
+        // from its map immediately before invoking the exit callback, so an
+        // empty lane observed from a later loop turn means that callback has
+        // already run, and been dropped.
+        $release();
+        $this->awaitLanes([$this->lane()]);
+
+        $this->assertSame('full', $this->changes->selectedEntry()?->stagedState(), 'the stale snapshot did not come back');
+        $this->assertNotNull(Probe::get($controller, 'shownDocument'), 'the diff pane still has a document to stage from');
+        $this->assertStringContainsString('+one CHANGED', $this->diffText(), 'and it is still the cached diff');
+    }
+
+    public function testAStaleDiffAnswerCannotBlankThePaneOverANewerOne(): void
+    {
+        // The same ordering hazard one level down, and reachable on its own:
+        // stageSelection's completion reloads the diff for the entry it
+        // CAPTURED before staging, while the refresh it fires alongside reloads
+        // the same path from the fresh entry. Two `git diff` answers, two
+        // sides, arrival order deciding — and the stale side is the worktree of
+        // a file that is now fully staged, which is empty.
+        $this->skipWithoutGit();
+        $useShim = true;
+        $shim = null;
+        // By REFERENCE, and a closure rather than an arrow fn: $shim is assigned
+        // below and $useShim is flipped three times, so a by-value capture would
+        // pin both at their values here and quietly run the real binary
+        // throughout — which is a test that passes against the bug.
+        $controller = $this->controller(gitPath: static function () use (&$useShim, &$shim): ?string {
+            return true === $useShim ? $shim : null;
+        });
+        $release = $this->gitHoldingItsCall($shim);
+        $useShim = false;
+
+        $this->project->write('a.txt', "one CHANGED\ntwo\n");
+        $controller->open();
+        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'), what: 'the worktree diff to load');
+        $this->awaitLanes([$this->lane()]);
+        $this->freezeStatusPoll($controller);
+
+        // A worktree-side load for the entry as it reads NOW, held mid-call.
+        $entry = $this->changes->selectedEntry();
+        $this->assertNotNull($entry);
+        $useShim = true;
+        Probe::invoke($controller, 'loadDiff', $entry);
+        $useShim = false;
+
+        // Stage the file, then let a newer load win the pane with the cached side.
+        $this->project->git('add', 'a.txt');
+        $controller->refresh();
+        $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState(), what: 'the status to see the staged file');
+        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'), what: 'the cached diff to load');
+
+        $release();
+        $this->awaitLanes([$this->lane()]);
+
+        $this->assertNotNull(Probe::get($controller, 'shownDocument'), 'the superseded worktree load did not blank the pane');
+        $this->assertStringContainsString('+one CHANGED', $this->diffText(), 'the newer cached diff still holds the pane');
+    }
+
+    /** The one lane every git call in this test class runs through. */
+    private function lane(): ProcessLane
+    {
+        return Probe::get(Probe::get($this->git, 'runner'), 'lane');
     }
 
     public function testStageSelectionGuardsUntrackedAndEmptySelections(): void

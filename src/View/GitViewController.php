@@ -67,6 +67,27 @@ final class GitViewController implements ContributedView
      * answers and clears it before the next poll is armed.
      */
     private bool $statusInFlight = false;
+    /**
+     * Issue order for `git status` and for diff loads, so a superseded answer
+     * can be dropped.
+     *
+     * Both overlap in normal use — a staging completion refreshes while the
+     * quiet poll's status is still out, and that refresh's callback reloads
+     * the diff while a direct reload for the same path is in flight. Their
+     * answers come back in ARRIVAL order, which under load is not issue
+     * order, and last-writer-wins by arrival republishes the older snapshot.
+     * For status that means a pre-staging entry list; the reload it then
+     * drives picks its side from that entry's `worktreeStatus`, asks for the
+     * worktree diff of a file that is now fully staged, gets nothing back and
+     * blanks the pane. `shownDocument` is null from there on, so the next
+     * space in the diff pane silently no-ops.
+     *
+     * A counter rather than {@see $statusInFlight}: "something is running" is
+     * a different fact from "this answer is still the newest one", and only
+     * the second can order two answers that are both already back.
+     */
+    private int $statusGeneration = 0;
+    private int $diffGeneration = 0;
     /** @var list<ChangeEntry> */
     private array $entries = [];
     private string $lastStatusRaw = "\0unset";
@@ -249,7 +270,11 @@ final class GitViewController implements ContributedView
             return; // this tick's answer is already on its way
         }
         $this->statusInFlight = true;
-        $this->git->status(function (array $entries, string $raw) use ($mode): void {
+        $generation = ++$this->statusGeneration;
+        $this->git->status(function (array $entries, string $raw) use ($mode, $generation): void {
+            if ($generation !== $this->statusGeneration) {
+                return; // a newer status is out or already applied; see $statusGeneration
+            }
             $this->statusInFlight = false;
             if (!$this->open || RefreshMode::Quiet === $mode && $raw === $this->lastStatusRaw) {
                 return;
@@ -284,9 +309,10 @@ final class GitViewController implements ContributedView
     private function loadDiff(ChangeEntry $entry): void
     {
         $abs = $this->paths->absolute($entry->path);
-        $show = function (string $raw) use ($entry): void {
-            if (!$this->open) {
-                return;
+        $generation = ++$this->diffGeneration;
+        $show = function (string $raw) use ($entry, $generation): void {
+            if (!$this->open || $generation !== $this->diffGeneration) {
+                return; // superseded by a later load; see $statusGeneration
             }
             $document = DiffDocument::parse($raw);
             $this->shownEntry = $entry;
