@@ -785,12 +785,10 @@ final class GitFlowsE2eTest extends TestCase
                 },
                 550 => function ($tui, $terminal) use ($project): void {
                     // Staging is a git subprocess, so this waits — but on the
-                    // VIEW's reading of it, never on `git status --porcelain` in
-                    // a poll loop. Shelling out every 20 ms takes the index lock
-                    // the in-flight `git add` needs: with the earlier steps'
-                    // slack removed, that poll starved the very effect it was
-                    // waiting for and the stage failed on every single run.
-                    // Await the checkbox, then read the disk once.
+                    // VIEW's reading of it rather than by shelling out to
+                    // `git status` every 20 ms, which is what testing.md means
+                    // by "never let a blocking $project->git() read race the
+                    // async op". Await the checkbox, then read the disk once.
                     $this->await(
                         static fn (): bool => str_contains(
                             AnsiUtils::stripAnsiCodes($tui->getById('git-changes')->render(new RenderContext(44, 4))[1] ?? ''),
