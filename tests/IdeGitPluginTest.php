@@ -155,6 +155,48 @@ final class IdeGitPluginTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    /**
+     * The FILE tree's marks, which are a different question from the gutter's:
+     * `git status` over the whole repository, so a changed file nobody has
+     * opened is still marked. Only the plugin can answer it, which is why this
+     * lives here.
+     */
+    public function testTheFileTreeMarksChangedFilesTheUserHasNotOpened(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project->initGit(name: 'tester', email: 't@t');
+        $project->write('tracked.php', "<?php\n");
+        $project->write('untouched.php', "<?php\n");
+        $project->write('removed.php', "<?php\n");
+        $project->git('add', '-A');
+        $project->git('commit', '-qm', 'init');
+        $project->write('tracked.php', "<?php\n// changed\n");
+        $project->write('brandnew.php', "<?php\n");
+        unlink($project->path('removed.php')); // gone from disk: no tree row to mark
+
+        $this->runIde(
+            $project,
+            $project->path('untouched.php'),
+            [
+                600 => function ($tui): void {
+                    $tree = $tui->getById('tree');
+                    $rows = static function () use ($tree): string {
+                        $tree->beforeRender();
+
+                        return AnsiUtils::stripAnsiCodes(implode("\n", $tree->render(new \Symfony\Component\Tui\Render\RenderContext(30, 12))));
+                    };
+
+                    $this->await(static fn (): bool => 1 === preg_match('/tracked\.php\s+┆$/m', $rows()), what: 'the modified file to be marked');
+                    $this->assertMatchesRegularExpression('/brandnew\.php\s+▎$/m', $rows(), 'an untracked file reads as added');
+                    $this->assertMatchesRegularExpression('/untouched\.php\s+$/m', $rows(), 'and an unchanged one carries nothing');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
     public function testADiskReloadRefreshesTheStripe(): void
     {
         // The poller replaced a clean buffer; the marks must follow. Core

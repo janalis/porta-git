@@ -37,6 +37,7 @@ use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
+use Porta\GitPlugin\WorkingTreeStatus;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Support\ProjectPaths;
@@ -425,6 +426,15 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         $api->onFileSaved(static fn (string $path) => $annotations->refreshIfEnabled());
 
         $marks = new ChangeMarks($git, $api, static fn (): bool => $settings->gutterMarks());
+        // The file tree's whole-repository marks. Only on things that move the
+        // working tree — a save, and the three facts below (commit, remote,
+        // stage/discard). Never on a buffer switch: nothing changed on disk.
+        $treeStatus = new WorkingTreeStatus($git, $api, $api->projectRoot());
+        $api->onReady($treeStatus->refresh(...));
+        $api->onFileSaved(static fn (string $path) => $treeStatus->refresh());
+        foreach ([GitCommitted::class, GitRemoteCompleted::class, WorkingTreeChanged::class] as $moved) {
+            $api->on($moved, static fn (object $event) => $treeStatus->refresh());
+        }
         $stash = new Stash($git, $api);
         $index = new IndexCommands($git, $api);
         $api->adoptCommand('git_stage', $index->stageCurrent(...));
