@@ -279,7 +279,8 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         $api->adoptCommand('ide_git', static fn () => $api->toggleView('git'));
         foreach (GitWiring::VIEW_CORE as $event => $method) {
             $api->on($event, static function (PluginObservable $fact) use ($slot, $method): void {
-                // @mago-expect analysis:string-member-selector -- the method name comes from GitWiring, which GitListenerContractTest pins to a real one
+                // @mago-expect analysis:string-member-selector -- the method name comes from
+                // GitWiring, a const map GitListenerContractTest pins to real methods.
                 $slot->view?->{$method}($fact);
             });
         }
@@ -290,7 +291,9 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         // moved the working tree: the branch indicator may be stale.
         $api->onFileSaved(static fn (string $path) => $refresher->refreshBranch());
         foreach (GitWiring::REFRESHER as $event => $method) {
-            // @mago-expect analysis:less-specific-nested-argument-type -- GitListenerContractTest pins every method named here
+            // @mago-expect analysis:less-specific-nested-argument-type -- same const map, same
+            // contract test. A forwarding closure only trades this for the string-member-selector
+            // above. Re-checked 2026-09-02.
             $api->on($event, \Closure::fromCallable([$refresher, $method]));
         }
     }
@@ -364,7 +367,7 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
     private function wireViewEvents(EventDispatcher $events, GitViewController $controller): void
     {
         foreach (GitWiring::VIEW as $event => $method) {
-            // @mago-expect analysis:less-specific-nested-argument-type -- the map's methods are pinned to real ones by GitListenerContractTest
+            // @mago-expect analysis:less-specific-nested-argument-type -- as above.
             $events->addListener($event, \Closure::fromCallable([$controller, $method]));
         }
     }
