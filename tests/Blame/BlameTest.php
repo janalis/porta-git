@@ -75,7 +75,7 @@ final class BlameTest extends TestCase
             new RecordingFileOpener(),
             $this->tui,
             new RecordingDiagnosticsSink(),
-            $this->editor,
+            $this->editor->decorations(),
             $this->marks = new RecordingChangeMarkSink(),
             new FileStatuses(),
             $this->buffers = new BufferManager(),
