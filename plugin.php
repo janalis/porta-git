@@ -115,6 +115,9 @@ use Symfony\Component\Tui\Style\Style;
  *   that travel on the dispatcher above.
  */
 return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\DisposablePlugin {
+    /** The dock tab a file comparison lands in — the plugin's own bare id. */
+    private const string COMPARE_TOOL = 'compare';
+
     /** Held for {@see deactivate()}: the lanes outlive every registration. */
     private ?GitProcesses $processes = null;
 
@@ -205,9 +208,30 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         }
 
         $refresher = new GitRefresher($git, $repaint);
-        $commands = new GitCommands($git, $modals, $flash, $repaint, $trans, $refresher, $api->copyToClipboard(...), $events);
+        $commands = new GitCommands(
+            $git,
+            $modals,
+            $flash,
+            $repaint,
+            $trans,
+            $refresher,
+            $api->copyToClipboard(...),
+            $events,
+            $api->selectedFiles(...),
+            static function (array $lines, string $title) use ($api): void {
+                $rows = [];
+                foreach ($lines as $line) {
+                    // Location-less: a diff line has no place to jump to, and
+                    // the panel prints no `file:line` rather than inventing one.
+                    $rows[] = ['path' => '', 'line' => 0, 'text' => $line];
+                }
+                $api->showList(self::COMPARE_TOOL, $rows);
+                $api->flash($title);
+            },
+        );
         $remote = new GitRemoteCommands(new GitRemote($root, $gitPath, $processes->remote), $flash, $trans, $events, $modals, $repaint);
 
+        $api->registerListTool(self::COMPARE_TOOL, 'Compare');
         $this->registerCommands($api, $commands, $remote);
         $api->registerMenu(
             title: 'Git',
@@ -379,6 +403,7 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
         $api->adoptCommand('git_branches', $commands->branches(...));
         $api->adoptCommand('git_stashes', $commands->stashes(...));
         $api->adoptCommand('git_file_history', $commands->fileHistory(...));
+        $api->adoptCommand('git_compare_files', $commands->compareFiles(...));
         $api->adoptCommand('git_fetch', $remote->fetch(...));
         $api->adoptCommand('git_pull', $remote->pull(...));
         $api->adoptCommand('git_push', $remote->push(...));

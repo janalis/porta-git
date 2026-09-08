@@ -81,6 +81,8 @@ final class GitContextMenusTest extends TestCase
                 new GitRefresher($git, static function (): void {}),
                 new Clipboard($this->tui)->copy(...),
                 new EventDispatcher(),
+                static fn (): array => [],
+                static function (array $lines, string $title): void {},
             ),
             $translator,
         );

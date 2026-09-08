@@ -40,6 +40,7 @@ final readonly class GitMenu
             'i:git_undo_commit',
             'i:git_blame',
             'i:git_branches',
+            'i:git_compare_files',
             MenuModel::SEP,
             'i:git_fetch',
             'i:git_pull',

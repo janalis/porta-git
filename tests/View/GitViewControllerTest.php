@@ -264,6 +264,8 @@ final class GitViewControllerTest extends TestCase
                     new GitRefresher($this->git, static function (): void {}),
                     $copy,
                     $dispatcher,
+                    static fn (): array => [],
+                    static function (array $lines, string $title): void {},
                 ),
                 $t,
             ),

@@ -547,6 +547,12 @@ final class GitCommandsTest extends TestCase
         return $this->build();
     }
 
+    /** @var list<string> what the tree would report as selected */
+    private array $selected = [];
+
+    /** @var list<array{list<string>, string}> what the compare command published */
+    private array $published = [];
+
     private function build(): GitCommands
     {
         $git = new GitInfo($this->project->dir);
@@ -567,6 +573,10 @@ final class GitCommandsTest extends TestCase
             $refresher,
             $clipboard->copy(...),
             $this->events = new EventDispatcher(),
+            fn (): array => $this->selected,
+            function (array $lines, string $title): void {
+                $this->published[] = [$lines, $title];
+            },
         );
     }
 
@@ -639,5 +649,68 @@ final class GitCommandsTest extends TestCase
     private function overlayOpens(): void
     {
         $this->pump(fn (): bool => EditorState::pickerOpen($this->editor));
+    }
+
+    // --- Comparing two files --------------------------------------------------
+
+    public function testComparingTwoSelectedFilesPublishesTheirDiff(): void
+    {
+        $commands = $this->commands(['a.php' => "<?php\n\$x = 1;\n", 'b.php' => "<?php\n\$x = 2;\n"]);
+        $this->selected = [$this->project->path('a.php'), $this->project->path('b.php')];
+
+        $commands->compareFiles();
+        $this->pump(fn (): bool => [] !== $this->published, what: 'the comparison to publish');
+
+        $this->assertCount(1, $this->published);
+        [$lines, $title] = $this->published[0];
+        $this->assertSame('a.php ↔ b.php', $title, 'the panel says which two, because the rows do not');
+        $joined = implode("\n", $lines);
+        $this->assertStringContainsString('-$x = 1;', $joined);
+        $this->assertStringContainsString('+$x = 2;', $joined);
+        $this->assertStringStartsWith('@@', $lines[0], 'the rows start at the first hunk: five lines of git header would push the first real change out of a short panel');
+    }
+
+    public function testComparingTwoIdenticalFilesSaysSoInsteadOfOpeningAnEmptyPanel(): void
+    {
+        $commands = $this->commands(['a.php' => "<?php\n", 'b.php' => "<?php\n"]);
+        $this->selected = [$this->project->path('a.php'), $this->project->path('b.php')];
+
+        $commands->compareFiles();
+        $this->pump();
+
+        $this->assertSame([], $this->published);
+        $this->assertStringContainsString('identical', $this->flashText($this->statusBar));
+    }
+
+    public function testComparingNeedsExactlyTwoFiles(): void
+    {
+        // One is what the tree always has — its cursor row — so "compare" with
+        // one selected is the ordinary mistake, and the flash has to say what
+        // to do rather than nothing happening.
+        $commands = $this->commands(['a.php' => "<?php\n", 'b.php' => "<?php\n"]);
+        $this->selected = [$this->project->path('a.php')];
+
+        $commands->compareFiles();
+        $this->pump();
+
+        $this->assertSame([], $this->published);
+        $this->assertStringContainsString('two files', $this->flashText($this->statusBar));
+    }
+
+    public function testComparingOutsideARepositorySaysWhatEveryGitVerbSays(): void
+    {
+        // `git diff --no-index` needs no repository, and this command still
+        // does — the plugin's runner answers every call with a failed run when
+        // there is no working tree, as the one place that knows the
+        // availability rule. Pinned rather than worked around: a comparison is
+        // available exactly where the rest of the git plugin is.
+        $commands = $this->commandsOutsideRepo(['a.php' => "<?php\n\$x = 1;\n", 'b.php' => "<?php\n\$x = 2;\n"]);
+        $this->selected = [$this->project->path('a.php'), $this->project->path('b.php')];
+
+        $commands->compareFiles();
+        $this->pump();
+
+        $this->assertSame([], $this->published);
+        $this->assertStringContainsString('Git not available', $this->flashText($this->statusBar));
     }
 }

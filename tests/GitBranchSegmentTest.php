@@ -51,6 +51,8 @@ final class GitBranchSegmentTest extends TestCase
             $refresher,
             static function (string $text): void {},
             new EventDispatcher(),
+            static fn (): array => [],
+            static function (array $lines, string $title): void {},
         );
 
         return new GitBranchSegment($refresher, new GitSettings(['showBranch' => $showBranch]), $commands, GitDoubles::translate($translator));

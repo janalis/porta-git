@@ -19,6 +19,7 @@ use Porta\Tests\Support\RunsIde;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
+use Porta\Ui\ClickIntent;
 use Porta\Ui\Glyphs;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -633,6 +634,58 @@ final class IdeGitPluginTest extends TestCase
 
                     $this->assertSame(0, $general->inFlight(), 'the live disable stopped the general lane');
                     $this->assertSame(0, $remote->inFlight(), 'and the remote one');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testComparingTwoFilesPickedInTheTreeLandsInAPanel(): void
+    {
+        // The whole path, because every piece of it is a join: the tree's
+        // selection, the plugin API that exposes it, an adopted core action,
+        // git's own --no-index, and a dock tab. Each half passes its own tests
+        // with the feature still not working.
+        $this->skipWithoutGit();
+        $project = new TempProject([
+            'a.php' => "<?php\n\$x = 1;\n",
+            'b.php' => "<?php\n\$x = 2;\n",
+            '.porta.json' => '{"enabledPlugins":["git"]}',
+        ]);
+        $project->initGit(name: 'tester', email: 't@t');
+        $project->commitAll('init');
+
+        $this->runIde(
+            $project,
+            $project->path('a.php'),
+            [
+                300 => function ($tui, $terminal, $ide): void {
+                    $tree = $tui->getById('tree');
+                    // Rows are alphabetical with dot files shown, so the tree
+                    // reads `.porta.json`, `a.php`, `b.php` — and the cursor
+                    // starts on the first of them.
+                    $tree->clickRow(2);
+                    $tree->clickRow(3, ClickIntent::Add);
+                    $this->assertSame(
+                        ['a.php', 'b.php'],
+                        array_map(basename(...), $tree->selectedPaths()),
+                        'the pair is the one the panel is about to compare',
+                    );
+
+                    Services::resolve($ide, CommandRegistry::class)->run('git_compare_files');
+                    // `$x = 2;` is b.php's line and b.php is not open, so only
+                    // the comparison can put it on screen.
+                    // `$x = 2;` is b.php's line and b.php is not open, so only
+                    // the comparison can put it on screen.
+                    $this->await(
+                        static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '$x = 2;'),
+                        what: 'the comparison to reach the panel',
+                    );
+                    $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
+                    $this->assertStringContainsString('-$x = 1;', $screen, "the left file's line, marked as taken away");
+                    $this->assertStringContainsString('+$x = 2;', $screen, "and the right file's, marked as brought in");
+                    $this->assertStringContainsString('a.php ↔ b.php', $screen, 'and the pair is named, because the rows do not say which file is which');
                 },
             ],
         );

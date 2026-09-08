@@ -38,6 +38,10 @@ final class GitCommands
         /** @var \Closure(string): void copies to the system clipboard */
         private readonly \Closure $copy,
         private readonly EventDispatcherInterface $dispatcher,
+        /** @var \Closure(): list<string> the files selected in the project tree, in tree order */
+        private readonly \Closure $selectedFiles,
+        /** @var \Closure(list<string>, string): void publishes the compared lines under a title */
+        private readonly \Closure $showComparison,
     ) {}
 
     public function commit(): void
@@ -124,6 +128,67 @@ final class GitCommands
         // concrete GitViewController field, which is what made Workbench
         // depend on Git. The view performs its own capability now.
         $this->dispatcher->dispatch(new GitFileHistoryRequested($path));
+    }
+
+    /**
+     * Compare the two files selected in the project tree.
+     *
+     * Two, exactly: one is what the tree always has (its cursor row), and
+     * three has no meaning here — so the count is the command's whole
+     * precondition, and saying which is wrong beats doing nothing.
+     *
+     * The result goes to a list panel rather than the diff view. That view is
+     * bound to the repository's state machine — its poll reloads the pane, its
+     * keys stage lines into the index — and a pair of arbitrary files is
+     * neither a change nor a commit.
+     *
+     * The rows start at the first hunk. git's header names the two files, and
+     * so does the panel's own title — but a short panel shows its first rows,
+     * and five lines of header is exactly enough to push the first real change
+     * out of sight.
+     */
+    public function compareFiles(): void
+    {
+        $paths = ($this->selectedFiles)();
+        if (2 !== \count($paths)) {
+            $this->notifier->flash($this->translator->trans('Select two files in the project tree to compare'));
+
+            return;
+        }
+        // `--no-index` itself needs no repository — but this plugin's runner
+        // does: it answers every call with a failed run when there is no
+        // working tree, deliberately, as the one place that knows the
+        // availability rule ({@see \Porta\GitPlugin\Process\GitProcessRunner}).
+        // So a comparison is available exactly where the rest of this plugin
+        // is, and says the same thing when it is not.
+        if (!$this->guardAvailable()) {
+            return;
+        }
+
+        [$left, $right] = $paths;
+        $title = basename($left).' ↔ '.basename($right);
+        $this->git->compareFiles($left, $right, function (string $raw) use ($title): void {
+            $lines = self::hunks($raw);
+            if ([] === $lines) {
+                $this->notifier->flash($this->translator->trans('The two files are identical'));
+
+                return;
+            }
+            ($this->showComparison)($lines, $title);
+        });
+    }
+
+    /**
+     * A raw diff from its first hunk header on, empty when the files match.
+     *
+     * @return list<string>
+     */
+    private static function hunks(string $raw): array
+    {
+        $lines = explode("\n", rtrim($raw, characters: "\n"));
+        $hunks = array_keys(array_filter($lines, static fn (string $line): bool => str_starts_with($line, '@@')));
+
+        return [] === $hunks ? [] : \array_slice($lines, $hunks[0]);
     }
 
     /** Copy a commit's full hash to the clipboard (the history context menu). */

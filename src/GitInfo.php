@@ -131,6 +131,21 @@ final class GitInfo
     }
 
     /**
+     * Compare two arbitrary files — neither has to be in the repository, or
+     * even under it. `--no-index` is git's own two-path mode, the same one
+     * {@see untrackedFileDiff()} uses, and it exits 1 when the files differ,
+     * which is the interesting case.
+     *
+     * @param callable(string): void $onDone receives the raw diff, header and all: the
+     *                                       header names both files, which for a pair the
+     *                                       user picked is the one thing the rows do not say
+     */
+    public function compareFiles(string $left, string $right, callable $onDone, ?int $context = null): void
+    {
+        $this->runner->runStatus(['diff', '--no-color', '--no-index', ...(null === $context ? [] : ['-U'.$context]), '--', $left, $right], static fn (int $code, string $out) => $onDone($out));
+    }
+
+    /**
      * Take a file's changes out of the index (`git restore --staged`).
      *
      * @param callable(Outcome): void $onDone
