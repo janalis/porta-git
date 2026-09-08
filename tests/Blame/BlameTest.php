@@ -15,30 +15,16 @@ use Porta\GitPlugin\ChangeMarks;
 use Porta\GitPlugin\Command\IndexCommands;
 use Porta\GitPlugin\Command\Stash;
 use Porta\GitPlugin\GitInfo;
-use Porta\I18n\Translator;
+use Porta\GitPlugin\Tests\Support\GitPluginHarness;
 use Porta\Plugin\Api\PluginApi;
-use Porta\Plugin\Runtime\PluginManager;
-use Porta\Plugin\Runtime\PluginRuntime;
-use Porta\Plugin\Runtime\PluginSettings;
-use Porta\Support\Clipboard;
-use Porta\Tests\Support\FakePluginLifecycle;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\RecordingChangeMarkSink;
-use Porta\Tests\Support\RecordingDiagnosticsSink;
-use Porta\Tests\Support\RecordingFileOpener;
 use Porta\Tests\Support\StatusReads;
 use Porta\Tests\Support\TempProject;
-use Porta\Tests\Support\TestDockTools;
-use Porta\Tests\Support\TestTui;
-use Porta\Tree\FileStatuses;
 use Porta\Widget\CodeEditorWidget;
-use Porta\Widget\FileTreeWidget;
 use Porta\Widget\StatusBarWidget;
-use Porta\Workbench\Menu\MenuFileContext;
-use Porta\Workbench\Notifier;
-use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Tui;
 
@@ -63,38 +49,16 @@ final class BlameTest extends TestCase
 
     private function api(): PluginApi
     {
-        $this->project = new TempProject(['a.txt' => "one\ntwo\n"]);
-        $settings = new PluginSettings($this->project->dir, []);
-        $manager = new PluginManager($this->events = new EventDispatcher(), $settings);
-        $this->tui = TestTui::create(120, 24);
-        $this->status = new StatusBarWidget();
-        $this->editor = new CodeEditorWidget();
-        $manager->wireRuntime(new PluginRuntime(
-            new Notifier($this->status, $this->tui),
-            new Translator('en'),
-            $this->editor,
-            new RecordingFileOpener(),
-            $this->tui,
-            new RecordingDiagnosticsSink(),
-            $this->editor->decorations(),
-            $this->marks = new RecordingChangeMarkSink(),
-            new FileStatuses(),
-            $this->buffers = new BufferManager(),
-            TestDockTools::controller(),
-            TestDockTools::replacer(),
-            $this->editor,
-            new MenuFileContext(),
-            new ViewRegistry(),
-            new Clipboard($this->tui),
-            new StatusBarWidget(),
-            new CodeEditorWidget(),
-            new FakePluginLifecycle(),
-            new FileTreeWidget(sys_get_temp_dir()),
-        ));
-        $api = new PluginApi('git', $manager, $this->project->dir, $settings);
-        $manager->commit($api);
+        $harness = GitPluginHarness::build(['a.txt' => "one\ntwo\n"]);
+        $this->project = $harness->project;
+        $this->tui = $harness->tui;
+        $this->status = $harness->status;
+        $this->editor = $harness->editor;
+        $this->events = $harness->events;
+        $this->buffers = $harness->buffers;
+        $this->marks = $harness->marks;
 
-        return $api;
+        return $harness->api;
     }
 
     /** A committed file, open in the editor, so blame has something to answer about. */
