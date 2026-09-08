@@ -41,6 +41,7 @@ use Porta\GitPlugin\WorkingTreeStatus;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Support\ProjectPaths;
+use Porta\Workbench\Menu\MenuSurface;
 use Porta\Workbench\View\ViewServices;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Style\Style;
@@ -233,6 +234,10 @@ return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\Dispo
 
         $api->registerListTool(self::COMPARE_TOOL, 'Compare');
         $this->registerCommands($api, $commands, $remote);
+        // On the tree row's own right-click, where a pair is built — dimmed
+        // until there are exactly two, which is the command's precondition
+        // said in the surface rather than only in a flash afterwards.
+        $api->addMenuItem('git_compare_files', static fn (): bool => 2 === \count($api->selectedFiles()), MenuSurface::FileContext);
         $api->registerMenu(
             title: 'Git',
             after: GitMenu::AFTER,

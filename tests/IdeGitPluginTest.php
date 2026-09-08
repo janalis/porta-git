@@ -24,6 +24,7 @@ use Porta\Ui\Glyphs;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
+use Symfony\Component\Tui\Render\Renderer;
 
 /**
  * Blame through a real IDE — and above all, that moving it out of `src/` cost
@@ -686,6 +687,21 @@ final class IdeGitPluginTest extends TestCase
                     $this->assertStringContainsString('-$x = 1;', $screen, "the left file's line, marked as taken away");
                     $this->assertStringContainsString('+$x = 2;', $screen, "and the right file's, marked as brought in");
                     $this->assertStringContainsString('a.php ↔ b.php', $screen, 'and the pair is named, because the rows do not say which file is which');
+                },
+                600 => function ($tui, $terminal, $ide): void {
+                    // And the way a person finds it: the tree row's own
+                    // right-click, on the pair that is still selected.
+                    $rect = Services::resolve($ide, Renderer::class)->getWidgetRect($tui->getById('tree'));
+                    $terminal->clearOutput();
+                    $this->frame($tui);
+                    $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 3, $rect->row + 3));
+                    $this->assertTrue($tui->getById('context-menu')->isOpen(), 'the tree row menu opened');
+                    $this->frame($tui);
+                    $this->assertStringContainsString(
+                        'Compare Selected Files',
+                        AnsiUtils::stripAnsiCodes($terminal->getOutput()),
+                        'the command is on the surface where the pair was built',
+                    );
                 },
             ],
         );
