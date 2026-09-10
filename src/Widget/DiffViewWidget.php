@@ -677,7 +677,18 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         foreach ($tags as $tag) {
             $tagsWidth += mb_strwidth($tag['label']) + 1;
         }
-        $col = max(0, $width - $tagsWidth);
+        $col = $width - $tagsWidth;
+        if ($col < 0) {
+            // Too narrow to seat the toggles. The title alone, and no click
+            // zones recorded: a tag drawn past the edge is neither visible nor
+            // clickable, and drawing it at all made this row a fixed
+            // twenty-two columns however narrow the pane was — the same clamp
+            // with no floor the row gutter had, and the same crash.
+            return $this->styles
+                ->of(Role::HeaderBar)
+                ->withBold()
+                ->apply(AnsiText::truncate($title, $width, pad: true));
+        }
         $left = AnsiText::truncate($title, $col, pad: true);
         foreach ($tags as $tag) {
             $tagWidth = mb_strwidth($tag['label']);

@@ -169,17 +169,28 @@ final readonly class DiffViewRenderer
         }
 
         $line = $hunk->lines[$row['line'] ?? -1];
-        $gutter = $this->styles->of(Role::Gutter)->apply(
+        // Built plain and measured, then styled: the gutter is eleven fixed
+        // columns and the marker one more, so a pane narrower than thirteen
+        // cannot seat a row at all. `max(1, $width - 12)` bounded the TEXT and
+        // not the row, which is a clamp with no floor — the row came out
+        // thirteen columns wide however narrow the pane was, and a row wider
+        // than its pane throws RenderException out of the render loop.
+        $gutter =
             str_pad(null === $line->oldNo ? '' : (string) $line->oldNo, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT)
             .' '
             .str_pad(null === $line->newNo ? '' : (string) $line->newNo, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT)
             .' '
-            .Glyphs::DIFF_COLUMN,
-        );
+            .Glyphs::DIFF_COLUMN;
+        $body = $width - mb_strwidth($gutter) - 1;
+        if ($body < 1) {
+            // Clipped BEFORE it is styled, never after: re-slicing an already
+            // styled string cuts escape sequences in half.
+            return $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::RESET;
+        }
 
         [$marker, $text] = $this->lineBody($line, $row['hunk'].':'.($row['line'] ?? -1));
 
-        return $gutter.$marker.$this->scrolledText($text, max(1, $width - 12)).Sgr::RESET;
+        return $this->styles->of(Role::Gutter)->apply($gutter).$marker.$this->scrolledText($text, $body).Sgr::RESET;
     }
 
     /**
@@ -232,10 +243,16 @@ final readonly class DiffViewRenderer
         }
         $line = $this->document->hunks[$hunkIndex]->lines[$lineIndex];
         $no = $side->lineNo($line);
-        $gutter = $this->styles->of(Role::Gutter)->apply(str_pad(null === $no ? '' : (string) $no, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT).' ');
+        // The same five-column gutter plus a marker, and the same floor: half
+        // of a split pane is half as wide, so this side reaches the case first.
+        $gutter = str_pad(null === $no ? '' : (string) $no, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT).' ';
+        $body = $width - mb_strwidth($gutter) - 1;
+        if ($body < 1) {
+            return $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::DEFAULT_FG;
+        }
 
         [$marker, $text] = $this->lineBody($line, $hunkIndex.':'.$lineIndex);
 
-        return $gutter.$marker.$this->scrolledText($text, max(1, $width - 6)).Sgr::DEFAULT_FG;
+        return $this->styles->of(Role::Gutter)->apply($gutter).$marker.$this->scrolledText($text, $body).Sgr::DEFAULT_FG;
     }
 }
