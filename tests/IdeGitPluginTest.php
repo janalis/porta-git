@@ -9,6 +9,7 @@ use Porta\Config\CommandRegistry;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
 use Porta\Event\IdeShuttingDown;
+use Porta\Event\TreeDropRequested;
 use Porta\Plugin\Lifecycle\PluginLifecycle;
 use Porta\Support\AsyncProcess;
 use Porta\Tests\Support\ClearsPortaLsp;
@@ -192,6 +193,59 @@ final class IdeGitPluginTest extends TestCase
                     $this->await(static fn (): bool => 1 === preg_match('/tracked\.php\s+┆$/m', $rows()), what: 'the modified file to be marked');
                     $this->assertMatchesRegularExpression('/brandnew\.php\s+▎$/m', $rows(), 'an untracked file reads as added');
                     $this->assertMatchesRegularExpression('/untouched\.php\s+$/m', $rows(), 'and an unchanged one carries nothing');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * A file MOVED in the tree gets its mark, without waiting for a save.
+     *
+     * The tree's marks are a whole-repository `git status`, refreshed only when
+     * the working tree can have moved — a save, a commit, a stage, a pull. Core
+     * moving a file was not on that list, so the moved file sat unmarked until
+     * something unrelated happened to trigger a refresh. Drag-and-drop is what
+     * made it easy to hit: moving a file is now a flick of the wrist.
+     */
+    public function testMovingAFileMarksItWithoutWaitingForASave(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project->initGit(name: 'tester', email: 't@t');
+        $project->write('src/moved.php', "<?php\n");
+        $project->write('anchor.php', "<?php\n");
+        $project->git('add', '-A');
+        $project->git('commit', '-qm', 'init');
+
+        $this->runIde(
+            $project,
+            $project->path('anchor.php'),
+            [
+                600 => function ($tui, $terminal, $ide) use ($project): void {
+                    $tree = $tui->getById('tree');
+                    $rows = static function () use ($tree): string {
+                        $tree->beforeRender();
+
+                        return AnsiUtils::stripAnsiCodes(implode("\n", $tree->render(new \Symfony\Component\Tui\Render\RenderContext(30, 12))));
+                    };
+                    // Everything is committed, so the control is a clean tree —
+                    // otherwise a mark below could be one that was always there.
+                    $this->await(
+                        static fn (): bool => 1 === preg_match('/anchor\.php\s+$/m', $rows()),
+                        what: 'the first status to come back clean',
+                    );
+
+                    Services::resolve($ide, EventDispatcherInterface::class)->dispatch(
+                        new TreeDropRequested([$project->path('src/moved.php')], $project->dir, copy: false),
+                    );
+
+                    $this->assertFileExists($project->path('moved.php'), 'the move itself happened');
+                    $this->await(
+                        static fn (): bool => 1 === preg_match('/moved\.php\s+'.Glyphs::VCS_ADDED.'$/m', $rows()),
+                        what: 'the moved file to be marked',
+                    );
                 },
             ],
         );
