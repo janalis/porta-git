@@ -110,4 +110,36 @@ final class NarrowGitPaneRenderTest extends TestCase
 
         $this->assertFitsEveryWidth($widget);
     }
+
+    /**
+     * Every widget in this plugin is in the provider above.
+     *
+     * The same self-check the core sweep grew, for the same reason: that
+     * provider is a hand-written list of "everything", and a hand-written list
+     * of everything is stale the first time someone adds a widget. This plugin
+     * is where three over-wide rows were found the day the sweep first ran, so
+     * the next widget added here should not have to wait for someone to
+     * remember.
+     *
+     * No exemptions, and none expected: every widget in this directory is
+     * mounted in the git view and laid out by it.
+     */
+    public function testEveryGitWidgetIsInTheProvider(): void
+    {
+        $swept = [];
+        foreach (self::gitWidgets() as [$widget]) {
+            $swept[$widget::class] = true;
+        }
+
+        $missing = [];
+        foreach (glob(\dirname(__DIR__, levels: 2).'/src/Widget/*.php') as $file) {
+            $class = 'Porta\\GitPlugin\\Widget\\'.basename($file, suffix: '.php');
+            if (class_exists($class) && is_a($class, AbstractWidget::class, allow_string: true) && !\array_key_exists($class, $swept)) {
+                $missing[] = $class;
+            }
+        }
+        sort($missing);
+
+        $this->assertSame([], $missing, 'the git view mounts these and nothing renders them at a hostile width');
+    }
 }
