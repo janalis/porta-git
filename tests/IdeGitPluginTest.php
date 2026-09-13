@@ -762,4 +762,74 @@ final class IdeGitPluginTest extends TestCase
 
         $this->addToAssertionCount(1);
     }
+
+    /**
+     * The gutter marks move with an UNSAVED edit, through the whole stack.
+     *
+     * The unit cases pin the arithmetic and the derivation; this is the join,
+     * and the only place the two halves meet the way a user does: the PLUGIN
+     * computes the marks from git and publishes them, CORE moves them as the
+     * document changes underneath. Nothing here saves, so the only thing that
+     * can move a mark is the remap — no `git diff` has run since the marks
+     * landed.
+     *
+     * Read off the GUTTER specifically, not the whole row. The marker stripe in
+     * the right margin paints the same glyphs for the same lines, so a
+     * `str_contains` over the line matches both and reports rows that are the
+     * stripe's rather than the gutter's — which is what the first draft of this
+     * test did.
+     */
+    public function testTheGutterMarksMoveWithAnUnsavedEdit(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project->initGit(name: 'tester', email: 't@t');
+        $project->write('src/A.php', "<?php\n\$a = 1;\n\$b = 2;\n");
+        $project->git('add', '-A');
+        $project->git('commit', '-qm', 'init');
+        $project->write('src/A.php', "<?php\n\$a = 999;\n\$b = 2;\n"); // line 1 modified
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function ($tui, $terminal): void {
+                    $editor = $tui->getById('editor');
+                    /** @return list<string> e.g. ['M1'] — the kind and row of each GUTTER mark */
+                    $gutterMarks = static function () use ($editor): array {
+                        $out = [];
+                        foreach ($editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)) as $row => $line) {
+                            $gutter = AnsiUtils::sliceByColumn($line, 0, $editor->gutterWidth());
+                            if (str_contains($gutter, Glyphs::VCS_MODIFIED)) {
+                                $out[] = 'M'.$row;
+                            }
+                            if (str_contains($gutter, Glyphs::VCS_ADDED)) {
+                                $out[] = 'A'.$row;
+                            }
+                        }
+
+                        return $out;
+                    };
+
+                    $this->await(static fn (): bool => [] !== $gutterMarks(), what: 'the modified mark to land');
+                    $this->assertSame(['M1'], $gutterMarks(), 'git says line 1 differs from HEAD');
+
+                    // Split line 0, pushing everything below it down one. Nothing
+                    // saves, so nothing recomputes.
+                    $tui->setFocus($editor);
+                    $editor->getDocument()->setCursor(0, 0);
+                    $tui->handleInput("\r");
+
+                    $this->assertSame(
+                        ['M0', 'A1', 'M2'],
+                        $gutterMarks(),
+                        "git's mark followed its line to row 2; the split line is modified and the line it made is added",
+                    );
+                    $this->assertTrue($editor->getDocument()->isDirty(), 'and all of that on an UNSAVED buffer');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
 }
