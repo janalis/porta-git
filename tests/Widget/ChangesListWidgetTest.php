@@ -276,7 +276,7 @@ final class ChangesListWidgetTest extends TestCase
 
         $widget->handleInput("\x1b[B"); // swallowed by the hook
         $this->assertSame('src/a.php', $widget->selectedEntry()?->path);
-        $this->assertSame(4, \count(Probe::get($widget, 'entries')));
+        $this->assertCount(4, Probe::get($widget, 'entries'));
     }
 
     public function testAlwaysFillsItsPane(): void

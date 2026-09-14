@@ -751,7 +751,7 @@ final class DiffViewWidgetTest extends TestCase
         );
         // After a bg reset inside the span (the intraline emphasis closes with
         // \x1b[49m) the selection bg must come straight back.
-        $this->assertNotFalse(\strpos($row, needle: "\x1b[49m\x1b[48;5;24m"), 'a re-applied bg follows a reset inside the span');
+        $this->assertStringContainsString("\x1b[49m\x1b[48;5;24m", $row, 'a re-applied bg follows a reset inside the span');
     }
 
     public function testTheToolbarToggleUnderThePointerTints(): void

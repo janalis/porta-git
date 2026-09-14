@@ -74,7 +74,7 @@ final class GitListenerContractTest extends TestCase
         $total = \count(GitWiring::VIEW) + \count(GitWiring::VIEW_CORE) + \count(GitWiring::REFRESHER);
 
         $this->assertSame(18, $total);
-        $this->assertSame(14, \count(GitWiring::VIEW), 'the widget → controller set, on this plugin’s own dispatcher');
+        $this->assertCount(14, GitWiring::VIEW, 'the widget → controller set, on this plugin’s own dispatcher');
     }
 
     public function testOnlyPluginObservableEventsTravelThroughTheCoreBus(): void

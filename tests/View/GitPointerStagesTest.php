@@ -56,7 +56,7 @@ final class GitPointerStagesTest extends TestCase
     private function mouse(): MouseEvent
     {
         $event = MouseEvent::parse("\x1b[<0;10;5M");
-        \assert($event instanceof MouseEvent, description: 'the SGR sequence above is well-formed');
+        $this->assertInstanceOf(MouseEvent::class, $event, 'the SGR sequence above is well-formed');
 
         return $event;
     }

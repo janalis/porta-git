@@ -31,11 +31,7 @@ use Symfony\Component\Tui\Tui;
  */
 final class GitMouseRouterInteractionTest extends TestCase
 {
-    private ChangesListWidget $changes;
     private DiffViewWidget $diff;
-    private CommitBoxWidget $commitBox;
-    private HistoryListWidget $history;
-    private GitTabsWidget $tabs;
     private Tui $tui;
     private GitMouseRouter $router;
 
@@ -44,16 +40,16 @@ final class GitMouseRouterInteractionTest extends TestCase
         $translator = new Translator('en');
         $renderer = new Renderer(new StyleSheet());
         $this->tui = new Tui(terminal: new VirtualTerminal(columns: 100, rows: 24), renderer: $renderer);
-        $this->changes = new ChangesListWidget($translator);
+        $changes = new ChangesListWidget($translator);
         $this->diff = new DiffViewWidget($translator);
-        $this->commitBox = new CommitBoxWidget($translator);
-        $this->history = new HistoryListWidget($translator);
-        $this->tabs = new GitTabsWidget($translator);
+        $commitBox = new CommitBoxWidget($translator);
+        $history = new HistoryListWidget($translator);
+        $tabs = new GitTabsWidget($translator);
 
         $regions = new ViewRegions(Styles::dark());
         $region = $regions->mint('git');
         $sidebar = $region->sidebar();
-        $sidebar->add($this->tabs)->add($this->changes)->add($this->commitBox);
+        $sidebar->add($tabs)->add($changes)->add($commitBox);
         $region->area()->add($sidebar)->add($region->content());
         $region->content()->add($this->diff);
 
@@ -64,11 +60,11 @@ final class GitMouseRouterInteractionTest extends TestCase
         $this->router = new GitMouseRouter(
             new HitTester($renderer),
             GitDoubles::host($this->tui),
-            $this->changes,
+            $changes,
             $this->diff,
-            $this->commitBox,
-            $this->history,
-            $this->tabs,
+            $commitBox,
+            $history,
+            $tabs,
             $region,
         );
     }
@@ -89,7 +85,7 @@ final class GitMouseRouterInteractionTest extends TestCase
     private function releaseAt(int $col, int $row): MouseEvent
     {
         $event = MouseEvent::parse("\x1b[<0;".($col + 1).';'.($row + 1).'m');
-        \assert($event instanceof MouseEvent, description: 'the SGR sequence above is well-formed');
+        $this->assertInstanceOf(MouseEvent::class, $event, 'the SGR sequence above is well-formed');
 
         return $event;
     }
@@ -97,7 +93,7 @@ final class GitMouseRouterInteractionTest extends TestCase
     private function sgrPress(int $code, int $col, int $row): MouseEvent
     {
         $event = MouseEvent::parse("\x1b[<{$code};".($col + 1).';'.($row + 1).'M');
-        \assert($event instanceof MouseEvent, description: 'the SGR sequence above is well-formed');
+        $this->assertInstanceOf(MouseEvent::class, $event, 'the SGR sequence above is well-formed');
 
         return $event;
     }

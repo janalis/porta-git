@@ -884,7 +884,7 @@ final class GitViewControllerTest extends TestCase
 
         // A worktree-side load for the entry as it reads NOW, held mid-call.
         $entry = $this->changes->selectedEntry();
-        $this->assertNotNull($entry);
+        $this->assertInstanceOf(ChangeEntry::class, $entry);
         $useShim = true;
         Probe::invoke($controller, 'loadDiff', $entry);
         $useShim = false;

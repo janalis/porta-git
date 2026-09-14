@@ -340,7 +340,7 @@ final class GitFlowsE2eTest extends TestCase
                     // moved as a whole. What a user can still rely on is that
                     // it IS a whole — typing "git" walks a contiguous run.
                     $git = \array_keys(\array_filter($labels, static fn (string $l): bool => \str_starts_with($l, 'Git: ')));
-                    self::assertNotSame([], $git);
+                    $this->assertNotSame([], $git);
                     $this->assertSame(\range($git[0], \array_last($git)), $git, 'the git verbs are one unbroken block');
                     $this->assertContains('Git: File History', $labels, 'the view-only verbs are among them');
                     $this->assertContains('Git: Blame Current Line', $labels, 'and so are the ones that never needed the workbench');

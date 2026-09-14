@@ -58,7 +58,7 @@ final class DiffDocumentTest extends TestCase
 
         $this->assertSame(['kind' => DiffRowKind::Hunk, 'hunk' => 0, 'line' => -1], $rows[0]);
         $this->assertSame(DiffRowKind::Line, $rows[1]['kind']);
-        $this->assertSame(5 + 3 + 2, \count($rows), 'two hunk headers plus eight body lines');
+        $this->assertCount(5 + 3 + 2, $rows, 'two hunk headers plus eight body lines');
         $this->assertSame(['kind' => DiffRowKind::Hunk, 'hunk' => 1, 'line' => -1], $rows[6]);
     }
 

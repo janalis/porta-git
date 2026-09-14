@@ -25,6 +25,7 @@ use Porta\Workbench\Notifier;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Input\Keybindings;
 use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Render\WidgetRect;
 use Symfony\Component\Tui\Style\StyleSheet;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 
@@ -107,7 +108,7 @@ final class GitContextMenusTest extends TestCase
         // And over the OTHER list, which is a different miss: the changes list
         // is asked first, so a point it rejects has still not reached history.
         $historyRect = $this->renderer->getWidgetRect($this->history);
-        $this->assertNotNull($historyRect, 'the history pane was laid out');
+        $this->assertInstanceOf(WidgetRect::class, $historyRect, 'the history pane was laid out');
         $this->assertNull($menus->contextItemsAt($historyRect->row + 1, $historyRect->col + 1), 'over the history list');
     }
 

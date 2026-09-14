@@ -23,6 +23,7 @@ use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Ui\ClickIntent;
 use Porta\Ui\Glyphs;
+use Porta\Workbench\View\ContributedView;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
@@ -103,7 +104,7 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
-                    self::assertNotNull($view, 'the git view registered');
+                    $this->assertInstanceOf(ContributedView::class, $view, 'the git view registered');
 
                     $seen = 0;
                     Services::resolve($ide, EventDispatcherInterface::class)
@@ -434,7 +435,7 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
-                    self::assertNotNull($view);
+                    $this->assertInstanceOf(ContributedView::class, $view);
                     $settings = Probe::get($view, 'gitSettings');
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
 
@@ -513,7 +514,7 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
-                    self::assertNotNull($view);
+                    $this->assertInstanceOf(ContributedView::class, $view);
                     $git = Probe::get($view, 'git');
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
                     $discovered = $git->binary();
@@ -576,7 +577,7 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
-                    self::assertNotNull($view);
+                    $this->assertInstanceOf(ContributedView::class, $view);
                     $general = Probe::get(Probe::get($view, 'git'), 'runner');
                     $general = Probe::get($general, 'lane');
                     $remote = Probe::get(Probe::get(Probe::get($view, 'remoteCommands'), 'remote'), 'lane');
@@ -678,7 +679,7 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
-                    self::assertNotNull($view);
+                    $this->assertInstanceOf(ContributedView::class, $view);
                     $general = Probe::get(Probe::get(Probe::get($view, 'git'), 'runner'), 'lane');
                     $remote = Probe::get(Probe::get(Probe::get($view, 'remoteCommands'), 'remote'), 'lane');
 

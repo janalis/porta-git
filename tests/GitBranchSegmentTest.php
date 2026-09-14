@@ -16,6 +16,7 @@ use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\TestTui;
 use Porta\Widget\CodeEditorWidget;
+use Porta\Workbench\StatusCell;
 use Porta\Workbench\StatusTone;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
@@ -75,7 +76,7 @@ final class GitBranchSegmentTest extends TestCase
     public function testAResolvedBranchIsAnAccentCellCarryingItsOwnMenu(): void
     {
         $cell = $this->segment(showBranch: true, branch: 'trunk')->statusCell();
-        $this->assertNotNull($cell);
+        $this->assertInstanceOf(StatusCell::class, $cell);
 
         $this->assertNotNull($cell);
         $this->assertStringContainsString('trunk', $cell->text);

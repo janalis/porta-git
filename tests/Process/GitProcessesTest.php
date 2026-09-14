@@ -31,7 +31,7 @@ final class GitProcessesTest extends TestCase
         $started = $lane->start(new AsyncProcess(['sleep', '30'], \sys_get_temp_dir()), static function (): void {
             // A cancelled process never calls back — that is the point.
         });
-        self::assertTrue($started, 'the fixture process spawned');
+        $this->assertTrue($started, 'the fixture process spawned');
     }
 
     public function testCancelAllEmptiesBothLanes(): void
