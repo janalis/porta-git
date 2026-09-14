@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Command\CommitMode;
 use Porta\GitPlugin\Diff\WhitespaceMode;
 use Porta\GitPlugin\GitInfo;
+use Porta\GitPlugin\StagedState;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PumpsLoop;
@@ -43,9 +44,9 @@ final class GitInfoStatusTest extends TestCase
         foreach ($entries as $entry) {
             $byPath[$entry->path] = $entry;
         }
-        $this->assertSame('none', $byPath['a.txt']->stagedState());
+        $this->assertSame(StagedState::None, $byPath['a.txt']->stagedState());
         $this->assertSame('M', $byPath['a.txt']->displayStatus());
-        $this->assertSame('full', $byPath['new.txt']->stagedState());
+        $this->assertSame(StagedState::Full, $byPath['new.txt']->stagedState());
         $this->assertStringContainsString('a.txt', $raw, 'the raw porcelain output rides along');
     }
 

@@ -10,6 +10,7 @@ use Porta\GitPlugin\Diff\DiffSide;
 use Porta\GitPlugin\Diff\PatchBuilder;
 use Porta\GitPlugin\Diff\WhitespaceMode;
 use Porta\GitPlugin\GitInfo;
+use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\Support\Flash;
 use Porta\GitPlugin\View\GitViewController;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
@@ -93,7 +94,7 @@ final readonly class GitStagingService
             $onChanged();
         };
 
-        'full' === $entry->stagedState() ? $this->git->unstageFile($abs, $done) : $this->git->stage($abs, $done);
+        StagedState::Full === $entry->stagedState() ? $this->git->unstageFile($abs, $done) : $this->git->stage($abs, $done);
     }
 
     /**

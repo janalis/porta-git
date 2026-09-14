@@ -25,13 +25,13 @@ final readonly class ChangeEntry
     }
 
     /** The checkbox state: fully staged, partially staged, or not staged. */
-    public function stagedState(): string
+    public function stagedState(): StagedState
     {
         if ($this->isUntracked() || ' ' === $this->indexStatus) {
-            return 'none';
+            return StagedState::None;
         }
 
-        return ' ' === $this->worktreeStatus ? 'full' : 'partial';
+        return ' ' === $this->worktreeStatus ? StagedState::Full : StagedState::Partial;
     }
 
     /** The single status letter shown in the changes list (worktree side wins). */

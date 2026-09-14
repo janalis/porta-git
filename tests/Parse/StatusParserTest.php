@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\Tests\Parse;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Parse\StatusParser;
+use Porta\GitPlugin\StagedState;
 
 final class StatusParserTest extends TestCase
 {
@@ -20,13 +21,13 @@ final class StatusParserTest extends TestCase
         [$a, $b, $c, $notes, $new, $gone] = $entries;
 
         $this->assertSame(['src/a.php', ' ', 'M'], [$a->path, $a->indexStatus, $a->worktreeStatus]);
-        $this->assertSame('none', $a->stagedState(), 'worktree-only change');
-        $this->assertSame('full', $b->stagedState(), 'index-only change');
-        $this->assertSame('partial', $c->stagedState(), 'both sides dirty');
+        $this->assertSame(StagedState::None, $a->stagedState(), 'worktree-only change');
+        $this->assertSame(StagedState::Full, $b->stagedState(), 'index-only change');
+        $this->assertSame(StagedState::Partial, $c->stagedState(), 'both sides dirty');
         $this->assertTrue($notes->isUntracked());
-        $this->assertSame('none', $notes->stagedState());
+        $this->assertSame(StagedState::None, $notes->stagedState());
         $this->assertSame('A', $notes->displayStatus(), 'untracked displays as an addition');
-        $this->assertSame('full', $new->stagedState());
+        $this->assertSame(StagedState::Full, $new->stagedState());
         $this->assertSame('D', $gone->displayStatus());
     }
 

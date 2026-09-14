@@ -33,6 +33,7 @@ use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Setting\DiffPrefs;
 use Porta\GitPlugin\Setting\GitSettings;
+use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\Support\Flash;
 use Porta\I18n\Translator;
 use Porta\Layout\DiffLayout;
@@ -688,7 +689,7 @@ final class GitViewController implements ContributedView
 
     private function hasStagedChanges(): bool
     {
-        return \array_any($this->entries, static fn (ChangeEntry $entry): bool => 'none' !== $entry->stagedState());
+        return \array_any($this->entries, static fn (ChangeEntry $entry): bool => StagedState::None !== $entry->stagedState());
     }
 
     /** Tab order: changes list → diff → commit box → changes list (history: list ↔ diff). */

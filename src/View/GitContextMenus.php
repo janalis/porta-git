@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\View;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
@@ -89,7 +90,7 @@ final readonly class GitContextMenus implements ViewMenuSource
     /** @return list<MenuItem> */
     private function changeItems(ChangeEntry $entry): array
     {
-        $stageLabel = 'full' === $entry->stagedState() ? 'Unstage' : 'Stage';
+        $stageLabel = StagedState::Full === $entry->stagedState() ? 'Unstage' : 'Stage';
 
         return [
             new MenuItem($this->translator->trans($stageLabel), '', fn () => $this->changes->toggleStageSelected()),

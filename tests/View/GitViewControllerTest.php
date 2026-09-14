@@ -31,6 +31,7 @@ use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
 use Porta\GitPlugin\Process\GitRemote;
 use Porta\GitPlugin\Process\ProcessLane;
+use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\View\GitContextMenus;
 use Porta\GitPlugin\View\GitMouseRouter;
@@ -468,13 +469,13 @@ final class GitViewControllerTest extends TestCase
         $this->project->write('a.txt', "one staged\ntwo\n");
         $this->project->git('add', 'a.txt');
         $controller->open();
-        $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState());
+        $this->await(fn (): bool => StagedState::Full === $this->changes->selectedEntry()?->stagedState());
         $this->await(fn (): bool => \str_contains($this->diffText(), '+one staged'), what: 'the cached diff loads');
 
         // Space on a fully staged file unstages it.
         $this->changes->setFocused(true);
         $this->changes->handleInput(' ');
-        $this->await(fn (): bool => 'none' === $this->changes->selectedEntry()?->stagedState());
+        $this->await(fn (): bool => StagedState::None === $this->changes->selectedEntry()?->stagedState());
         $this->assertSame([' M a.txt'], $this->porcelain());
     }
 
@@ -488,7 +489,7 @@ final class GitViewControllerTest extends TestCase
 
         $this->changes->setFocused(true);
         $this->changes->handleInput(' '); // stage the untracked file
-        $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState());
+        $this->await(fn (): bool => StagedState::Full === $this->changes->selectedEntry()?->stagedState());
         $this->assertSame(['A  new.txt'], $this->porcelain());
     }
 
@@ -646,7 +647,7 @@ final class GitViewControllerTest extends TestCase
         // clean for the staged part by... simpler: fully stage, then unstage a line.
         $this->project->git('add', 'a.txt');
         $controller->refresh();
-        $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState());
+        $this->await(fn (): bool => StagedState::Full === $this->changes->selectedEntry()?->stagedState());
         $this->await(fn (): bool => \str_contains($this->diffText(), '+two CHANGED'), what: 'cached diff loads');
 
         // refresh() and the selection change race same-path diff reloads; a
@@ -679,7 +680,7 @@ final class GitViewControllerTest extends TestCase
         // 20s, not the default: this barrier spans TWO serial git subprocesses
         // (the unstage apply, then the status refresh), and the default timed
         // out three times in one day under external load waves (30-75).
-        $this->await(fn (): bool => 'none' === ($this->changes->selectedEntry()?->stagedState() ?? 'gone'), timeout: 20.0, what: 'the hunk unstage to reach git status');
+        $this->await(fn (): bool => StagedState::None === $this->changes->selectedEntry()?->stagedState(), timeout: 20.0, what: 'the hunk unstage to reach git status');
         $this->addToAssertionCount(1); // the throwing awaits above are the assertions
     }
 
@@ -839,7 +840,7 @@ final class GitViewControllerTest extends TestCase
         // The newer truth, on the real binary, overtaking it.
         $this->project->git('add', 'a.txt');
         $controller->refresh();
-        $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState(), what: 'the newer status to apply');
+        $this->await(fn (): bool => StagedState::Full === $this->changes->selectedEntry()?->stagedState(), what: 'the newer status to apply');
         $this->await(fn (): bool => \str_contains($this->diffText(), '+one CHANGED'), what: 'the cached diff to load');
 
         // Let the older answer come back last. awaitLanes is the barrier that
@@ -850,7 +851,7 @@ final class GitViewControllerTest extends TestCase
         $release();
         $this->awaitLanes([$this->lane()]);
 
-        $this->assertSame('full', $this->changes->selectedEntry()?->stagedState(), 'the stale snapshot did not come back');
+        $this->assertSame(StagedState::Full, $this->changes->selectedEntry()?->stagedState(), 'the stale snapshot did not come back');
         $this->assertNotNull(Probe::get($controller, 'shownDocument'), 'the diff pane still has a document to stage from');
         $this->assertStringContainsString('+one CHANGED', $this->diffText(), 'and it is still the cached diff');
     }
@@ -892,7 +893,7 @@ final class GitViewControllerTest extends TestCase
         // Stage the file, then let a newer load win the pane with the cached side.
         $this->project->git('add', 'a.txt');
         $controller->refresh();
-        $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState(), what: 'the status to see the staged file');
+        $this->await(fn (): bool => StagedState::Full === $this->changes->selectedEntry()?->stagedState(), what: 'the status to see the staged file');
         $this->await(fn (): bool => \str_contains($this->diffText(), '+one CHANGED'), what: 'the cached diff to load');
 
         $release();

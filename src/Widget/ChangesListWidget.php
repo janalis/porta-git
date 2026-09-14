@@ -277,11 +277,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
                 continue;
             }
 
-            $checkbox = match ($entry->stagedState()) {
-                'full' => Glyphs::CHECKBOX_ON,
-                'partial' => Glyphs::CHECKBOX_PARTIAL,
-                default => Glyphs::CHECKBOX_OFF,
-            };
+            $checkbox = $entry->stagedState()->checkbox();
             $status = $entry->displayStatus();
             $statusText = \array_key_exists($status, self::STATUS_ROLE) ? $this->styles->of(self::STATUS_ROLE[$status])->apply($status) : $status;
             $label = $entry->path.(null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '');
