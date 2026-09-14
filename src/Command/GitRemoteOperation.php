@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Command;
 
 /**
- * The three remote operations the git view offers.
+ * The three remote operations the git view offers, from the key that asks for
+ * one ({@see \Porta\GitPlugin\Event\GitRemoteRequested}) through the command
+ * that runs it.
  *
- * A backed enum rather than the three string literals it replaces, because the
- * value crosses an event now: {@see \Porta\Event\GitRemoteCompleted} is
- * plugin-observable, and freezing `'fetch'|'pull'|'push'` as bare strings would
- * freeze three literals as third-party API with nothing naming them.
+ * Backed, because the value crosses into core at the end:
+ * {@see \Porta\Event\GitRemoteCompleted} is plugin-observable and core cannot
+ * import a plugin type, so it carries `->value`. That makes the three strings
+ * third-party API — this enum is what names them.
  *
  * The values double as the keybinding action ids the panes match on, which is
  * what lets the widget map a key straight to a case.

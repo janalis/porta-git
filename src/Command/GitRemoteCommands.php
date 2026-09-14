@@ -37,13 +37,13 @@ final readonly class GitRemoteCommands
 
     public function fetch(): void
     {
-        $this->operate('fetch', $this->translator->trans('Fetching…'), $this->translator->trans('Fetched'), fn (callable $onDone) => $this->remote->fetch($onDone));
+        $this->operate(GitRemoteOperation::Fetch, $this->translator->trans('Fetching…'), $this->translator->trans('Fetched'), fn (callable $onDone) => $this->remote->fetch($onDone));
     }
 
     public function pull(): void
     {
         $this->operate(
-            'pull',
+            GitRemoteOperation::Pull,
             $this->translator->trans('Pulling…'),
             $this->translator->trans('Pulled'),
             fn (callable $onDone) => $this->remote->pull($onDone),
@@ -60,8 +60,18 @@ final readonly class GitRemoteCommands
                     ],
                     function (string $choice): void {
                         match ($choice) {
-                            'rebase' => $this->operate('pull', $this->translator->trans('Pulling…'), $this->translator->trans('Pulled'), fn (callable $onDone) => $this->remote->pullRebase($onDone)),
-                            'merge' => $this->operate('pull', $this->translator->trans('Pulling…'), $this->translator->trans('Pulled'), fn (callable $onDone) => $this->remote->pullMerge($onDone)),
+                            'rebase' => $this->operate(
+                                GitRemoteOperation::Pull,
+                                $this->translator->trans('Pulling…'),
+                                $this->translator->trans('Pulled'),
+                                fn (callable $onDone) => $this->remote->pullRebase($onDone),
+                            ),
+                            'merge' => $this->operate(
+                                GitRemoteOperation::Pull,
+                                $this->translator->trans('Pulling…'),
+                                $this->translator->trans('Pulled'),
+                                fn (callable $onDone) => $this->remote->pullMerge($onDone),
+                            ),
                             default => null,
                         };
                     },
@@ -75,7 +85,7 @@ final readonly class GitRemoteCommands
     public function push(): void
     {
         $this->operate(
-            'push',
+            GitRemoteOperation::Push,
             $this->translator->trans('Pushing…'),
             $this->translator->trans('Pushed'),
             fn (callable $onDone) => $this->remote->push($onDone),
@@ -107,7 +117,7 @@ final readonly class GitRemoteCommands
 
     public function pushSetUpstream(): void
     {
-        $this->operate('push', $this->translator->trans('Pushing…'), $this->translator->trans('Pushed'), fn (callable $onDone) => $this->remote->pushSetUpstream($onDone));
+        $this->operate(GitRemoteOperation::Push, $this->translator->trans('Pushing…'), $this->translator->trans('Pushed'), fn (callable $onDone) => $this->remote->pushSetUpstream($onDone));
     }
 
     /**
@@ -142,7 +152,7 @@ final readonly class GitRemoteCommands
      * @param (\Closure(string): bool)|null                $onFailure sees the full output; true = it owns the follow-up
      *                                                     (the generic failure flash is suppressed; the event still fires)
      */
-    private function operate(string $operation, string $started, string $succeeded, \Closure $start, ?\Closure $onFailure = null): void
+    private function operate(GitRemoteOperation $operation, string $started, string $succeeded, \Closure $start, ?\Closure $onFailure = null): void
     {
         if (!$this->remote->isAvailable()) {
             $this->notifier->flash($this->translator->trans('Not a git repository (or git missing)'));
@@ -158,15 +168,15 @@ final readonly class GitRemoteCommands
         $this->notifier->flash($started, 600.0);
         $start(function (Outcome $ok, string $output) use ($operation, $succeeded, $onFailure): void {
             if (!$ok->isOk() && null !== $onFailure && $onFailure($output)) {
-                $this->dispatcher->dispatch(new GitRemoteCompleted($operation, false));
+                $this->dispatcher->dispatch(new GitRemoteCompleted($operation->value, false));
 
                 return;
             }
             $this->notifier->flash(
-                $ok->isOk() ? $succeeded : $this->translator->trans('%operation% failed: %error%', ['%operation%' => \ucfirst($operation), '%error%' => Text::firstLine($output)]),
+                $ok->isOk() ? $succeeded : $this->translator->trans('%operation% failed: %error%', ['%operation%' => \ucfirst($operation->value), '%error%' => Text::firstLine($output)]),
                 $ok->isOk() ? 3.0 : 6.0,
             );
-            $this->dispatcher->dispatch(new GitRemoteCompleted($operation, $ok->isOk()));
+            $this->dispatcher->dispatch(new GitRemoteCompleted($operation->value, $ok->isOk()));
         });
     }
 
