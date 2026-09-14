@@ -49,7 +49,7 @@ final class WorkingTreeStatusTest extends TestCase
 
         $this->assertFalse(Probe::get($status, 'rerun'), 'the rerun was consumed, not left armed');
         $this->assertFalse(Probe::get($status, 'inFlight'), 'and the second run finished too');
-        $this->assertNotSame([], $this->statuses->all(), 'the marks landed');
+        $this->assertNotSame([], $this->statuses->statuses, 'the marks landed');
     }
 
     private function api(): PluginApi
