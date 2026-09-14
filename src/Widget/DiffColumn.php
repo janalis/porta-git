@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Widget;
 
 use Porta\GitPlugin\Diff\DiffLine;
-use Porta\GitPlugin\Diff\DiffSide;
 
 /**
  * Which column of a side-by-side diff row a half renders: the old (pre-image)

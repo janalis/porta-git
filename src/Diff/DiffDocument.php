@@ -61,20 +61,13 @@ final readonly class DiffDocument
             $last = \array_key_last($pending);
             $origin = $line[0] ?? ' ';
             $text = \substr($line, offset: 1);
-            switch ($origin) {
-                case '+':
-                    $pending[$last]['lines'][] = new DiffLine('+', $text, null, $pending[$last]['newNo']++);
-                    break;
-                case '-':
-                    $pending[$last]['lines'][] = new DiffLine('-', $text, $pending[$last]['oldNo']++, null);
-                    break;
-                case '\\':
-                    $pending[$last]['lines'][] = new DiffLine('\\', $text, null, null);
-                    break;
-                default:
-                    // Context (including a fully empty line, which git emits as ' ').
-                    $pending[$last]['lines'][] = new DiffLine(' ', $text, $pending[$last]['oldNo']++, $pending[$last]['newNo']++);
-            }
+            $pending[$last]['lines'][] = match ($origin) {
+                '+' => new DiffLine('+', $text, null, $pending[$last]['newNo']++),
+                '-' => new DiffLine('-', $text, $pending[$last]['oldNo']++, null),
+                '\\' => new DiffLine('\\', $text, null, null),
+                // Context (including a fully empty line, which git emits as ' ').
+                default => new DiffLine(' ', $text, $pending[$last]['oldNo']++, $pending[$last]['newNo']++),
+            };
         }
 
         $hunks = \array_map(

@@ -10,7 +10,6 @@ use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
-use Porta\Input\ContextMenuRouter;
 use Porta\Input\HitTester;
 use Porta\Workbench\Menu\MenuItem;
 use Porta\Workbench\Menu\ViewContextMenu;

@@ -25,23 +25,23 @@ use Psr\EventDispatcher\EventDispatcherInterface;
  * changes/diff experience lives in {@see GitViewController}.
  *
  */
-final class GitCommands
+final readonly class GitCommands
 {
     public function __construct(
-        private readonly GitInfo $git,
-        private readonly Modals $editor,
-        private readonly Flash $notifier,
+        private GitInfo $git,
+        private Modals $editor,
+        private Flash $notifier,
         /** @var \Closure(): void asks for a frame */
-        private readonly \Closure $repaint,
-        private readonly Translate $translator,
-        private readonly GitRefresher $refresher,
+        private \Closure $repaint,
+        private Translate $translator,
+        private GitRefresher $refresher,
         /** @var \Closure(string): void copies to the system clipboard */
-        private readonly \Closure $copy,
-        private readonly EventDispatcherInterface $dispatcher,
+        private \Closure $copy,
+        private EventDispatcherInterface $dispatcher,
         /** @var \Closure(): list<string> the files selected in the project tree, in tree order */
-        private readonly \Closure $selectedFiles,
+        private \Closure $selectedFiles,
         /** @var \Closure(list<string>, string): void publishes the compared lines under a title */
-        private readonly \Closure $showComparison,
+        private \Closure $showComparison,
     ) {}
 
     public function commit(): void

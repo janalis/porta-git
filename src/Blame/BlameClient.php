@@ -22,9 +22,9 @@ use Porta\GitPlugin\Process\ProcessLane;
  * The runner answers a run that cannot happen as exit 1 with no output, so
  * "no git" and "not a repository" arrive here as an empty parse, not an error.
  */
-final class BlameClient
+final readonly class BlameClient
 {
-    private readonly GitProcessRunner $runner;
+    private GitProcessRunner $runner;
 
     /** @param null|(\Closure(): ?string)|string $gitPath read per call when a closure, so the setting is live */
     public function __construct(string $rootDir, \Closure|string|null $gitPath = null, ?ProcessLane $lane = null)

@@ -20,11 +20,11 @@ use Porta\Support\Outcome;
  * still prompt for an agent-less key passphrase; forcing BatchMode would
  * break ssh-agent users, so it stays unset — an agent is expected.
  */
-final class GitRemote
+final readonly class GitRemote
 {
-    private readonly bool $repository;
+    private bool $repository;
 
-    private readonly ProcessLane $lane;
+    private ProcessLane $lane;
 
     /**
      * The lane is optional and TRAILING so direct construction keeps working;
@@ -37,8 +37,8 @@ final class GitRemote
      *                                                   call so a Settings edit applies without a restart
      */
     public function __construct(
-        private readonly string $rootDir,
-        private readonly \Closure|string|null $gitPath = null,
+        private string $rootDir,
+        private \Closure|string|null $gitPath = null,
         ?ProcessLane $lane = null,
     ) {
         $this->lane = $lane ?? new ProcessLane();

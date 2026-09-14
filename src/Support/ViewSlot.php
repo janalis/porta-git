@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Support;
 
 use Porta\GitPlugin\View\GitViewController;
-use Porta\GitPlugin\View\GitWiring;
 
 /**
  * Where the view lands once core builds it, for the things registered before it

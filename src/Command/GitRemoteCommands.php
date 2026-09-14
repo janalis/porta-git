@@ -23,16 +23,16 @@ use Psr\EventDispatcher\EventDispatcherInterface;
  * offers --set-upstream. Completion dispatches {@see GitRemoteCompleted} so
  * the branch/marks/history refresh listeners react without coupling.
  */
-final class GitRemoteCommands
+final readonly class GitRemoteCommands
 {
     public function __construct(
-        private readonly GitRemote $remote,
-        private readonly Flash $notifier,
-        private readonly Translate $translator,
-        private readonly EventDispatcherInterface $dispatcher,
-        private readonly Modals $editor,
+        private GitRemote $remote,
+        private Flash $notifier,
+        private Translate $translator,
+        private EventDispatcherInterface $dispatcher,
+        private Modals $editor,
         /** @var \Closure(): void asks for a frame */
-        private readonly \Closure $repaint,
+        private \Closure $repaint,
     ) {}
 
     public function fetch(): void

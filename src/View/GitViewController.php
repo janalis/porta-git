@@ -688,13 +688,7 @@ final class GitViewController implements ContributedView
 
     private function hasStagedChanges(): bool
     {
-        foreach ($this->entries as $entry) {
-            if ('none' !== $entry->stagedState()) {
-                return true;
-            }
-        }
-
-        return false;
+        return \array_any($this->entries, static fn (ChangeEntry $entry): bool => 'none' !== $entry->stagedState());
     }
 
     /** Tab order: changes list → diff → commit box → changes list (history: list ↔ diff). */

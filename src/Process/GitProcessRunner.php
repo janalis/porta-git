@@ -20,11 +20,11 @@ use Porta\Support\Text;
  * stateless wrappers that build an argv and parse an answer, which is the
  * reason for the split.
  */
-final class GitProcessRunner
+final readonly class GitProcessRunner
 {
-    private readonly bool $repository;
+    private bool $repository;
 
-    private readonly ProcessLane $lane;
+    private ProcessLane $lane;
 
     /**
      * $lane is optional and TRAILING so every direct construction — the tests,
@@ -36,8 +36,8 @@ final class GitProcessRunner
      *                                                   call so a Settings edit applies without a restart
      */
     public function __construct(
-        private readonly string $rootDir,
-        private readonly \Closure|string|null $gitPath = null,
+        private string $rootDir,
+        private \Closure|string|null $gitPath = null,
         ?ProcessLane $lane = null,
     ) {
         $this->lane = $lane ?? new ProcessLane();

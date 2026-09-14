@@ -36,18 +36,18 @@ use Symfony\Component\Tui\Tui;
  * is two places to update when the runtime grows an argument, and the
  * duplication gate said so the moment the second one appeared.
  */
-final class GitPluginHarness
+final readonly class GitPluginHarness
 {
     private function __construct(
-        public readonly PluginApi $api,
-        public readonly TempProject $project,
-        public readonly Tui $tui,
-        public readonly StatusBarWidget $status,
-        public readonly CodeEditorWidget $editor,
-        public readonly EventDispatcher $events,
-        public readonly BufferManager $buffers,
-        public readonly RecordingChangeMarkSink $marks,
-        public readonly FileStatuses $statuses,
+        public PluginApi $api,
+        public TempProject $project,
+        public Tui $tui,
+        public StatusBarWidget $status,
+        public CodeEditorWidget $editor,
+        public EventDispatcher $events,
+        public BufferManager $buffers,
+        public RecordingChangeMarkSink $marks,
+        public FileStatuses $statuses,
     ) {}
 
     /** @param array<string, string> $files the project the api answers about */

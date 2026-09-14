@@ -14,9 +14,9 @@ namespace Porta\GitPlugin\Event;
  * view's business, and the alternative (the caller holding the controller)
  * makes a heavyweight constructor dependency out of one method.
  */
-final class GitFileHistoryRequested
+final readonly class GitFileHistoryRequested
 {
     public function __construct(
-        public readonly string $path,
+        public string $path,
     ) {}
 }

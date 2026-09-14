@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Process;
 
-use Porta\GitPlugin\GitInfo;
-
 /**
  * Every git subprocess this plugin can have in flight, in two lanes.
  *

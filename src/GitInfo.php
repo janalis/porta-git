@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Porta\GitPlugin;
 
 use Porta\GitPlugin\Command\CommitMode;
-use Porta\GitPlugin\Command\Stash;
 use Porta\GitPlugin\Diff\WhitespaceMode;
 use Porta\GitPlugin\Parse\BranchParser;
 use Porta\GitPlugin\Parse\HunkParser;
@@ -25,9 +24,9 @@ use Porta\Support\Text;
  * Everything is best-effort and silently disabled when the project is not a
  * git working tree or the `git` binary is unavailable.
  */
-final class GitInfo
+final readonly class GitInfo
 {
-    private readonly GitProcessRunner $runner;
+    private GitProcessRunner $runner;
 
     /**
      * $lane is optional and TRAILING so direct construction keeps working;
@@ -37,7 +36,7 @@ final class GitInfo
     /** @param null|(\Closure(): ?string)|string $gitPath read per call when a closure, so the setting is live */
     public function __construct(
         string $rootDir,
-        private readonly ?GitSettings $gitSettings = null,
+        private ?GitSettings $gitSettings = null,
         \Closure|string|null $gitPath = null,
         ?ProcessLane $lane = null,
     ) {

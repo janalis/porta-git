@@ -134,12 +134,6 @@ final class PatchBuilder
     /** @param array<int, true> $sel */
     private static function hasSelectedChange(DiffHunk $hunk, array $sel): bool
     {
-        foreach ($hunk->lines as $i => $line) {
-            if (($sel[$i] ?? null) !== null && ('+' === $line->origin || '-' === $line->origin)) {
-                return true;
-            }
-        }
-
-        return false;
+        return \array_any($hunk->lines, static fn (DiffLine $line, int $i): bool => null !== ($sel[$i] ?? null) && ('+' === $line->origin || '-' === $line->origin));
     }
 }

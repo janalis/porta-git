@@ -215,9 +215,9 @@ final class GitViewControllerTest extends TestCase
         $host = new ViewHost(
             $this->main,
             $this->menuBar,
-            new class($editWidget) implements EditorAreaPanes {
+            new readonly class($editWidget) implements EditorAreaPanes {
                 public function __construct(
-                    private readonly ContainerWidget $editWidget,
+                    private ContainerWidget $editWidget,
                 ) {}
 
                 public function orderedEditorPanes(): array

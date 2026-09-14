@@ -28,14 +28,14 @@ use Symfony\Component\Filesystem\Filesystem;
  * shown. Split out of the controller so it owns "change the repo" while the
  * controller owns "swap panes, move focus, display diffs".
  */
-final class GitStagingService
+final readonly class GitStagingService
 {
     public function __construct(
-        private readonly GitInfo $git,
-        private readonly ProjectPaths $paths,
-        private readonly CommitBoxWidget $commitBox,
-        private readonly Flash $notifier,
-        private readonly Translator $translator,
+        private GitInfo $git,
+        private ProjectPaths $paths,
+        private CommitBoxWidget $commitBox,
+        private Flash $notifier,
+        private Translator $translator,
     ) {}
 
     /**
