@@ -150,6 +150,30 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         return $this->commits[$this->commitList->selected()] ?? null;
     }
 
+    /**
+     * Put the selection back on a commit by sha after {@see setCommits()} has
+     * reset it. A commit that is no longer here is not an error to report: a
+     * reload can legitimately drop one (a rebase, a force push, a narrowed path
+     * filter), and the reset has already left the selection on the first
+     * commit, which is the only honest fallback.
+     *
+     * The files pane stays as setCommits() left it, empty. The caller reloads
+     * it for whichever commit ends up selected, because a file list belonging
+     * to the PREVIOUSLY selected commit is worse than none.
+     */
+    public function selectSha(string $sha): void
+    {
+        foreach ($this->commits as $index => $commit) {
+            if ($commit->sha !== $sha) {
+                continue;
+            }
+            $this->commitList->select($index);
+            $this->invalidate();
+
+            return;
+        }
+    }
+
     /** The screen-relative row of the selected commit (1-based; the header is row 0). */
     public function selectedCommitRow(): int
     {

@@ -1364,11 +1364,77 @@ final class GitViewControllerTest extends TestCase
         $this->changes->handleInput('2'); // History tab
         $this->await(fn (): bool => 2 === $this->history->commitCount());
 
-        // A commit lands "remotely" (same repo here); the completed event reloads page 0.
+        // A commit lands "remotely" (same repo here); the completed event
+        // reloads page 0, so the new commit is in the list.
         $this->project->git('commit', '-q', '--allow-empty', '-m', 'fromremote');
         $controller->onRemoteCompleted(new GitRemoteCompleted('pull', true));
-        $this->await(fn (): bool => 'fromremote' === ($this->history->selectedCommit()->subject ?? ''), what: 'the newest commit appears at the top');
-        $this->addToAssertionCount(1); // the throwing awaits above are the assertions
+        $this->await(fn (): bool => str_contains($this->historyText(), 'fromremote'), what: 'the newest commit appears at the top');
+        // And the reload is a KeepSelection one, so it does not move you: the
+        // commit you had selected is still the selected one, even though a
+        // newer one now sits above it.
+        $this->assertSame('second', $this->history->selectedCommit()?->subject);
+    }
+
+    /**
+     * `HistoryReload::KeepSelection` kept nothing: `setCommits()` resets the
+     * list unconditionally, so a fetch finishing while you read an older
+     * commit threw you back to the top of the history. It also cleared the
+     * files pane without touching the diff pane, which went on showing the
+     * patch of the commit that was no longer selected — no error, no empty
+     * pane, just a patch belonging to somewhere else.
+     */
+    public function testAPullKeepsTheCommitYouWereReadingAndItsFiles(): void
+    {
+        $controller = $this->controller(historyPageSize: 20);
+        $this->project->write('notes.txt', "alpha\n");
+        $this->project->git('add', '-A');
+        $this->project->git('commit', '-q', '-m', 'adds-notes');
+        $this->project->git('commit', '-q', '--allow-empty', '-m', 'newer');
+        $controller->open();
+        $this->await($controller->isOpen(...));
+        $this->changes->setFocused(true);
+        $this->changes->handleInput('2'); // History tab
+        $this->await(fn (): bool => $this->history->commitCount() >= 3);
+
+        // Move off the top commit and open its patch.
+        $this->history->setFocused(true);
+        $this->history->handleInput("\x1b[B");
+        $this->await(fn (): bool => 'adds-notes' === ($this->history->selectedCommit()->subject ?? ''), what: 'the older commit is selected');
+        $this->await(fn (): bool => str_contains($this->diffText(), '+alpha'), what: "adds-notes' patch");
+
+        // A pull brings something newer in and the list reloads underneath.
+        $this->project->git('commit', '-q', '--allow-empty', '-m', 'fromremote');
+        $controller->onRemoteCompleted(new GitRemoteCompleted('pull', true));
+        $this->await(fn (): bool => 4 === $this->history->commitCount(), what: 'the pull reloaded page 0');
+
+        $this->assertSame('adds-notes', $this->history->selectedCommit()?->subject, 'the commit I was reading is still the selected one');
+        // The reset emptied the files pane; it has to come back, or the patch
+        // still on screen is one nothing in the list points at any more.
+        $this->await(
+            fn (): bool => [] !== Probe::get($this->history, 'files'),
+            what: "the kept commit's files reloaded under it",
+        );
+        $this->assertStringContainsString('+alpha', $this->diffText(), 'and the patch under it is still its own');
+    }
+
+    /** A file with no history at all: the pane must say so, not keep the last commit's patch. */
+    public function testFilteringHistoryToAFileWithNoCommitsClearsTheDiff(): void
+    {
+        $controller = $this->controller(historyPageSize: 20);
+        $this->project->write('notes.txt', "alpha\n");
+        $this->project->git('add', '-A');
+        $this->project->git('commit', '-q', '-m', 'adds-notes');
+        $controller->open();
+        $this->await($controller->isOpen(...));
+        $controller->openFileHistory($this->project->path('notes.txt'));
+        $this->await(fn (): bool => str_contains($this->diffText(), '+alpha'), what: "notes.txt's patch");
+
+        $this->project->write('untracked.txt', "nothing committed\n");
+        $controller->openFileHistory($this->project->path('untracked.txt'));
+
+        $this->await(fn (): bool => 0 === $this->history->commitCount(), what: 'the filter empties the list');
+        $this->await(fn (): bool => str_contains($this->diffText(), 'No commits'), what: 'the pane says there is nothing, rather than showing notes.txt');
+        $this->assertStringNotContainsString('+alpha', $this->diffText());
     }
 
     public function testHistoryCallbacksLandingAfterCloseAreIgnored(): void

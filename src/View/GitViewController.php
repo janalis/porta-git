@@ -491,11 +491,32 @@ final class GitViewController implements ContributedView
                 if (!$this->open || GitViewMode::History !== $this->mode) {
                     return;
                 }
+                // Read before the reset: setCommits() rebuilds the list from
+                // scratch, so KeepSelection has to name what to come back to.
+                $keep = HistoryReload::KeepSelection === $mode ? $this->panes->history->selectedCommit()?->sha : null;
                 $this->panes->history->setCommits($commits);
                 \count($commits) === $this->historyPageSize ? $this->panes->history->markHasMore() : $this->panes->history->markNoMore();
-                if (HistoryReload::SelectFirst === $mode && null !== ($first = $this->panes->history->selectedCommit())) {
-                    $this->loadCommitFiles($first);
+                if (null !== $keep) {
+                    // Gone after a rebase or a force push: the first commit is
+                    // the only honest fallback, and it is where the reset left
+                    // the selection anyway.
+                    $this->panes->history->selectSha($keep);
                 }
+                // Whatever ends up selected, its files were just cleared — and
+                // the patch in the diff pane belongs to the commit that WAS
+                // selected. Reload, always: a fetch used to jump the list to the
+                // top while the pane kept showing the old commit's diff, with
+                // nothing on screen saying the two no longer went together.
+                $selected = $this->panes->history->selectedCommit();
+                if (null === $selected) {
+                    // Filtering to a file with no history at all: say so, or
+                    // the pane keeps the last patch it was given.
+                    $this->panes->diffView->setDocument(null, null, 'No commits');
+                    $this->host->invalidate();
+
+                    return;
+                }
+                $this->loadCommitFiles($selected);
                 $this->host->invalidate();
             },
             path: $this->historyPath,
