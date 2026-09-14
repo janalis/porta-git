@@ -41,7 +41,7 @@ final class DiffViewWidgetTest extends TestCase
     /** @return list<string> */
     private function plainLines(DiffViewWidget $widget, int $cols = 80, int $rows = 12): array
     {
-        return array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext($cols, $rows)));
+        return \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext($cols, $rows)));
     }
 
     public function testRendersGuttersHunkHeadersAndBodies(): void
@@ -74,8 +74,8 @@ final class DiffViewWidgetTest extends TestCase
         $addRow = AnsiUtils::stripAnsiCodes($raw[4]);
         $this->assertStringContainsString('$new = 2;', $addRow);
         $this->assertGreaterThan(
-            substr_count($raw[3], needle: "\x1b["),
-            substr_count($raw[4], needle: "\x1b["),
+            \substr_count($raw[3], needle: "\x1b["),
+            \substr_count($raw[4], needle: "\x1b["),
             'the addition carries syntax SGR spans, the deletion stays plain',
         );
     }
@@ -106,7 +106,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput("\x1b[6~"); // page down clamps at the last row
         $widget->handleInput("\x1b[6~");
         $widget->handleInput("\x1b[6~");
-        $this->assertStringContainsString('tail!', implode("\n", $this->plainLines($widget, 80, 4)));
+        $this->assertStringContainsString('tail!', \implode("\n", $this->plainLines($widget, 80, 4)));
 
         for ($i = 0; $i < 5; ++$i) {
             $widget->handleInput("\x1b[5~"); // page up back past the top clamps
@@ -244,7 +244,7 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertStringNotContainsString('[scrolled', $lines[0]);
 
         $widget->scrollBy(50); // clamps at the bottom
-        $this->assertStringContainsString('tail!', implode("\n", $this->plainLines($widget, 80, 4)));
+        $this->assertStringContainsString('tail!', \implode("\n", $this->plainLines($widget, 80, 4)));
 
         $empty = new DiffViewWidget(new Translator('en'));
         $empty->setDocument(null, null);
@@ -506,13 +506,13 @@ final class DiffViewWidgetTest extends TestCase
 
     public function testHorizontalScrollSlidesTextUnderPinnedGutters(): void
     {
-        $long = str_repeat('x', times: 30).'NEEDLE'.str_repeat('y', times: 30);
+        $long = \str_repeat('x', times: 30).'NEEDLE'.\str_repeat('y', times: 30);
         $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-old\n+{$long}\n"), 'x.txt');
         $widget->setFocused(true);
 
         $lines = $this->plainLines($widget, 40, 6);
-        $this->assertStringNotContainsString('NEEDLE', implode('', $lines), 'the needle starts off-screen');
+        $this->assertStringNotContainsString('NEEDLE', \implode('', $lines), 'the needle starts off-screen');
 
         for ($i = 0; $i < 3; ++$i) {
             $widget->handleInput("\x1b[C"); // right ×3 = 24 cols
@@ -537,8 +537,8 @@ final class DiffViewWidgetTest extends TestCase
 
     public function testHorizontalScrollAppliesToBothSplitHalvesAndResetsPerPath(): void
     {
-        $long = str_repeat('a', times: 25).'LEFT'.str_repeat('b', times: 20);
-        $longer = str_repeat('c', times: 25).'RIGHT'.str_repeat('d', times: 20);
+        $long = \str_repeat('a', times: 25).'LEFT'.\str_repeat('b', times: 20);
+        $longer = \str_repeat('c', times: 25).'RIGHT'.\str_repeat('d', times: 20);
         $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-{$long}\n+{$longer}\n"), 'x.txt');
         $widget->useSplitView();
@@ -564,7 +564,7 @@ final class DiffViewWidgetTest extends TestCase
         // Paired lines sharing prefix/suffix get an intraline range; scroll so
         // the emphasized middle is inside the window and check its bg code.
         $widget = new DiffViewWidget(new Translator('en'));
-        $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-".str_repeat('p', times: 30)."OLD tail\n+".str_repeat('p', times: 30)."NEW tail\n"), 'x.txt');
+        $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-".\str_repeat('p', times: 30)."OLD tail\n+".\str_repeat('p', times: 30)."NEW tail\n"), 'x.txt');
         $widget->setFocused(true);
         for ($i = 0; $i < 3; ++$i) {
             $widget->handleInput("\x1b[C"); // 24 cols: the changed middle is in view
@@ -746,12 +746,12 @@ final class DiffViewWidgetTest extends TestCase
 
         $this->assertGreaterThanOrEqual(
             2,
-            substr_count($row, needle: "\x1b[48;5;24m"),
+            \substr_count($row, needle: "\x1b[48;5;24m"),
             'the selection bg is re-applied after resets inside the span',
         );
         // After a bg reset inside the span (the intraline emphasis closes with
         // \x1b[49m) the selection bg must come straight back.
-        $this->assertNotFalse(strpos($row, needle: "\x1b[49m\x1b[48;5;24m"), 'a re-applied bg follows a reset inside the span');
+        $this->assertNotFalse(\strpos($row, needle: "\x1b[49m\x1b[48;5;24m"), 'a re-applied bg follows a reset inside the span');
     }
 
     public function testTheToolbarToggleUnderThePointerTints(): void
@@ -799,11 +799,11 @@ final class DiffViewWidgetTest extends TestCase
         // Without it the diff keeps painting the previous palette until the
         // document changes, which no screen test elsewhere would catch.
         $widget = $this->widget();
-        $before = implode("\n", $widget->render(new RenderContext(80, 20)));
+        $before = \implode("\n", $widget->render(new RenderContext(80, 20)));
 
         $widget->refreshTheme();
 
-        $this->assertSame($before, implode("\n", $widget->render(new RenderContext(80, 20))), 'same theme, same rows — the rebuild is not a repaint bug');
+        $this->assertSame($before, \implode("\n", $widget->render(new RenderContext(80, 20))), 'same theme, same rows — the rebuild is not a repaint bug');
         $this->assertStringContainsString('$new = 2;', AnsiUtils::stripAnsiCodes($before), 'and the rows survived the rebuild');
     }
 }

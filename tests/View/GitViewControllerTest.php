@@ -308,7 +308,7 @@ final class GitViewControllerTest extends TestCase
     /** @return list<string> porcelain rows of the test repo */
     private function porcelain(): array
     {
-        exec('git -C '.escapeshellarg($this->project->dir).' status --porcelain 2>/dev/null', $lines);
+        \exec('git -C '.\escapeshellarg($this->project->dir).' status --porcelain 2>/dev/null', $lines);
 
         return $lines;
     }
@@ -322,7 +322,7 @@ final class GitViewControllerTest extends TestCase
         // so a missed seed is a git view that opens empty with nothing failing.
         $this->controller();
 
-        $kinds = static fn (ContainerWidget $c): array => array_map(static fn (AbstractWidget $w): string => $w::class, $c->all());
+        $kinds = static fn (ContainerWidget $c): array => \array_map(static fn (AbstractWidget $w): string => $w::class, $c->all());
 
         $this->assertSame(
             [GitTabsWidget::class, ChangesListWidget::class, CommitBoxWidget::class],
@@ -393,21 +393,21 @@ final class GitViewControllerTest extends TestCase
         $this->menuBar->open(0);
         $controller->toggle();
         $this->assertTrue($controller->isOpen());
-        $this->assertSame(['git-area'], array_map(static fn ($w) => $w->getId(), $this->main->all()));
+        $this->assertSame(['git-area'], \array_map(static fn ($w) => $w->getId(), $this->main->all()));
         $this->assertFalse($this->menuBar->isOpen(), 'an open dropdown closes across the swap');
         $controller->open(); // idempotent
         $this->assertTrue($controller->isOpen());
 
         $controller->toggle();
         $this->assertFalse($controller->isOpen());
-        $this->assertSame(['edit-stub'], array_map(static fn ($w) => $w->getId(), $this->main->all()));
+        $this->assertSame(['edit-stub'], \array_map(static fn ($w) => $w->getId(), $this->main->all()));
         $this->assertSame($this->editor, $this->tui->getFocus(), 'close restores focus to the editor area');
         $controller->close(); // idempotent
-        $this->assertSame(['edit-stub'], array_map(static fn ($w) => $w->getId(), $this->main->all()));
+        $this->assertSame(['edit-stub'], \array_map(static fn ($w) => $w->getId(), $this->main->all()));
 
         $controller->toggle(); // second round trip stays stable
         $controller->toggle();
-        $this->assertSame(['edit-stub'], array_map(static fn ($w) => $w->getId(), $this->main->all()));
+        $this->assertSame(['edit-stub'], \array_map(static fn ($w) => $w->getId(), $this->main->all()));
     }
 
     public function testFocusTargetFollowsTheActiveTab(): void
@@ -456,7 +456,7 @@ final class GitViewControllerTest extends TestCase
         $this->await(fn (): bool => null !== $this->changes->selectedEntry());
 
         $this->assertSame('a.txt', $this->changes->selectedEntry()?->path);
-        $this->await(fn (): bool => str_contains($this->diffText(), '+one changed'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+one changed'));
         $this->assertStringContainsString('-one', $this->diffText());
     }
 
@@ -467,7 +467,7 @@ final class GitViewControllerTest extends TestCase
         $this->project->git('add', 'a.txt');
         $controller->open();
         $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState());
-        $this->await(fn (): bool => str_contains($this->diffText(), '+one staged'), what: 'the cached diff loads');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+one staged'), what: 'the cached diff loads');
 
         // Space on a fully staged file unstages it.
         $this->changes->setFocused(true);
@@ -482,7 +482,7 @@ final class GitViewControllerTest extends TestCase
         $this->project->write('new.txt', "fresh\n");
         $controller->open();
         $this->await(fn (): bool => null !== $this->changes->selectedEntry());
-        $this->await(fn (): bool => str_contains($this->diffText(), '+fresh'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+fresh'));
 
         $this->changes->setFocused(true);
         $this->changes->handleInput(' '); // stage the untracked file
@@ -502,9 +502,9 @@ final class GitViewControllerTest extends TestCase
         $this->changes->handleInput('y');
         // Await the flash (fired after the restore's exit), not the worktree
         // state — git cleans the file before its process exits.
-        $this->await(fn (): bool => str_contains($this->statusRow($this->statusBar), 'Discarded changes to a.txt'));
+        $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Discarded changes to a.txt'));
 
-        $this->assertSame("one\ntwo\n", file_get_contents($this->project->path('a.txt')));
+        $this->assertSame("one\ntwo\n", \file_get_contents($this->project->path('a.txt')));
         $this->assertSame([], $this->porcelain());
     }
 
@@ -517,7 +517,7 @@ final class GitViewControllerTest extends TestCase
         $this->await(fn (): bool => null !== $this->changes->selectedEntry());
 
         $this->commitBox->setFocused(true);
-        foreach (str_split('Change a') as $ch) {
+        foreach (\str_split('Change a') as $ch) {
             $this->commitBox->handleInput($ch);
         }
         $this->commitBox->handleInput("\x1b[13;5u"); // ctrl+enter
@@ -527,13 +527,13 @@ final class GitViewControllerTest extends TestCase
 
         // Second commit with a clean index: git refuses, the failure path flashes.
         $this->await(fn (): bool => null === $this->changes->selectedEntry());
-        foreach (str_split('Nothing') as $ch) {
+        foreach (\str_split('Nothing') as $ch) {
             $this->commitBox->handleInput($ch);
         }
         // commitEnabled() blocks submit() now, so drive the pipeline directly
         // through a forced submit with a staged predicate bypassed via reflection.
         Probe::invoke($controller, 'commit', 'Nothing');
-        $this->await(fn (): bool => str_contains($this->statusRow($this->statusBar), 'Commit failed'));
+        $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Commit failed'));
         $this->assertSame(1, $this->committed, 'a failed commit fires no onCommitted');
     }
 
@@ -550,16 +550,16 @@ final class GitViewControllerTest extends TestCase
         $this->assertTrue($this->commitBox->commitEnabled(), 'amend needs nothing staged');
 
         // Reword and commit: the tip is rewritten, not extended.
-        foreach (str_split(' reworded') as $ch) {
+        foreach (\str_split(' reworded') as $ch) {
             $this->commitBox->handleInput($ch);
         }
         $this->commitBox->handleInput("\x1b[13;5u");
         // Terminal-state await: a real git failure (lock contention, fs
         // hiccup) fails fast with git's own message instead of a bare
         // 10s timeout on a success-only signal.
-        $this->await(fn (): bool => 1 === $this->committed || str_contains($this->statusRow($this->statusBar), 'Commit failed'), what: 'the amend to land or fail');
+        $this->await(fn (): bool => 1 === $this->committed || \str_contains($this->statusRow($this->statusBar), 'Commit failed'), what: 'the amend to land or fail');
         $this->assertSame(1, $this->committed, 'the amend committed: '.$this->statusRow($this->statusBar));
-        $subjects = explode("\n", $this->project->git('log', '--format=%s'));
+        $subjects = \explode("\n", $this->project->git('log', '--format=%s'));
         $this->assertSame(['init reworded'], $subjects);
         $this->assertFalse($this->commitBox->isAmend(), 'the box clears (and disarms) after committing');
 
@@ -605,7 +605,7 @@ final class GitViewControllerTest extends TestCase
 
         $ghost = new \Porta\GitPlugin\ChangeEntry('does-not-exist.txt', ' ', 'M');
         Probe::invoke($controller, 'toggleStage', $ghost);
-        $this->await(fn (): bool => str_contains($this->statusRow($this->statusBar), 'git refused the staging change'));
+        $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'git refused the staging change'));
         $this->addToAssertionCount(1); // the throwing awaits above are the assertions
     }
 
@@ -628,7 +628,7 @@ final class GitViewControllerTest extends TestCase
         $controller = $this->controller();
         $this->project->write('a.txt', "one CHANGED\ntwo CHANGED\n");
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+one CHANGED'));
 
         // Stage only the 'one' pair via the diff pane: v-range over rows 1-2.
         $this->diffView->setFocused(true);
@@ -637,7 +637,7 @@ final class GitViewControllerTest extends TestCase
         $this->diffView->handleInput("\x1b[B"); // -two... rows: header, -one, -two, +one, +two? git pairs deletions first
         $this->diffView->handleInput("\x1b[B"); // include +one
         $this->diffView->handleInput(' ');
-        $this->await(fn (): bool => [] !== array_filter($this->porcelain(), static fn (string $l): bool => str_starts_with($l, 'MM')));
+        $this->await(fn (): bool => [] !== \array_filter($this->porcelain(), static fn (string $l): bool => \str_starts_with($l, 'MM')));
 
         // Now the file is partially staged; selecting it again shows the
         // worktree remainder. Unstage via the cached side: make the worktree
@@ -645,7 +645,7 @@ final class GitViewControllerTest extends TestCase
         $this->project->git('add', 'a.txt');
         $controller->refresh();
         $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState());
-        $this->await(fn (): bool => str_contains($this->diffText(), '+two CHANGED'), what: 'cached diff loads');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+two CHANGED'), what: 'cached diff loads');
 
         // refresh() and the selection change race same-path diff reloads; a
         // late one would reset the cursor after we position it. Wait until the
@@ -665,7 +665,7 @@ final class GitViewControllerTest extends TestCase
                 // superseded `git status` left behind before GitViewController
                 // learned to drop stale answers — and everything after it then
                 // waited twenty seconds for an unstage that never went out.
-                return $stable >= 8 && str_contains($diff, '+two CHANGED');
+                return $stable >= 8 && \str_contains($diff, '+two CHANGED');
             },
             timeout: 5.0,
             what: 'the cached diff to settle',
@@ -703,7 +703,7 @@ final class GitViewControllerTest extends TestCase
             .'rc=$?'
             ."\n"
             .'touch '
-            .escapeshellarg($this->project->path(self::SHIM_CAPTURED))
+            .\escapeshellarg($this->project->path(self::SHIM_CAPTURED))
             ."\n"
             .$this->waitForRelease()
             ."\n"
@@ -748,23 +748,23 @@ final class GitViewControllerTest extends TestCase
         // in the worktree would show up as `?? ` in the very porcelain these
         // tests compare.
         $shim = $this->project->write('.porta/shim/git', '#!/bin/sh'."\n".$script."\n");
-        chmod($shim, permissions: 0o755);
+        \chmod($shim, permissions: 0o755);
         $project = $this->project;
 
         return static function () use ($project): void {
-            touch($project->path(self::SHIM_RELEASE));
+            \touch($project->path(self::SHIM_RELEASE));
         };
     }
 
     /** Single-quoted on purpose: PHP would eat $tmp and $rc out of these scripts. */
     private function gitBinary(): string
     {
-        return escapeshellarg((string) $this->whichGit());
+        return \escapeshellarg((string) $this->whichGit());
     }
 
     private function waitForRelease(): string
     {
-        return 'while [ ! -f '.escapeshellarg($this->project->path(self::SHIM_RELEASE)).' ]; do sleep 0.02; done';
+        return 'while [ ! -f '.\escapeshellarg($this->project->path(self::SHIM_RELEASE)).' ]; do sleep 0.02; done';
     }
 
     /**
@@ -779,7 +779,7 @@ final class GitViewControllerTest extends TestCase
     private function awaitCapture(): void
     {
         $marker = $this->project->path(self::SHIM_CAPTURED);
-        $this->await(static fn (): bool => is_file($marker), what: 'the held status to capture its answer');
+        $this->await(static fn (): bool => \is_file($marker), what: 'the held status to capture its answer');
     }
 
     /**
@@ -823,7 +823,7 @@ final class GitViewControllerTest extends TestCase
 
         $this->project->write('a.txt', "one CHANGED\ntwo\n");
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'), what: 'the worktree diff to load');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+one CHANGED'), what: 'the worktree diff to load');
         $this->awaitLanes([$this->lane()]); // a clean start: nothing else is in flight
         $this->freezeStatusPoll($controller);
 
@@ -838,7 +838,7 @@ final class GitViewControllerTest extends TestCase
         $this->project->git('add', 'a.txt');
         $controller->refresh();
         $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState(), what: 'the newer status to apply');
-        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'), what: 'the cached diff to load');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+one CHANGED'), what: 'the cached diff to load');
 
         // Let the older answer come back last. awaitLanes is the barrier that
         // it was not merely spawned but REAPED — ProcessLane drops a process
@@ -876,7 +876,7 @@ final class GitViewControllerTest extends TestCase
 
         $this->project->write('a.txt', "one CHANGED\ntwo\n");
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'), what: 'the worktree diff to load');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+one CHANGED'), what: 'the worktree diff to load');
         $this->awaitLanes([$this->lane()]);
         $this->freezeStatusPoll($controller);
 
@@ -891,7 +891,7 @@ final class GitViewControllerTest extends TestCase
         $this->project->git('add', 'a.txt');
         $controller->refresh();
         $this->await(fn (): bool => 'full' === $this->changes->selectedEntry()?->stagedState(), what: 'the status to see the staged file');
-        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'), what: 'the cached diff to load');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+one CHANGED'), what: 'the cached diff to load');
 
         $release();
         $this->awaitLanes([$this->lane()]);
@@ -911,12 +911,12 @@ final class GitViewControllerTest extends TestCase
         $controller = $this->controller();
         $this->project->write('new.txt', "fresh\n");
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+fresh'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+fresh'));
 
         $this->diffView->setFocused(true);
         $this->diffView->handleInput("\x1b[B");
         $this->diffView->handleInput(' '); // untracked: flash, no patch
-        $this->await(fn (): bool => str_contains($this->statusRow($this->statusBar), 'stage the whole file'));
+        $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'stage the whole file'));
         $this->assertSame(['?? new.txt'], $this->porcelain(), 'nothing was staged');
 
         // Guard: no shown document at all.
@@ -930,7 +930,7 @@ final class GitViewControllerTest extends TestCase
         $controller = $this->controller();
         $this->project->write('a.txt', "edited\ntwo\n");
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+edited'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+edited'));
 
         // A context-only selection builds no patch and is a silent no-op.
         Probe::invoke($controller, 'stageSelection', [0 => [2 => true]]);
@@ -941,7 +941,7 @@ final class GitViewControllerTest extends TestCase
         $this->project->git('add', 'a.txt'); // index = edited
         $this->diffView->setFocused(true);
         $this->diffView->handleInput(' '); // whole first hunk, built against the OLD worktree diff
-        $this->await(fn (): bool => str_contains($this->statusRow($this->statusBar), 'git apply refused'));
+        $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'git apply refused'));
     }
 
     public function testDiffPrefsApplyOnOpenAndPersistOnToggle(): void
@@ -964,7 +964,7 @@ final class GitViewControllerTest extends TestCase
         $controller = $this->controller();
         $this->project->write('a.txt', "one CHANGED\ntwo CHANGED\n");
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+one CHANGED'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+one CHANGED'));
 
         // Range over the two deletions, then copy: plain code, no markers.
         $this->diffView->setFocused(true);
@@ -973,7 +973,7 @@ final class GitViewControllerTest extends TestCase
         $this->diffView->handleInput("\x1b[B"); // -two
         $this->diffView->handleInput("\x03");
 
-        $this->assertStringContainsString("\x1b]52;c;".base64_encode("one\ntwo\n"), $this->tui->getTerminal()->getOutput(), 'the diff selection reached the OSC 52 clipboard');
+        $this->assertStringContainsString("\x1b]52;c;".\base64_encode("one\ntwo\n"), $this->tui->getTerminal()->getOutput(), 'the diff selection reached the OSC 52 clipboard');
         $this->assertStringContainsString('Copied 2 lines', $this->statusRow($this->statusBar));
     }
 
@@ -983,11 +983,11 @@ final class GitViewControllerTest extends TestCase
         // An indent-only change on 'one' plus a real change on 'two'.
         $this->project->write('a.txt', "  one\ntwo CHANGED\n");
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+  one'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+  one'));
 
         $this->diffView->setFocused(true);
         $this->diffView->handleInput('w');
-        $this->await(fn (): bool => !str_contains($this->diffText(), '+  one'), what: 'the indent-only pair disappears');
+        $this->await(fn (): bool => !\str_contains($this->diffText(), '+  one'), what: 'the indent-only pair disappears');
         $this->assertStringContainsString('+two CHANGED', $this->diffText(), 'real changes survive');
         $this->assertStringContainsString('Whitespace changes hidden', $this->statusRow($this->statusBar));
         $this->assertSame(['diffSplit' => false, 'diffHideWhitespace' => true], $this->diffPrefs, 'the preference persisted');
@@ -996,11 +996,11 @@ final class GitViewControllerTest extends TestCase
         // produce an appliable patch.
         $this->diffView->handleInput("\x1b[B");
         $this->diffView->handleInput(' ');
-        $this->await(fn (): bool => str_contains($this->statusRow($this->statusBar), 'Show whitespace changes to stage lines'));
+        $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Show whitespace changes to stage lines'));
         $this->assertSame([' M a.txt'], $this->porcelain(), 'nothing was staged');
 
         $this->diffView->handleInput('w'); // back on
-        $this->await(fn (): bool => str_contains($this->diffText(), '+  one'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+  one'));
         $this->assertStringContainsString('Whitespace changes shown', $this->statusRow($this->statusBar));
     }
 
@@ -1011,7 +1011,7 @@ final class GitViewControllerTest extends TestCase
         $this->project->write('a.txt', "  one\ntwo\n"); // reindent only
         $controller->open();
 
-        $this->await(fn (): bool => str_contains($this->diffText(), 'No changes (whitespace hidden)'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), 'No changes (whitespace hidden)'));
         $this->addToAssertionCount(1); // the throwing awaits above are the assertions
     }
 
@@ -1026,38 +1026,38 @@ final class GitViewControllerTest extends TestCase
 
         $this->changes->setFocused(true);
         $this->changes->handleInput('2'); // History: the reindent commit auto-loads a.txt
-        $this->await(fn (): bool => str_contains($this->diffText(), '+  one'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+  one'));
 
         $this->diffView->setFocused(true);
         $this->diffView->handleInput('w');
-        $this->await(fn (): bool => !str_contains($this->diffText(), '+  one'), what: 'the history patch reloads with -w');
+        $this->await(fn (): bool => !\str_contains($this->diffText(), '+  one'), what: 'the history patch reloads with -w');
         $this->assertStringContainsString('+two CHANGED', $this->diffText());
     }
 
     public function testContextCycleReloadsTheDiffWithMoreContextAndWrapsAround(): void
     {
         $controller = $this->controller();
-        $body = implode("\n", array_map(static fn (int $i): string => 'line '.$i, range(1, end: 30)))."\n";
+        $body = \implode("\n", \array_map(static fn (int $i): string => 'line '.$i, \range(1, end: 30)))."\n";
         $this->project->write('big.txt', $body);
         $this->project->git('add', '-A');
         $this->project->git('commit', '-q', '-m', 'big');
-        $this->project->write('big.txt', str_replace('line 15', replace: 'line 15 EDITED', subject: $body));
+        $this->project->write('big.txt', \str_replace('line 15', replace: 'line 15 EDITED', subject: $body));
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+line 15 EDITED'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+line 15 EDITED'));
         $this->assertStringNotContainsString('line 5 ', $this->diffText(), 'default context stops three lines out');
 
         $this->diffView->setFocused(true);
         $this->diffView->handleInput('c');
-        $this->await(fn (): bool => str_contains($this->diffText(), 'line 5 '), what: '-U10 pulls in farther context');
+        $this->await(fn (): bool => \str_contains($this->diffText(), 'line 5 '), what: '-U10 pulls in farther context');
         $this->assertStringContainsString('Diff context: ±10 lines', $this->statusRow($this->statusBar));
         $this->assertStringNotContainsString('line 1 ', $this->diffText());
 
         $this->diffView->handleInput('c');
-        $this->await(fn (): bool => str_contains($this->diffText(), 'line 1 '), what: 'whole-file context starts at line 1');
+        $this->await(fn (): bool => \str_contains($this->diffText(), 'line 1 '), what: 'whole-file context starts at line 1');
         $this->assertStringContainsString('Diff context: whole file', $this->statusRow($this->statusBar));
 
         $this->diffView->handleInput('c'); // wraps back to the default
-        $this->await(fn (): bool => !str_contains($this->diffText(), 'line 5 '));
+        $this->await(fn (): bool => !\str_contains($this->diffText(), 'line 5 '));
         $this->assertStringContainsString('Diff context: default', $this->statusRow($this->statusBar));
     }
 
@@ -1066,7 +1066,7 @@ final class GitViewControllerTest extends TestCase
         $controller = $this->controller();
         $this->project->write('new.txt', "fresh\n");
         $controller->open();
-        $this->await(fn (): bool => str_contains($this->diffText(), '+fresh'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+fresh'));
 
         // Untracked diffs are already whole-file: flash, no reload.
         $this->diffView->setFocused(true);
@@ -1092,21 +1092,21 @@ final class GitViewControllerTest extends TestCase
         $this->changes->setFocused(true);
         $this->changes->handleInput('2'); // switch to History
         $this->await(fn (): bool => null !== $this->history->selectedCommit());
-        $this->assertSame(['git-tabs', 'git-history'], array_map(static fn ($w) => $w->getId(), $this->gitLeft->all()), 'the left pane swapped to the history list (tabs stay on top)');
+        $this->assertSame(['git-tabs', 'git-history'], \array_map(static fn ($w) => $w->getId(), $this->gitLeft->all()), 'the left pane swapped to the history list (tabs stay on top)');
         $this->assertSame('second', $this->history->selectedCommit()?->subject);
         $this->assertTrue(Probe::get($this->diffView, 'readOnly'));
 
         // The files of the newest commit load, and the FIRST file's patch
         // shows immediately — no keyboard step needed to see a diff.
-        $this->await(fn (): bool => str_contains($this->historyText(), 'M a.txt'));
-        $this->await(fn (): bool => str_contains($this->diffText(), '+three'), what: "the first file's patch auto-loads on commit selection");
+        $this->await(fn (): bool => \str_contains($this->historyText(), 'M a.txt'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+three'), what: "the first file's patch auto-loads on commit selection");
 
         // Keyboard file browsing still refires loads.
         $this->history->setFocused(true);
         $this->history->handleInput("\r"); // into the file list
         $this->history->handleInput("\x1b[B");
         $this->history->handleInput("\x1b[A");
-        $this->await(fn (): bool => str_contains($this->diffText(), '+three'), what: 'the commit file patch renders');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+three'), what: 'the commit file patch renders');
 
         // Staged keys are inert in read-only mode.
         $this->diffView->setFocused(true);
@@ -1158,7 +1158,7 @@ final class GitViewControllerTest extends TestCase
         $this->changes->setFocused(true);
         $this->changes->handleInput('2'); // History: the empty commit is newest
         $this->await(fn (): bool => 'hollow' === $this->history->selectedCommit()?->subject);
-        $this->await(fn (): bool => str_contains($this->diffText(), 'No files in this commit'));
+        $this->await(fn (): bool => \str_contains($this->diffText(), 'No files in this commit'));
         $this->addToAssertionCount(1); // the throwing awaits above are the assertions
     }
 
@@ -1226,32 +1226,32 @@ final class GitViewControllerTest extends TestCase
         // passes whether or not the reload happened; emptying either listener
         // was invisible. This one makes every hop change what is on screen.
         $controller = $this->controller();
-        file_put_contents($this->project->dir.'/a.txt', data: "one\ntwo\nthree\n");
+        \file_put_contents($this->project->dir.'/a.txt', data: "one\ntwo\nthree\n");
         $this->project->commitAll('add three');
         $controller->open();
         $this->changes->setFocused(true);
         $this->changes->handleInput('2'); // History
         $this->await(fn (): bool => 2 === $this->history->commitCount());
-        $this->await(fn (): bool => str_contains($this->diffText(), '+three'), what: 'the newest commit loads on arrival');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+three'), what: 'the newest commit loads on arrival');
 
         // Down to the init commit: only GitCommitSelected can load its files,
         // and .gitignore sorts first, so its patch is what must appear.
         $this->history->setFocused(true);
         $this->history->handleInput("\x1b[B");
-        $this->await(fn (): bool => str_contains($this->diffText(), '+.porta/'), what: "the older commit's first file loads");
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+.porta/'), what: "the older commit's first file loads");
         $this->assertStringContainsString('.gitignore', $this->historyText());
 
         // Into that commit's file list and down to a.txt: only
         // GitCommitFileSelected can swap the patch.
         $this->history->handleInput("\r");
         $this->history->handleInput("\x1b[B");
-        $this->await(fn (): bool => str_contains($this->diffText(), '+two'), what: 'selecting a file loads that file');
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+two'), what: 'selecting a file loads that file');
         $this->assertStringNotContainsString('+.porta/', $this->diffText());
     }
 
     private function historyText(): string
     {
-        return implode("\n", array_map(\Symfony\Component\Tui\Ansi\AnsiUtils::stripAnsiCodes(...), $this->history->render(new RenderContext(44, 20))));
+        return \implode("\n", \array_map(\Symfony\Component\Tui\Ansi\AnsiUtils::stripAnsiCodes(...), $this->history->render(new RenderContext(44, 20))));
     }
 
     public function testFocusCycleWalksTheThreePanes(): void
@@ -1286,12 +1286,12 @@ final class GitViewControllerTest extends TestCase
         $this->project->write('extra.txt', "new\n");
         $controller->refresh(RefreshMode::Quiet);
         $this->pump(0.3);
-        $entries = array_map(static fn ($e) => $e->path, Probe::get($controller, 'entries'));
+        $entries = \array_map(static fn ($e) => $e->path, Probe::get($controller, 'entries'));
         $this->assertNotContains('extra.txt', $entries, 'the guarded quiet tick spawned nothing');
 
         // An EAGER refresh (the user asked) bypasses the guard...
         $controller->refresh();
-        $this->await(static fn (): bool => \in_array('extra.txt', array_map(static fn ($e) => $e->path, Probe::get($controller, 'entries')), strict: true), what: 'the eager refresh to land');
+        $this->await(static fn (): bool => \in_array('extra.txt', \array_map(static fn ($e) => $e->path, Probe::get($controller, 'entries')), strict: true), what: 'the eager refresh to land');
         // ...and its completion re-clears the guard for the poll — which is
         // also why a close() cancelling a status mid-flight cannot wedge it:
         // open()'s eager refresh ignores the guard and always answers.
@@ -1319,7 +1319,7 @@ final class GitViewControllerTest extends TestCase
 
     private function diffText(): string
     {
-        return implode("\n", array_map(AnsiUtils::stripAnsiCodes(...), $this->diffView->render(new RenderContext(80, 20))));
+        return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->diffView->render(new RenderContext(80, 20))));
     }
 
     public function testHistoryPagesInOlderCommitsAtTheListBottom(): void
@@ -1368,7 +1368,7 @@ final class GitViewControllerTest extends TestCase
         // reloads page 0, so the new commit is in the list.
         $this->project->git('commit', '-q', '--allow-empty', '-m', 'fromremote');
         $controller->onRemoteCompleted(new GitRemoteCompleted('pull', true));
-        $this->await(fn (): bool => str_contains($this->historyText(), 'fromremote'), what: 'the newest commit appears at the top');
+        $this->await(fn (): bool => \str_contains($this->historyText(), 'fromremote'), what: 'the newest commit appears at the top');
         // And the reload is a KeepSelection one, so it does not move you: the
         // commit you had selected is still the selected one, even though a
         // newer one now sits above it.
@@ -1400,7 +1400,7 @@ final class GitViewControllerTest extends TestCase
         $this->history->setFocused(true);
         $this->history->handleInput("\x1b[B");
         $this->await(fn (): bool => 'adds-notes' === ($this->history->selectedCommit()->subject ?? ''), what: 'the older commit is selected');
-        $this->await(fn (): bool => str_contains($this->diffText(), '+alpha'), what: "adds-notes' patch");
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+alpha'), what: "adds-notes' patch");
 
         // A pull brings something newer in and the list reloads underneath.
         $this->project->git('commit', '-q', '--allow-empty', '-m', 'fromremote');
@@ -1427,13 +1427,13 @@ final class GitViewControllerTest extends TestCase
         $controller->open();
         $this->await($controller->isOpen(...));
         $controller->openFileHistory($this->project->path('notes.txt'));
-        $this->await(fn (): bool => str_contains($this->diffText(), '+alpha'), what: "notes.txt's patch");
+        $this->await(fn (): bool => \str_contains($this->diffText(), '+alpha'), what: "notes.txt's patch");
 
         $this->project->write('untracked.txt', "nothing committed\n");
         $controller->openFileHistory($this->project->path('untracked.txt'));
 
         $this->await(fn (): bool => 0 === $this->history->commitCount(), what: 'the filter empties the list');
-        $this->await(fn (): bool => str_contains($this->diffText(), 'No commits'), what: 'the pane says there is nothing, rather than showing notes.txt');
+        $this->await(fn (): bool => \str_contains($this->diffText(), 'No commits'), what: 'the pane says there is nothing, rather than showing notes.txt');
         $this->assertStringNotContainsString('+alpha', $this->diffText());
     }
 
@@ -1475,7 +1475,7 @@ final class GitViewControllerTest extends TestCase
         // Paging keeps the filter: the next page is "init", not "touch-b".
         $this->history->setFocused(true);
         $this->history->handleInput("\x1b[B"); // move past the last loaded commit
-        $this->await(fn (): bool => str_contains($this->historyText(), 'init'));
+        $this->await(fn (): bool => \str_contains($this->historyText(), 'init'));
         $this->assertStringNotContainsString('touch-b', $this->historyText());
 
         // Tabbing to Changes drops the filter; History reopens repo-wide.
@@ -1483,7 +1483,7 @@ final class GitViewControllerTest extends TestCase
         $this->await(fn (): bool => 3 === \count($this->gitLeft->all()));
         $this->changes->setFocused(true);
         $this->changes->handleInput('2');
-        $this->await(fn (): bool => str_contains($this->historyText(), 'touch-b'), what: 'the filter is gone');
+        $this->await(fn (): bool => \str_contains($this->historyText(), 'touch-b'), what: 'the filter is gone');
         $this->assertStringNotContainsString('History — a.txt', $this->historyText());
     }
 
@@ -1501,7 +1501,7 @@ final class GitViewControllerTest extends TestCase
         $this->await(fn (): bool => null !== $this->history->selectedCommit());
 
         $controller->openFileHistory($this->project->path('a.txt'));
-        $this->await(fn (): bool => str_contains($this->historyText(), 'History — a.txt'));
+        $this->await(fn (): bool => \str_contains($this->historyText(), 'History — a.txt'));
         $this->assertSame('touch-a', $this->history->selectedCommit()?->subject);
     }
 

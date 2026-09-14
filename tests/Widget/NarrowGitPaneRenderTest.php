@@ -132,13 +132,13 @@ final class NarrowGitPaneRenderTest extends TestCase
         }
 
         $missing = [];
-        foreach (glob(\dirname(__DIR__, levels: 2).'/src/Widget/*.php') as $file) {
-            $class = 'Porta\\GitPlugin\\Widget\\'.basename($file, suffix: '.php');
-            if (class_exists($class) && is_a($class, AbstractWidget::class, allow_string: true) && !\array_key_exists($class, $swept)) {
+        foreach (\glob(\dirname(__DIR__, levels: 2).'/src/Widget/*.php') as $file) {
+            $class = 'Porta\\GitPlugin\\Widget\\'.\basename($file, suffix: '.php');
+            if (\class_exists($class) && \is_a($class, AbstractWidget::class, allow_string: true) && !\array_key_exists($class, $swept)) {
                 $missing[] = $class;
             }
         }
-        sort($missing);
+        \sort($missing);
 
         $this->assertSame([], $missing, 'the git view mounts these and nothing renders them at a hostile width');
     }

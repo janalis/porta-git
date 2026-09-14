@@ -110,7 +110,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
     public function appendCommits(array $commits): void
     {
         $this->loadingMore = false;
-        $known = array_flip(array_column($this->commits, 'sha'));
+        $known = \array_flip(\array_column($this->commits, 'sha'));
         foreach ($commits as $commit) {
             if (\array_key_exists($commit->sha, $known)) {
                 continue;
@@ -331,7 +331,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
 
     private function commitRowCount(): int
     {
-        return max(1, $this->lastRows - 2 - self::FILE_ROWS);
+        return \max(1, $this->lastRows - 2 - self::FILE_ROWS);
     }
 
     /** The repo-relative file this history is filtered to, or null for repo-wide. */
@@ -346,8 +346,8 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
 
     public function render(RenderContext $context): array
     {
-        $width = min($this->width, $context->getColumns());
-        $rows = max(4, $context->getRows() > 0 ? $context->getRows() : 12);
+        $width = \min($this->width, $context->getColumns());
+        $rows = \max(4, $context->getRows() > 0 ? $context->getRows() : 12);
         $this->lastRows = $rows;
 
         $header = null === $this->filterLabel

@@ -63,7 +63,7 @@ final class GitStagingService
         }
 
         $hunks = DiffSide::Cached === $side
-            ? array_map(PatchBuilder::invertHunk(...), $document->hunks)
+            ? \array_map(PatchBuilder::invertHunk(...), $document->hunks)
             : $document->hunks;
         $patch = PatchBuilder::build($entry->path, $hunks, $selected);
         if (null === $patch) {

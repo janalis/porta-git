@@ -37,7 +37,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testRightClickingTheStatusBarBranchOpensTheBranchMenu(): void
     {
-        putenv('PATH='.PORTA_TEST_PRISTINE_PATH); // a real branch needs git
+        \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // a real branch needs git
         $project = new TempProject(['a.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->commitAll('init');
@@ -59,8 +59,8 @@ final class GitFlowsE2eTest extends TestCase
 
                     $menu = Services::resolve($ide, ContextMenu::class);
                     $this->assertTrue($menu->isOpen(), 'the branch menu opened');
-                    $labels = array_map(
-                        static fn (array $row): string => trim(AnsiUtils::stripAnsiCodes($row['segment'])),
+                    $labels = \array_map(
+                        static fn (array $row): string => \trim(AnsiUtils::stripAnsiCodes($row['segment'])),
                         $menu->segments($menu->panelWidth()),
                     );
                     $this->assertContains('Switch Branch…', $labels, 'with the branch actions');
@@ -85,15 +85,15 @@ final class GitFlowsE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git not available');
         }
-        putenv('PATH='.\dirname((string) $this->whichGit()));
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit();
         $project->commitAll('init');
         // A seeded percent must be applied at startup (25% of 160 cols = 40).
-        if (!is_dir($project->path('.porta'))) {
-            mkdir($project->path('.porta'), permissions: 0o777, recursive: true);
+        if (!\is_dir($project->path('.porta'))) {
+            \mkdir($project->path('.porta'), permissions: 0o777, recursive: true);
         }
-        file_put_contents($project->path('.porta/layout.json'), json_encode(['gitSidebarWidthPercent' => 25]));
+        \file_put_contents($project->path('.porta/layout.json'), \json_encode(['gitSidebarWidthPercent' => 25]));
 
         $this->runIde(
             $project,
@@ -115,7 +115,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertSame(60, $tui->getById('git-changes')->width(), 'the drag resized the sidebar');
                     $this->assertSame(60, $tui->getById('git-tabs')->width(), 'the tab strip follows');
                     $this->assertSame(60, $tui->getById('git-commit')->width(), 'the commit box follows');
-                    $layout = json_decode((string) file_get_contents($project->path('.porta/layout.json')), associative: true);
+                    $layout = \json_decode((string) \file_get_contents($project->path('.porta/layout.json')), associative: true);
                     $this->assertSame(38, $layout['viewSidebarWidthPercent']['git'], 'saved as a percentage (round(60/160))');
                     $this->assertArrayNotHasKey('gitSidebarWidthPercent', $layout, 'and the pre-move key is not rewritten');
                 },
@@ -140,7 +140,7 @@ final class GitFlowsE2eTest extends TestCase
 
         $palette = static function ($tui, string $label): void {
             $tui->handleInput("\x1b[97;6u"); // ctrl+shift+a
-            foreach (str_split($label) as $ch) {
+            foreach (\str_split($label) as $ch) {
                 $tui->handleInput($ch);
             }
             $tui->handleInput("\r");
@@ -185,17 +185,17 @@ final class GitFlowsE2eTest extends TestCase
                         what: 'the commit-message prompt to reopen',
                     );
 
-                    foreach (str_split('my commit') as $ch) {
+                    foreach (\str_split('my commit') as $ch) {
                         $tui->handleInput($ch);
                     }
                     $tui->handleInput("\r"); // commit
                 },
                 500 => function ($tui, $terminal, $ide) use ($project): void {
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Committed: my commit'), what: 'the async commit to flash');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Committed: my commit'), what: 'the async commit to flash');
                     // Undoing it is `git_undo_commit`, which the git plugin owns
                     // now; its own suite covers that half.
                     $this->awaitGit($ide);
-                    $this->await(static fn (): bool => ['my commit', 'init'] === explode("\n", $project->git('log', '--format=%s')), what: 'the commit to land');
+                    $this->await(static fn (): bool => ['my commit', 'init'] === \explode("\n", $project->git('log', '--format=%s')), what: 'the commit to land');
                 },
             ],
         );
@@ -215,7 +215,7 @@ final class GitFlowsE2eTest extends TestCase
         // The palette half is the one nothing worked around, and nothing
         // noticed: it was simply dead from inside the view.
         $this->skipWithoutGit();
-        putenv('PATH='.\dirname((string) $this->whichGit()));
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit();
         $project->commitAll('init');
@@ -236,7 +236,7 @@ final class GitFlowsE2eTest extends TestCase
 
                     $terminal->clearOutput();
                     Services::resolve($ide, CommandRegistry::class)->run('ide_command_palette');
-                    $this->await(static fn (): bool => str_contains($screen(), 'Find Action'), what: 'the palette to paint over the git view');
+                    $this->await(static fn (): bool => \str_contains($screen(), 'Find Action'), what: 'the palette to paint over the git view');
 
                     // Painting is only half of it — a visible picker that takes
                     // no keys is still broken, and the editor is not focused
@@ -247,7 +247,7 @@ final class GitFlowsE2eTest extends TestCase
                     // And a git verb's own picker no longer costs the view.
                     $terminal->clearOutput();
                     Services::resolve($ide, CommandRegistry::class)->run('git_branches');
-                    $this->await(static fn (): bool => str_contains($screen(), 'Create new branch'), what: 'the branch picker to paint');
+                    $this->await(static fn (): bool => \str_contains($screen(), 'Create new branch'), what: 'the branch picker to paint');
                     $this->assertSame('git-changes', $tui->getFocus()?->getId(), 'the git view kept focus and the main area');
 
                     $tui->handleInput("\x1b");
@@ -279,7 +279,7 @@ final class GitFlowsE2eTest extends TestCase
 
     private function menuTitles($tui): array
     {
-        return array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
+        return \array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
     }
 
     public function testWithoutARepositoryTheGitChromeIsAbsent(): void
@@ -295,7 +295,7 @@ final class GitFlowsE2eTest extends TestCase
             $project->path('src/A.php'),
             [
                 300 => function ($tui, $terminal, $ide): void {
-                    $labels = array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
+                    $labels = \array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
                     // 'Git: Changes' is ide_git, which this plugin ADOPTS. It
                     // was core's until the view became a plugin's, and the flip
                     // is what makes it absent here rather than present and dead.
@@ -324,7 +324,7 @@ final class GitFlowsE2eTest extends TestCase
             $project->path('src/A.php'),
             [
                 300 => function ($tui, $terminal, $ide): void {
-                    $labels = array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
+                    $labels = \array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
                     // A contiguous tail, not one pinned label: git is a plugin
                     // now, and plugins commit after every core provider has
                     // run — so what is contractual is that no core verb lands
@@ -335,9 +335,9 @@ final class GitFlowsE2eTest extends TestCase
                     // commit before core's command providers run, so the group
                     // moved as a whole. What a user can still rely on is that
                     // it IS a whole — typing "git" walks a contiguous run.
-                    $git = array_keys(array_filter($labels, static fn (string $l): bool => str_starts_with($l, 'Git: ')));
+                    $git = \array_keys(\array_filter($labels, static fn (string $l): bool => \str_starts_with($l, 'Git: ')));
                     self::assertNotSame([], $git);
-                    $this->assertSame(range($git[0], $git[array_key_last($git)]), $git, 'the git verbs are one unbroken block');
+                    $this->assertSame(\range($git[0], $git[\array_key_last($git)]), $git, 'the git verbs are one unbroken block');
                     $this->assertContains('Git: File History', $labels, 'the view-only verbs are among them');
                     $this->assertContains('Git: Blame Current Line', $labels, 'and so are the ones that never needed the workbench');
                     $this->assertContains('Git', $this->menuTitles($tui), 'and its menu is built');
@@ -364,7 +364,7 @@ final class GitFlowsE2eTest extends TestCase
 
         $palette = static function ($tui, string $label): void {
             $tui->handleInput("\x1b[97;6u");
-            foreach (str_split($label) as $ch) {
+            foreach (\str_split($label) as $ch) {
                 $tui->handleInput($ch);
             }
             $tui->handleInput("\r");
@@ -398,7 +398,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\r");
                     $this->awaitGit($ide);
                     $this->await(static fn (): bool => 'feature' === $project->git('rev-parse', '--abbrev-ref', 'HEAD'), what: 'the checkout to land on disk');
-                    $this->await(static fn (): bool => str_contains($screen(), 'Switched to feature'), what: 'the switch flash');
+                    $this->await(static fn (): bool => \str_contains($screen(), 'Switched to feature'), what: 'the switch flash');
 
                     // Round 2: the create sentinel with an empty name is a no-op.
                     $terminal->clearOutput();
@@ -407,7 +407,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\r"); // the "+ Create new branch…" row leads the list
                     $this->await(static fn (): bool => EditorState::promptOpen($editor), what: 'the branch-name prompt');
                     $tui->handleInput("\r"); // an empty name is a no-op
-                    $branches = array_filter(explode("\n", $project->git('branch', '--list')));
+                    $branches = \array_filter(\explode("\n", $project->git('branch', '--list')));
                     $this->assertCount(2, $branches, 'no branch was created from the empty prompt');
 
                     // Round 3: create "fresh" for real.
@@ -415,13 +415,13 @@ final class GitFlowsE2eTest extends TestCase
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the picker for the create round');
                     $tui->handleInput("\r"); // create sentinel again
                     $this->await(static fn (): bool => EditorState::promptOpen($editor), what: 'the name prompt');
-                    foreach (str_split('fresh') as $ch) {
+                    foreach (\str_split('fresh') as $ch) {
                         $tui->handleInput($ch);
                     }
                     $tui->handleInput("\r");
                     $this->awaitGit($ide);
                     $this->await(static fn (): bool => 'fresh' === $project->git('rev-parse', '--abbrev-ref', 'HEAD'), what: 'the created branch to be checked out');
-                    $this->await(static fn (): bool => str_contains($screen(), 'Created and switched to fresh'), what: 'the create flash');
+                    $this->await(static fn (): bool => \str_contains($screen(), 'Created and switched to fresh'), what: 'the create flash');
 
                     // Round 4: check out the remote branch as a tracking branch.
                     $terminal->clearOutput();
@@ -429,7 +429,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the picker for the tracking round');
                     // Rows: 2 sentinels + 3 locals (feature/fresh/main-or-master,
                     // fresh current) + the remote row last — five steps down.
-                    foreach (range(1, end: 5) as $_) {
+                    foreach (\range(1, end: 5) as $_) {
                         $tui->handleInput("\x1b[B");
                     }
                     $tui->handleInput("\r");
@@ -442,31 +442,31 @@ final class GitFlowsE2eTest extends TestCase
                     // accumulated output still shows the branches picker's own
                     // '− Delete branch…' sentinel, which would satisfy a
                     // substring await before the delete picker ever opened.
-                    $grid = fn (): string => implode("\n", $this->screenGrid($tui, $terminal));
+                    $grid = fn (): string => \implode("\n", $this->screenGrid($tui, $terminal));
                     $palette($tui, label: 'Git: Branches');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the picker for the delete round');
                     $tui->handleInput("\x1b[B"); // the "− Delete branch…" row
                     $tui->handleInput("\r");
-                    $this->await(static fn (): bool => str_contains($grid(), 'Delete branch') && !str_contains($grid(), '+ Create new branch…'), what: 'the delete picker');
+                    $this->await(static fn (): bool => \str_contains($grid(), 'Delete branch') && !\str_contains($grid(), '+ Create new branch…'), what: 'the delete picker');
                     $tui->handleInput("\r"); // "feature" leads (refname tie-break)
-                    $this->await(static fn (): bool => str_contains($grid(), 'Cancel'), what: 'the confirm list');
+                    $this->await(static fn (): bool => \str_contains($grid(), 'Cancel'), what: 'the confirm list');
                     $tui->handleInput("\x1b[B"); // down to "Cancel"
                     $tui->handleInput("\r");
-                    $kept = array_filter(explode("\n", $project->git('branch', '--list', 'feature')));
+                    $kept = \array_filter(\explode("\n", $project->git('branch', '--list', 'feature')));
                     $this->assertCount(1, $kept, 'cancelling the confirm deletes nothing');
 
                     // Round 6: same flow, but confirm the delete this time.
                     $palette($tui, label: 'Git: Branches');
-                    $this->await(static fn (): bool => str_contains($grid(), '+ Create new branch…'), what: 'the picker for the confirmed delete');
+                    $this->await(static fn (): bool => \str_contains($grid(), '+ Create new branch…'), what: 'the picker for the confirmed delete');
                     $tui->handleInput("\x1b[B"); // the "− Delete branch…" row
                     $tui->handleInput("\r");
-                    $this->await(static fn (): bool => str_contains($grid(), 'Delete branch') && !str_contains($grid(), '+ Create new branch…'), what: 'the delete picker again');
+                    $this->await(static fn (): bool => \str_contains($grid(), 'Delete branch') && !\str_contains($grid(), '+ Create new branch…'), what: 'the delete picker again');
                     $tui->handleInput("\r"); // "feature" again
-                    $this->await(static fn (): bool => str_contains($grid(), 'Cancel'), what: 'the confirm list again');
+                    $this->await(static fn (): bool => \str_contains($grid(), 'Cancel'), what: 'the confirm list again');
                     $tui->handleInput("\r"); // the "Delete" confirm row leads
                     $this->awaitGit($ide);
-                    $this->await(static fn (): bool => [] === array_filter(explode("\n", $project->git('branch', '--list', 'feature'))), what: 'the branch to be deleted on disk');
-                    $this->await(static fn (): bool => str_contains($grid(), 'Deleted branch feature'), what: 'the delete flash');
+                    $this->await(static fn (): bool => [] === \array_filter(\explode("\n", $project->git('branch', '--list', 'feature'))), what: 'the branch to be deleted on disk');
+                    $this->await(static fn (): bool => \str_contains($grid(), 'Deleted branch feature'), what: 'the delete flash');
                 },
             ],
         );
@@ -487,7 +487,7 @@ final class GitFlowsE2eTest extends TestCase
             [
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b[97;6u");
-                    foreach (str_split('Git: Branches') as $ch) {
+                    foreach (\str_split('Git: Branches') as $ch) {
                         $tui->handleInput($ch);
                     }
                     $tui->handleInput("\r");
@@ -510,7 +510,7 @@ final class GitFlowsE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git binary not available');
         }
-        putenv('PATH='.PORTA_TEST_PRISTINE_PATH); // git must be reachable
+        \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // git must be reachable
 
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
@@ -552,7 +552,7 @@ final class GitFlowsE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git not available');
         }
-        putenv('PATH='.\dirname((string) $this->whichGit()));
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit();
         $project->commitAll('init');
@@ -570,23 +570,23 @@ final class GitFlowsE2eTest extends TestCase
                     // The view fills through status -> chained diff; await the
                     // rendered tail, never a fixed gap.
                     $screen = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
-                    $this->await(static fn (): bool => str_contains($screen(), '+$a = 2;'), what: 'the diff pane to show the worktree change');
+                    $this->await(static fn (): bool => \str_contains($screen(), '+$a = 2;'), what: 'the diff pane to show the worktree change');
                     $this->assertStringContainsString('2 changed files', $screen());
                     $this->assertStringContainsString('[ ] M src/A.php', $screen());
                     $tui->handleInput(' '); // stage src/A.php
                     // Await the app's git barrier, then the on-disk effect —
                     // a blocking porcelain poll would race the async add.
                     $this->awaitGit($ide);
-                    $this->await(static fn (): bool => \in_array('M  src/A.php', explode("\n", $project->git('status', '--porcelain')), strict: true), what: 'space to stage the file');
+                    $this->await(static fn (): bool => \in_array('M  src/A.php', \explode("\n", $project->git('status', '--porcelain')), strict: true), what: 'space to stage the file');
                     // Tab twice: changes -> diff -> commit box; type + ctrl+enter.
                     $tui->handleInput("\t");
                     $tui->handleInput("\t");
-                    foreach (str_split('Update A') as $ch) {
+                    foreach (\str_split('Update A') as $ch) {
                         $tui->handleInput($ch);
                     }
                     $tui->handleInput("\x1b[13;5u");
                     $this->awaitGit($ide);
-                    $this->await(static fn (): bool => ['Update A', 'init'] === explode("\n", $project->git('log', '--format=%s')), what: 'ctrl+enter to commit the staged change');
+                    $this->await(static fn (): bool => ['Update A', 'init'] === \explode("\n", $project->git('log', '--format=%s')), what: 'ctrl+enter to commit the staged change');
                     // Discard the untracked notes.md: Tab walks summary -> description
                     // -> next pane (the changes list), then arm + confirm.
                     $tui->handleInput("\t");
@@ -594,11 +594,11 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput('d');
                     $tui->handleInput('y');
                     $this->awaitGit($ide);
-                    $this->await(static fn (): bool => !is_file($project->path('notes.md')), what: 'discard to delete the untracked file');
+                    $this->await(static fn (): bool => !\is_file($project->path('notes.md')), what: 'discard to delete the untracked file');
                     // Await the view's own refresh BEFORE Esc leaves it — the
                     // clean-tree placeholder only paints while it is open.
-                    $this->await(static fn (): bool => str_contains($screen(), 'Committed:'), what: 'the commit flash');
-                    $this->await(static fn (): bool => str_contains($screen(), 'Working tree clean'), what: 'the clean-tree summary after commit+discard');
+                    $this->await(static fn (): bool => \str_contains($screen(), 'Committed:'), what: 'the commit flash');
+                    $this->await(static fn (): bool => \str_contains($screen(), 'Working tree clean'), what: 'the clean-tree summary after commit+discard');
                     $tui->handleInput("\x1b"); // esc restores the editor view
                 },
                 700 => function ($tui): void {
@@ -616,7 +616,7 @@ final class GitFlowsE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git not available');
         }
-        putenv('PATH='.\dirname((string) $this->whichGit()));
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit();
         $project->commitAll('init');
@@ -630,7 +630,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b\x04"); // ctrl+alt+d opens the git view
                 },
                 550 => function ($tui, $terminal, $ide) use ($project): void {
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '[ ] M src/A.php'));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '[ ] M src/A.php'));
                     $renderer = Services::resolve($ide, Renderer::class);
                     $rect = $renderer->getWidgetRect($tui->getById('git-changes'));
 
@@ -646,7 +646,7 @@ final class GitFlowsE2eTest extends TestCase
                     // and it is what makes the Ctrl+F10 parity below act on this
                     // row rather than on whatever had focus before.
                     $this->assertSame('git-changes', $tui->getFocus()?->getId(), 'the right-press focused the list it selected in');
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'File History'));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'File History'));
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertStringContainsString('Stage', $screen, 'an unstaged row offers Stage');
                     $this->assertStringContainsString('File History', $screen);
@@ -656,7 +656,7 @@ final class GitFlowsE2eTest extends TestCase
                     // polling a blocking `git status` — under load the blocking poll
                     // starves the async `git add` it is waiting on.
                     $this->awaitGit($ide);
-                    $this->assertContains('M  src/A.php', explode("\n", $project->git('status', '--porcelain')), 'the row staged');
+                    $this->assertContains('M  src/A.php', \explode("\n", $project->git('status', '--porcelain')), 'the row staged');
                 },
                 1000 => function ($tui, $terminal, $ide): void {
                     $this->frame($tui);
@@ -666,7 +666,7 @@ final class GitFlowsE2eTest extends TestCase
                     $terminal->clearOutput();
                     $tui->handleInput("\x1b[21;5~");
                     $this->assertTrue($tui->getById('context-menu')->isOpen(), 'Ctrl+F10 opened the row menu');
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Unstage'));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Unstage'));
                     $this->assertStringContainsString('Unstage', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'a staged row offers Unstage');
 
                     $tui->handleInput("\x1b[B"); // → Discard…
@@ -686,7 +686,7 @@ final class GitFlowsE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git not available');
         }
-        putenv('PATH='.\dirname((string) $this->whichGit()));
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['f.txt' => "alpha\nbeta\ngamma\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit();
         $project->commitAll('init');
@@ -703,7 +703,7 @@ final class GitFlowsE2eTest extends TestCase
                     // The diff pane fills through status -> chained diff; the
                     // arrows must not walk rows that aren't there yet.
                     $screen = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
-                    $this->await(static fn (): bool => str_contains($screen(), '+alpha CHANGED'), what: 'the diff rows to load');
+                    $this->await(static fn (): bool => \str_contains($screen(), '+alpha CHANGED'), what: 'the diff rows to load');
                     $tui->handleInput("\t"); // changes list -> diff pane
                     // Rows: hunk header, ctx?, -alpha, +alpha CHANGED, ... walk to
                     // the first '+' row and stage just it.
@@ -713,13 +713,13 @@ final class GitFlowsE2eTest extends TestCase
                     // The staging is an async git apply --cached: barrier, then
                     // prove the index state on disk.
                     $this->awaitGit($ide);
-                    $this->await(static fn (): bool => str_contains($project->git('diff', '--cached'), 'alpha'), what: 'the alpha change to reach the index');
+                    $this->await(static fn (): bool => \str_contains($project->git('diff', '--cached'), 'alpha'), what: 'the alpha change to reach the index');
                     $joinedCached = $project->git('diff', '--cached');
                     $this->assertStringNotContainsString('gamma CHANGED', $joinedCached, 'gamma stayed out of the index');
                     $this->assertStringContainsString('gamma CHANGED', $project->git('diff'), 'gamma remains a worktree change');
                     // The post-apply refresh repaints the mixed checkbox; await
                     // it here instead of scraping after the loop stopped.
-                    $this->await(static fn (): bool => str_contains($screen(), '[~] M f.txt'), what: 'partial staging to show the mixed checkbox');
+                    $this->await(static fn (): bool => \str_contains($screen(), '[~] M f.txt'), what: 'partial staging to show the mixed checkbox');
                     $tui->handleInput("\x1b");
                 },
             ],
@@ -733,12 +733,12 @@ final class GitFlowsE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git not available');
         }
-        putenv('PATH='.\dirname((string) $this->whichGit()));
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['a.txt' => "one\ntwo\nthree\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit();
         $project->commitAll('init');
         $project->write('a.txt', "one!\ntwo\nthree changed\n");
-        $project->write('b.txt', 'new '.str_repeat('long-tail ', times: 8)."\n"); // long enough to h-scroll
+        $project->write('b.txt', 'new '.\str_repeat('long-tail ', times: 8)."\n"); // long enough to h-scroll
 
         $terminal = $this->runIde(
             $project,
@@ -790,13 +790,13 @@ final class GitFlowsE2eTest extends TestCase
                     // by "never let a blocking $project->git() read race the
                     // async op". Await the checkbox, then read the disk once.
                     $this->await(
-                        static fn (): bool => str_contains(
+                        static fn (): bool => \str_contains(
                             AnsiUtils::stripAnsiCodes($tui->getById('git-changes')->render(new RenderContext(44, 4))[1] ?? ''),
                             '[x]',
                         ),
                         what: 'the changes list to show a.txt staged',
                     );
-                    $this->assertContains('M  a.txt', explode("\n", $project->git('status', '--porcelain')), 'checkbox click staged the file');
+                    $this->assertContains('M  a.txt', \explode("\n", $project->git('status', '--porcelain')), 'checkbox click staged the file');
                     // Hover row 5 (b.txt): a tint only — the diff must NOT load.
                     $tui->handleInput("\x1b[<35;10;5M");
                 },
@@ -841,7 +841,7 @@ final class GitFlowsE2eTest extends TestCase
                     $raw = $terminal->getOutput();
                     // Text col 2..12 of '+new long-tail …' (pane text starts at
                     // SGR col 58): the exact ten chars, no markers, no newline.
-                    $this->assertStringContainsString("\x1b]52;c;".base64_encode('w long-tai'), $raw, 'the dragged char span reached the clipboard');
+                    $this->assertStringContainsString("\x1b]52;c;".\base64_encode('w long-tai'), $raw, 'the dragged char span reached the clipboard');
                     $this->assertStringContainsString('Copied 1 line', AnsiUtils::stripAnsiCodes($raw));
                     $this->assertSame('git-commit', $tui->getFocus()?->getId(), 'click focused the commit box');
                     // The diff toolbar tags sit at the right edge of the diff
@@ -862,7 +862,7 @@ final class GitFlowsE2eTest extends TestCase
         // The two diff toggles are plugin SETTINGS now, not layout prefs:
         // neither is a size, and they were in `.porta/layout.json` only
         // because the git view had no store of its own.
-        $porta = json_decode((string) file_get_contents($project->path('.porta.json')), associative: true);
+        $porta = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true);
         $this->assertTrue($porta['plugins']['git']['diffSplit'], 'the split preference persisted');
         $this->assertTrue($porta['plugins']['git']['diffHideWhitespace'], 'the whitespace preference persisted');
     }
@@ -872,7 +872,7 @@ final class GitFlowsE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git not available');
         }
-        putenv('PATH='.\dirname((string) $this->whichGit()));
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit();
         $project->commitAll('first commit');
@@ -938,7 +938,7 @@ final class GitFlowsE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git binary not available');
         }
-        putenv('PATH='.PORTA_TEST_PRISTINE_PATH); // git must be reachable
+        \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // git must be reachable
 
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
@@ -976,14 +976,14 @@ final class GitFlowsE2eTest extends TestCase
                     $this->frame($tui);
                     $this->assertStringContainsString(
                         "\x1b[48;5;240m",
-                        implode('', $tui->getById('git-tabs')->render(new \Symfony\Component\Tui\Render\RenderContext(44, 1))),
+                        \implode('', $tui->getById('git-tabs')->render(new \Symfony\Component\Tui\Render\RenderContext(44, 1))),
                         'the hovered git tab tints',
                     );
                     $tui->handleInput(\sprintf("\x1b[<35;%d;%dM", $tabsRect->col + 2, $tabsRect->row + 3)); // off the strip
                     $this->frame($tui);
                     $this->assertStringNotContainsString(
                         "\x1b[48;5;240m",
-                        implode('', $tui->getById('git-tabs')->render(new \Symfony\Component\Tui\Render\RenderContext(44, 1))),
+                        \implode('', $tui->getById('git-tabs')->render(new \Symfony\Component\Tui\Render\RenderContext(44, 1))),
                         'leaving the strip clears the tint',
                     );
 
@@ -1020,7 +1020,7 @@ final class GitFlowsE2eTest extends TestCase
 
         $palette = static function ($tui, string $label): void {
             $tui->handleInput("\x1b[97;6u");
-            foreach (str_split($label) as $ch) {
+            foreach (\str_split($label) as $ch) {
                 $tui->handleInput($ch);
             }
             $tui->handleInput("\r");
@@ -1034,7 +1034,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->awaitGit($ide);
                     $terminal->clearOutput();
                     $palette($tui, label: 'Git: File History');
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'History — src/A.php (1)'), timeout: 8.0, what: 'the file-history view');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'History — src/A.php (1)'), timeout: 8.0, what: 'the file-history view');
                     $screenText = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertStringContainsString('init', $screenText);
                     $this->assertStringNotContainsString(' other ', $screenText, "the commit that didn't touch the file is hidden");

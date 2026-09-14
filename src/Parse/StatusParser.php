@@ -17,7 +17,7 @@ final class StatusParser
     public static function parse(string $raw): array
     {
         $entries = [];
-        $tokens = explode("\0", $raw);
+        $tokens = \explode("\0", $raw);
         for ($i = 0, $count = \count($tokens); $i < $count; ++$i) {
             $token = $tokens[$i];
             if (\strlen($token) < 4 || ' ' !== $token[2]) {
@@ -25,7 +25,7 @@ final class StatusParser
             }
             $index = $token[0];
             $worktree = $token[1];
-            $path = substr($token, offset: 3);
+            $path = \substr($token, offset: 3);
 
             $renamedFrom = null;
             if (('R' === $index || 'C' === $index) && ($tokens[$i + 1] ?? null) !== null && '' !== $tokens[$i + 1]) {

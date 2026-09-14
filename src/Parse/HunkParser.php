@@ -20,9 +20,9 @@ final class HunkParser
     public static function parse(string $diff): array
     {
         $marks = [];
-        foreach (explode("\n", $diff) as $line) {
+        foreach (\explode("\n", $diff) as $line) {
             $m = [];
-            if (!preg_match('/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/', $line, $m)) {
+            if (!\preg_match('/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/', $line, $m)) {
                 continue;
             }
             $oldCount = '' === ($m[2] ?? '') ? 1 : (int) $m[2];
@@ -31,7 +31,7 @@ final class HunkParser
 
             if (0 === $newCount) {
                 // Pure deletion: flag the surviving line the removal sits on.
-                $marks[max(0, $newStart - 1)] = 'deleted';
+                $marks[\max(0, $newStart - 1)] = 'deleted';
                 continue;
             }
 

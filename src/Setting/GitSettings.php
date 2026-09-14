@@ -39,7 +39,7 @@ final class GitSettings
         $this->signCommits = (bool) ($settings['signCommits'] ?? false);
         $this->noVerify = (bool) ($settings['noVerify'] ?? false);
         $this->signoff = (bool) ($settings['signoff'] ?? false);
-        $this->refreshInterval = max(1, (int) ($settings['refreshInterval'] ?? 2));
+        $this->refreshInterval = \max(1, (int) ($settings['refreshInterval'] ?? 2));
         $this->path = (string) ($settings['path'] ?? '');
     }
 
@@ -121,6 +121,6 @@ final class GitSettings
 
     public function setRefreshInterval(int $seconds): void
     {
-        $this->refreshInterval = max(1, $seconds);
+        $this->refreshInterval = \max(1, $seconds);
     }
 }

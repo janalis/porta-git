@@ -126,7 +126,7 @@ final class GitInfoTest extends TestCase
     public function testStageAndCommitAgainstRealRepository(): void
     {
         if (null === $this->whichGit()) {
-            self::markTestSkipped('git binary not available');
+            $this->markTestSkipped('git binary not available');
         }
 
         $project = new TempProject([]);
@@ -161,7 +161,7 @@ final class GitInfoTest extends TestCase
     public function testIsBusyTracksInFlightOperations(): void
     {
         if (null === $this->whichGit()) {
-            self::markTestSkipped('git binary not available');
+            $this->markTestSkipped('git binary not available');
         }
 
         $project = new TempProject([]);
@@ -192,7 +192,7 @@ final class GitInfoTest extends TestCase
     public function testAgainstARealRepository(): void
     {
         if (null === $this->whichGit()) {
-            self::markTestSkipped('git binary not available');
+            $this->markTestSkipped('git binary not available');
         }
 
         $project = new TempProject([]);
@@ -230,7 +230,7 @@ final class GitInfoTest extends TestCase
     public function testCancelAllTerminatesInFlightProcesses(): void
     {
         if (null === $this->whichGit()) {
-            self::markTestSkipped('git binary not available');
+            $this->markTestSkipped('git binary not available');
         }
 
         $project = new TempProject([]);
@@ -267,7 +267,7 @@ final class GitInfoTest extends TestCase
     public function testFallsBackToDiscoveryWithoutAnExplicitPath(): void
     {
         if (null === $this->whichGit()) {
-            self::markTestSkipped('git binary not available');
+            $this->markTestSkipped('git binary not available');
         }
         $project = new TempProject([]);
         $git = new GitInfo($project->dir, gitPath: ''); // empty → auto-discover
@@ -277,7 +277,7 @@ final class GitInfoTest extends TestCase
     public function testCommitAppliesSignoffAndNoGpgSignFromSettings(): void
     {
         if (null === $this->whichGit()) {
-            self::markTestSkipped('git binary not available');
+            $this->markTestSkipped('git binary not available');
         }
         $project = new TempProject([]);
         $this->gitInit($project);
@@ -309,7 +309,7 @@ final class GitInfoTest extends TestCase
     public function testCommitSplicesSignAndNoVerifyFlags(): void
     {
         if (null === $this->whichGit()) {
-            self::markTestSkipped('git binary not available');
+            $this->markTestSkipped('git binary not available');
         }
         $project = new TempProject([]);
         $this->gitInit($project);

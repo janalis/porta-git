@@ -75,7 +75,7 @@ final class GitBranchSegmentTest extends TestCase
     public function testAResolvedBranchIsAnAccentCellCarryingItsOwnMenu(): void
     {
         $cell = $this->segment(showBranch: true, branch: 'trunk')->statusCell();
-        self::assertNotNull($cell);
+        $this->assertNotNull($cell);
 
         $this->assertNotNull($cell);
         $this->assertStringContainsString('trunk', $cell->text);
@@ -83,7 +83,7 @@ final class GitBranchSegmentTest extends TestCase
         $this->assertNotNull($cell->menu, 'and it carries what a right-click offers');
         $this->assertSame(
             ['Switch Branch…', 'New Branch…', 'Delete Branch…'],
-            array_map(static fn (object $item): string => $item->label, ($cell->menu)()),
+            \array_map(static fn (object $item): string => $item->label, ($cell->menu)()),
         );
     }
 }

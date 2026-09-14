@@ -167,9 +167,9 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         if (null !== $this->document) {
             $this->rows = $this->split ? $this->document->splitRows() : $this->document->rows();
         }
-        $maxRow = max(0, \count($this->rows) - 1);
-        $this->cursor = min($this->cursor, $maxRow);
-        $this->scroll = min($this->scroll, $maxRow);
+        $maxRow = \max(0, \count($this->rows) - 1);
+        $this->cursor = \min($this->cursor, $maxRow);
+        $this->scroll = \min($this->scroll, $maxRow);
         $this->anchor = null;
         $this->charSel = null;
         $this->invalidate();
@@ -204,7 +204,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         $this->maxLineWidth = 0;
         foreach ($document->hunks ?? [] as $hunk) {
             foreach ($hunk->lines as $line) {
-                $this->maxLineWidth = max($this->maxLineWidth, mb_strwidth($line->text));
+                $this->maxLineWidth = \max($this->maxLineWidth, \mb_strwidth($line->text));
             }
         }
         $this->rebuildRows();
@@ -257,7 +257,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
 
     public function scrollBy(int $lines): void
     {
-        $max = max(0, \count($this->rows) - max(1, $this->lastRows - 1));
+        $max = \max(0, \count($this->rows) - \max(1, $this->lastRows - 1));
         $this->scroll = IntMath::clamp($this->scroll + $lines, 0, $max);
         $this->invalidate();
     }
@@ -265,7 +265,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     /** Scroll the line texts horizontally; gutters and ± markers stay pinned. */
     public function scrollHBy(int $cols): void
     {
-        $this->hScroll = IntMath::clamp($this->hScroll + $cols, 0, max(0, $this->maxLineWidth - 20));
+        $this->hScroll = IntMath::clamp($this->hScroll + $cols, 0, \max(0, $this->maxLineWidth - 20));
         $this->invalidate();
     }
 
@@ -302,12 +302,12 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             return;
         }
         if ($kb->matches($data, 'page_up')) {
-            $this->moveCursor(-max(1, $this->lastRows - 2));
+            $this->moveCursor(-\max(1, $this->lastRows - 2));
 
             return;
         }
         if ($kb->matches($data, 'page_down')) {
-            $this->moveCursor(max(1, $this->lastRows - 2));
+            $this->moveCursor(\max(1, $this->lastRows - 2));
 
             return;
         }
@@ -418,7 +418,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
      */
     private function pointCol(int $relCol, ?DiffColumn $side): int
     {
-        return max(0, $relCol - DiffGeometry::textStart($side, $this->lastWidth) + $this->hScroll);
+        return \max(0, $relCol - DiffGeometry::textStart($side, $this->lastWidth) + $this->hScroll);
     }
 
     private function fireButton(string $name): void
@@ -440,7 +440,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         }
         $this->cursor = IntMath::clamp($this->cursor + $delta, 0, \count($this->rows) - 1);
         // Keep the cursor inside the visible window (header takes one row).
-        $visible = max(1, $this->lastRows - 1);
+        $visible = \max(1, $this->lastRows - 1);
         if ($this->cursor < $this->scroll) {
             $this->scroll = $this->cursor;
         }
@@ -502,7 +502,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             }
         }
         if ([] !== $texts) {
-            $this->events?->dispatch(new GitDiffCopyRequested(implode("\n", $texts)."\n"));
+            $this->events?->dispatch(new GitDiffCopyRequested(\implode("\n", $texts)."\n"));
         }
     }
 
@@ -529,7 +529,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         }
         if (DiffRowKind::Hunk === $row['kind']) {
             \assert(null !== $this->document, description: 'document is loaded');
-            foreach (array_keys($this->document->hunks[$row['hunk']]->lines) as $i) {
+            foreach (\array_keys($this->document->hunks[$row['hunk']]->lines) as $i) {
                 $selected[$row['hunk']][$i] = true;
             }
 
@@ -581,7 +581,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     {
         \assert(null !== $this->document, description: 'document is loaded');
         $texts = [];
-        for ($r = $sel->fromRow; $r <= min($sel->toRow, \count($this->rows) - 1); ++$r) {
+        for ($r = $sel->fromRow; $r <= \min($sel->toRow, \count($this->rows) - 1); ++$r) {
             $line = DiffViewRenderer::lineAtRow($this->document, $this->rows[$r], $sel->side);
             if (null === $line || '\\' === $line->origin) {
                 continue;
@@ -590,10 +590,10 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             $to = $r === $sel->toRow ? $sel->toCol : \PHP_INT_MAX;
             $start = self::textOffsetAt($line->text, $from);
             $end = \PHP_INT_MAX === $to ? \strlen($line->text) : self::textOffsetAt($line->text, $to);
-            $texts[] = substr($line->text, $start, max(0, $end - $start));
+            $texts[] = \substr($line->text, $start, \max(0, $end - $start));
         }
 
-        return implode("\n", $texts);
+        return \implode("\n", $texts);
     }
 
     /** The byte offset where a display column starts within a raw line text. */
@@ -613,10 +613,10 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     {
         $offset = 0;
         $width = 0;
-        $len = mb_strlen($text);
+        $len = \mb_strlen($text);
         for ($i = 0; $i < $len && $width < $col; ++$i) {
-            $ch = mb_substr($text, $i, length: 1);
-            $width += mb_strwidth($ch);
+            $ch = \mb_substr($text, $i, length: 1);
+            $width += \mb_strwidth($ch);
             $offset += \strlen($ch);
         }
 
@@ -626,7 +626,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     public function render(RenderContext $context): array
     {
         $width = $context->getColumns();
-        $rows = max(1, $context->getRows() > 0 ? $context->getRows() : 12);
+        $rows = \max(1, $context->getRows() > 0 ? $context->getRows() : 12);
         $this->lastRows = $rows;
         $this->lastWidth = $width;
 
@@ -675,7 +675,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         $rendered = '';
         $tagsWidth = 0;
         foreach ($tags as $tag) {
-            $tagsWidth += mb_strwidth($tag['label']) + 1;
+            $tagsWidth += \mb_strwidth($tag['label']) + 1;
         }
         $col = $width - $tagsWidth;
         if ($col < 0) {
@@ -691,7 +691,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         }
         $left = AnsiText::truncate($title, $col, pad: true);
         foreach ($tags as $tag) {
-            $tagWidth = mb_strwidth($tag['label']);
+            $tagWidth = \mb_strwidth($tag['label']);
             $this->buttonZones->add($tag['name'], $col, $col + $tagWidth);
             $rendered .= $this->tagStyle(OptionTagState::of($tag['on'], $tag['name'] === $this->hoveredButton))->apply($tag['label']).' ';
             $col += $tagWidth + 1;

@@ -115,9 +115,9 @@ final readonly class DiffViewRenderer
         $textStart = DiffGeometry::textStart($sel->side, $width);
         $segEnd = DiffColumn::Old === $sel->side ? DiffGeometry::splitBoundary($width) : $width;
         $fromCol = $rowIndex === $sel->fromRow ? $sel->fromCol : 0;
-        $toCol = $rowIndex === $sel->toRow ? $sel->toCol : mb_strwidth($target->text);
-        $start = max($textStart, $textStart + $fromCol - $this->hScroll);
-        $end = min($segEnd, $textStart + $toCol - $this->hScroll);
+        $toCol = $rowIndex === $sel->toRow ? $sel->toCol : \mb_strwidth($target->text);
+        $start = \max($textStart, $textStart + $fromCol - $this->hScroll);
+        $end = \min($segEnd, $textStart + $toCol - $this->hScroll);
 
         // Re-apply the bg after any reset inside the span (syntax SGR resets,
         // truncateToWidth's pad boundary) — without it the highlight dies
@@ -142,8 +142,8 @@ final readonly class DiffViewRenderer
         if ($from >= $to) {
             return $rendered;
         }
-        $startCol = mb_strwidth(substr($line->text, offset: 0, length: $from));
-        $endCol = $startCol + mb_strwidth(substr($line->text, $from, $to - $from));
+        $startCol = \mb_strwidth(\substr($line->text, offset: 0, length: $from));
+        $endCol = $startCol + \mb_strwidth(\substr($line->text, $from, $to - $from));
 
         return LineDecorator::apply($rendered, $startCol, $endCol, $bg, Sgr::DEFAULT_BG, $bg);
     }
@@ -176,12 +176,12 @@ final readonly class DiffViewRenderer
         // thirteen columns wide however narrow the pane was, and a row wider
         // than its pane throws RenderException out of the render loop.
         $gutter =
-            str_pad(null === $line->oldNo ? '' : (string) $line->oldNo, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT)
+            \str_pad(null === $line->oldNo ? '' : (string) $line->oldNo, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT)
             .' '
-            .str_pad(null === $line->newNo ? '' : (string) $line->newNo, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT)
+            .\str_pad(null === $line->newNo ? '' : (string) $line->newNo, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT)
             .' '
             .Glyphs::DIFF_COLUMN;
-        $body = $width - mb_strwidth($gutter) - 1;
+        $body = $width - \mb_strwidth($gutter) - 1;
         if ($body < 1) {
             // Clipped BEFORE it is styled, never after: re-slicing an already
             // styled string cuts escape sequences in half.
@@ -228,7 +228,7 @@ final readonly class DiffViewRenderer
         $slice = AnsiUtils::sliceByColumn($text, $this->hScroll, $inner);
 
         // A LEADING mark: the cut is at the head, so the row reads as scrolled.
-        return Glyphs::ELLIPSIS.AnsiText::truncate($slice, max(1, $inner - 1), pad: true);
+        return Glyphs::ELLIPSIS.AnsiText::truncate($slice, \max(1, $inner - 1), pad: true);
     }
 
     /**
@@ -245,8 +245,8 @@ final readonly class DiffViewRenderer
         $no = $side->lineNo($line);
         // The same five-column gutter plus a marker, and the same floor: half
         // of a split pane is half as wide, so this side reaches the case first.
-        $gutter = str_pad(null === $no ? '' : (string) $no, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT).' ';
-        $body = $width - mb_strwidth($gutter) - 1;
+        $gutter = \str_pad(null === $no ? '' : (string) $no, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT).' ';
+        $body = $width - \mb_strwidth($gutter) - 1;
         if ($body < 1) {
             return $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::DEFAULT_FG;
         }

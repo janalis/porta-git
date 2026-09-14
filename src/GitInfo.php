@@ -66,7 +66,7 @@ final class GitInfo
     public function branch(callable $onDone): void
     {
         $this->runner->run(['rev-parse', '--abbrev-ref', 'HEAD'], static function (string $out) use ($onDone): void {
-            $branch = trim($out);
+            $branch = \trim($out);
             $onDone('' === $branch || 'HEAD' === $branch ? null : $branch);
         });
     }
@@ -197,7 +197,7 @@ final class GitInfo
     {
         $head = CommitMode::Amend === $mode ? ['commit', '--amend'] : ['commit'];
         $args = [...$head, ...$this->commitFlags(), '-m', $message];
-        $this->runner->runStatus($args, static fn (int $code, string $out) => $onDone(Outcome::of(0 === $code), trim($out)));
+        $this->runner->runStatus($args, static fn (int $code, string $out) => $onDone(Outcome::of(0 === $code), \trim($out)));
     }
 
     /**
@@ -207,7 +207,7 @@ final class GitInfo
      */
     public function lastCommitMessage(callable $onDone): void
     {
-        $this->runner->run(['log', '-1', '--format=%B'], static fn (string $out) => $onDone(trim($out)));
+        $this->runner->run(['log', '-1', '--format=%B'], static fn (string $out) => $onDone(\trim($out)));
     }
 
     /**
@@ -328,8 +328,8 @@ final class GitInfo
      */
     public function checkoutTracking(string $remoteBranch, callable $onDone): void
     {
-        $slash = strpos($remoteBranch, needle: '/');
-        $local = false === $slash ? $remoteBranch : substr($remoteBranch, $slash + 1);
+        $slash = \strpos($remoteBranch, needle: '/');
+        $local = false === $slash ? $remoteBranch : \substr($remoteBranch, $slash + 1);
         $this->runner->runWithErrors(['checkout', '-b', $local, '--track', $remoteBranch], $onDone);
     }
 

@@ -48,7 +48,7 @@ final class GitRemoteCommands
             $this->translator->trans('Pulled'),
             fn (callable $onDone) => $this->remote->pull($onDone),
             onFailure: function (string $output): bool {
-                if (false === stripos($output, needle: 'fast-forward')) {
+                if (false === \stripos($output, needle: 'fast-forward')) {
                     return false;
                 }
                 $this->offer(
@@ -80,13 +80,13 @@ final class GitRemoteCommands
             $this->translator->trans('Pushed'),
             fn (callable $onDone) => $this->remote->push($onDone),
             onFailure: function (string $output): bool {
-                if (false === stripos($output, needle: 'no upstream')) {
+                if (false === \stripos($output, needle: 'no upstream')) {
                     return false;
                 }
                 // The branch name is parsed from git's own hint for the LABEL
                 // only — the pick runs the plain -u origin HEAD push.
                 $m = [];
-                $branch = 1 === preg_match('/git push --set-upstream \S+ (\S+)/', $output, $m) ? $m[1] : 'HEAD';
+                $branch = 1 === \preg_match('/git push --set-upstream \S+ (\S+)/', $output, $m) ? $m[1] : 'HEAD';
                 $this->offer(
                     $this->translator->trans('Push: no upstream branch'),
                     [
@@ -163,7 +163,7 @@ final class GitRemoteCommands
                 return;
             }
             $this->notifier->flash(
-                $ok->isOk() ? $succeeded : $this->translator->trans('%operation% failed: %error%', ['%operation%' => ucfirst($operation), '%error%' => Text::firstLine($output)]),
+                $ok->isOk() ? $succeeded : $this->translator->trans('%operation% failed: %error%', ['%operation%' => \ucfirst($operation), '%error%' => Text::firstLine($output)]),
                 $ok->isOk() ? 3.0 : 6.0,
             );
             $this->dispatcher->dispatch(new GitRemoteCompleted($operation, $ok->isOk()));

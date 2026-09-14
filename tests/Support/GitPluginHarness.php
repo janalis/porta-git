@@ -79,7 +79,7 @@ final class GitPluginHarness
             new StatusBarWidget(),
             new CodeEditorWidget(),
             new FakePluginLifecycle(),
-            new FileTreeWidget(sys_get_temp_dir()),
+            new FileTreeWidget(\sys_get_temp_dir()),
         ));
         $api = new PluginApi('git', $manager, $project->dir, $settings);
         $manager->commit($api);

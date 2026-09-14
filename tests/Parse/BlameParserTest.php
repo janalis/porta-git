@@ -17,7 +17,7 @@ final class BlameParserTest extends TestCase
     {
         // Line 1 and 3 share commit A (metadata only on the first block),
         // line 2 is commit B — the interleaving is the porcelain norm.
-        $porcelain = implode("\n", [
+        $porcelain = \implode("\n", [
             self::SHA_A.' 1 1 1',
             'author Alice',
             'author-time 1700000000',
@@ -34,9 +34,9 @@ final class BlameParserTest extends TestCase
 
         $this->assertSame(
             [
-                0 => ['sha' => 'aaaaaaaa', 'author' => 'Alice', 'date' => date('Y-m-d', timestamp: 1_700_000_000)],
-                1 => ['sha' => 'bbbbbbbb', 'author' => 'Bob', 'date' => date('Y-m-d', timestamp: 1_710_000_000)],
-                2 => ['sha' => 'aaaaaaaa', 'author' => 'Alice', 'date' => date('Y-m-d', timestamp: 1_700_000_000)],
+                0 => ['sha' => 'aaaaaaaa', 'author' => 'Alice', 'date' => \date('Y-m-d', timestamp: 1_700_000_000)],
+                1 => ['sha' => 'bbbbbbbb', 'author' => 'Bob', 'date' => \date('Y-m-d', timestamp: 1_710_000_000)],
+                2 => ['sha' => 'aaaaaaaa', 'author' => 'Alice', 'date' => \date('Y-m-d', timestamp: 1_700_000_000)],
             ],
             BlameParser::parse($porcelain),
         );
@@ -44,7 +44,7 @@ final class BlameParserTest extends TestCase
 
     public function testUncommittedLinesKeepGitsAuthorAndGetNoDate(): void
     {
-        $porcelain = implode("\n", [
+        $porcelain = \implode("\n", [
             self::SHA_ZERO.' 1 1 1',
             'author Not Committed Yet',
             'summary Version of the file as it is now',

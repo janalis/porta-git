@@ -38,11 +38,11 @@ final class GitListenerContractTest extends TestCase
             GitRefresher::class => GitWiring::REFRESHER,
         ] as $class => $map) {
             foreach ($map as $event => $method) {
-                $this->assertTrue(method_exists($class, $method), "{$class}::{$method}() is wired but does not exist");
+                $this->assertTrue(\method_exists($class, $method), "{$class}::{$method}() is wired but does not exist");
                 $parameters = new \ReflectionMethod($class, $method)->getParameters();
-                self::assertCount(1, $parameters, "{$class}::{$method}() must take exactly the event");
+                $this->assertCount(1, $parameters, "{$class}::{$method}() must take exactly the event");
                 $type = $parameters[0]->getType();
-                self::assertInstanceOf(\ReflectionNamedType::class, $type);
+                $this->assertInstanceOf(\ReflectionNamedType::class, $type);
                 $this->assertSame($event, $type->getName(), "{$class}::{$method}() takes the wrong event");
             }
         }
@@ -58,7 +58,7 @@ final class GitListenerContractTest extends TestCase
             GitViewController::class => [...GitWiring::VIEW, ...GitWiring::VIEW_CORE],
             GitRefresher::class => GitWiring::REFRESHER,
         ] as $class => $map) {
-            $this->assertSame([], array_values(array_diff(self::eventHandlersOf($class), array_values($map))), $class.': handlers nothing registers');
+            $this->assertSame([], \array_values(\array_diff(self::eventHandlersOf($class), \array_values($map))), $class.': handlers nothing registers');
         }
     }
 
@@ -83,7 +83,7 @@ final class GitListenerContractTest extends TestCase
         // wrong map is a plugin that fails to load — loud, but only at runtime
         // and only in a repository. This catches it here instead.
         foreach ([...GitWiring::VIEW_CORE, ...GitWiring::REFRESHER] as $event => $method) {
-            $this->assertTrue(is_a($event, PluginObservable::class, allow_string: true), $event.' is not plugin-observable');
+            $this->assertTrue(\is_a($event, PluginObservable::class, allow_string: true), $event.' is not plugin-observable');
         }
         foreach (GitWiring::VIEW as $event => $method) {
             $this->assertStringStartsWith('Porta\\GitPlugin\\Event\\', $event, 'the view bus carries this plugin’s own events only');
@@ -101,7 +101,7 @@ final class GitListenerContractTest extends TestCase
     {
         $found = [];
         foreach (new \ReflectionClass($class)->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if (!str_starts_with($method->getName(), 'on')) {
+            if (!\str_starts_with($method->getName(), 'on')) {
                 continue;
             }
             $parameters = $method->getParameters();

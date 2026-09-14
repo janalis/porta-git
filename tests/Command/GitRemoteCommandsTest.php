@@ -149,18 +149,18 @@ final class GitRemoteCommandsTest extends TestCase
             $clone->git('config', 'push.autoSetupRemote', 'false');
             $clone->git('config', 'push.default', 'simple');
         }
-        file_put_contents($other->path('a.txt'), data: "one\n");
+        \file_put_contents($other->path('a.txt'), data: "one\n");
         $other->git('add', '-A');
         $other->git('commit', '-q', '-m', 'init');
         $other->git('push', '-q', '-u', 'origin', 'HEAD');
         $mine->git('pull', '-q', 'origin');
         $mine->git('branch', '-q', '--set-upstream-to', 'origin/'.$mine->git('rev-parse', '--abbrev-ref', 'HEAD'));
         // Diverge both sides on different files so a rebase/merge is clean.
-        file_put_contents($other->path('remote.txt'), data: "remote\n");
+        \file_put_contents($other->path('remote.txt'), data: "remote\n");
         $other->git('add', '-A');
         $other->git('commit', '-q', '-m', 'remote');
         $other->git('push', '-q', 'origin', 'HEAD');
-        file_put_contents($mine->path('local.txt'), data: "local\n");
+        \file_put_contents($mine->path('local.txt'), data: "local\n");
         $mine->git('add', '-A');
         $mine->git('commit', '-q', '-m', 'local');
         $this->mine = $mine;

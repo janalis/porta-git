@@ -26,7 +26,7 @@ final class IntralineDiff
         }
 
         $prefix = 0;
-        $max = min(\strlen($old), \strlen($new));
+        $max = \min(\strlen($old), \strlen($new));
         while ($prefix < $max && $old[$prefix] === $new[$prefix]) {
             ++$prefix;
         }

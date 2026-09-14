@@ -12,7 +12,7 @@ final class BranchParserTest extends TestCase
     public function testParsesLocalsThenUnshadowedRemotes(): void
     {
         $out =
-            implode("\n", [
+            \implode("\n", [
                 "refs/heads/main\t*",
                 "refs/heads/feature/login\t",
                 "refs/remotes/origin/HEAD\t",

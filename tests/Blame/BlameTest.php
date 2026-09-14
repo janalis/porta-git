@@ -138,7 +138,7 @@ final class BlameTest extends TestCase
         $this->await(static function () use (&$announced): bool {
             return $announced > 0;
         }, what: 'the undo to announce itself');
-        $this->assertSame('init', trim($this->project->git('log', '--format=%s')), 'the second commit is gone');
+        $this->assertSame('init', \trim($this->project->git('log', '--format=%s')), 'the second commit is gone');
         $this->assertNotSame('', $this->project->git('diff', '--cached', '--name-only'), 'and its changes are still staged');
     }
 
@@ -187,13 +187,13 @@ final class BlameTest extends TestCase
         $this->await(static function () use (&$announced): bool {
             return $announced > 0;
         }, what: 'the stash to announce itself');
-        $this->assertSame("one\ntwo\n", file_get_contents($this->project->path('a.txt')), 'the working tree really went back to the committed content');
+        $this->assertSame("one\ntwo\n", \file_get_contents($this->project->path('a.txt')), 'the working tree really went back to the committed content');
 
         $stash->pop();
         $this->await(static function () use (&$announced): bool {
             return $announced > 1;
         }, what: 'the pop to announce itself');
-        $this->assertSame("one\nCHANGED\n", file_get_contents($this->project->path('a.txt')), 'and really came back');
+        $this->assertSame("one\nCHANGED\n", \file_get_contents($this->project->path('a.txt')), 'and really came back');
     }
 
     public function testStashWithoutARepositorySaysSo(): void
@@ -498,7 +498,7 @@ final class BlameTest extends TestCase
         $blame = $this->openCommittedFile($api);
 
         new BlameLine($blame, $api)->show();
-        $this->await(fn (): bool => str_contains($this->flashText($this->status), 'tester'), what: 'the single-line blame resolved');
+        $this->await(fn (): bool => \str_contains($this->flashText($this->status), 'tester'), what: 'the single-line blame resolved');
         $this->assertStringContainsString('init', $this->flashText($this->status), 'the summary is the commit subject');
     }
 

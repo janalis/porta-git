@@ -45,7 +45,7 @@ final class GitRemote
         // file_exists, not is_dir: a linked worktree's and a submodule's .git is a
         // FILE holding `gitdir: …`. is_dir left the whole feature silently dead
         // in both — git ran nowhere and the view said "not a repository".
-        $this->repository = file_exists($rootDir.'/.git');
+        $this->repository = \file_exists($rootDir.'/.git');
     }
 
     /** Resolved per call, so an edit to the `path` setting reaches the next spawn. */
@@ -127,12 +127,12 @@ final class GitRemote
         }
         /** @var list<string> $command */
         $command = [$git, '-C', $this->rootDir, ...$args];
-        $env = array_merge(getenv(), ['GIT_TERMINAL_PROMPT' => '0', 'LC_ALL' => 'C']);
+        $env = \array_merge(\getenv(), ['GIT_TERMINAL_PROMPT' => '0', 'LC_ALL' => 'C']);
         /** @var array<string, string> $env */
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $env),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
-                $onDone(Outcome::of(0 === $code), trim(trim($process->errorOutput())."\n".trim($out)));
+                $onDone(Outcome::of(0 === $code), \trim(\trim($process->errorOutput())."\n".\trim($out)));
             },
         );
         if (!$started) {

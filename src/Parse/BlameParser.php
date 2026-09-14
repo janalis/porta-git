@@ -24,21 +24,21 @@ final class BlameParser
         /** @var array<int, string> $lines */
         $lines = [];
         $sha = '';
-        foreach (explode("\n", $porcelain) as $line) {
+        foreach (\explode("\n", $porcelain) as $line) {
             $m = [];
-            if (1 === preg_match('/^([0-9a-f]{40}) \d+ (\d+)/', $line, $m)) {
+            if (1 === \preg_match('/^([0-9a-f]{40}) \d+ (\d+)/', $line, $m)) {
                 $sha = $m[1];
                 $lines[(int) $m[2] - 1] = $sha; // porcelain lines are 1-based
 
                 continue;
             }
-            if (str_starts_with($line, 'author ') && '' !== $sha) {
-                $authors[$sha] = substr($line, offset: 7);
+            if (\str_starts_with($line, 'author ') && '' !== $sha) {
+                $authors[$sha] = \substr($line, offset: 7);
 
                 continue;
             }
-            if (str_starts_with($line, 'author-time ') && '' !== $sha) {
-                $times[$sha] = (int) substr($line, offset: 12);
+            if (\str_starts_with($line, 'author-time ') && '' !== $sha) {
+                $times[$sha] = (int) \substr($line, offset: 12);
             }
         }
 
@@ -46,10 +46,10 @@ final class BlameParser
         foreach ($lines as $no => $lineSha) {
             $time = $times[$lineSha] ?? 0;
             $entries[$no] = [
-                'sha' => substr($lineSha, offset: 0, length: 8),
+                'sha' => \substr($lineSha, offset: 0, length: 8),
                 'author' => $authors[$lineSha] ?? '',
                 // Uncommitted lines carry no author-time — no fake epoch date.
-                'date' => 0 === $time ? '' : date('Y-m-d', $time),
+                'date' => 0 === $time ? '' : \date('Y-m-d', $time),
             ];
         }
 
@@ -64,20 +64,20 @@ final class BlameParser
         $sha = '';
         $author = '';
         $summary = '';
-        foreach (explode("\n", $out) as $line) {
+        foreach (\explode("\n", $out) as $line) {
             $m = [];
-            if (1 === preg_match('/^([0-9a-f]{40}) /', $line, $m)) {
-                $sha = substr($m[1], offset: 0, length: 8);
+            if (1 === \preg_match('/^([0-9a-f]{40}) /', $line, $m)) {
+                $sha = \substr($m[1], offset: 0, length: 8);
 
                 continue;
             }
-            if (str_starts_with($line, 'author ')) {
-                $author = substr($line, offset: 7);
+            if (\str_starts_with($line, 'author ')) {
+                $author = \substr($line, offset: 7);
 
                 continue;
             }
-            if (str_starts_with($line, 'summary ')) {
-                $summary = substr($line, offset: 8);
+            if (\str_starts_with($line, 'summary ')) {
+                $summary = \substr($line, offset: 8);
             }
         }
 

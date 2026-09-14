@@ -28,7 +28,7 @@ final class GitProcessesTest extends TestCase
 
     private function sleeper(ProcessLane $lane): void
     {
-        $started = $lane->start(new AsyncProcess(['sleep', '30'], sys_get_temp_dir()), static function (): void {
+        $started = $lane->start(new AsyncProcess(['sleep', '30'], \sys_get_temp_dir()), static function (): void {
             // A cancelled process never calls back — that is the point.
         });
         self::assertTrue($started, 'the fixture process spawned');
@@ -74,7 +74,7 @@ final class GitProcessesTest extends TestCase
         // but a timeout in every test that touches git.
         $lane = new ProcessLane();
         $done = false;
-        $lane->start(new AsyncProcess(['true'], sys_get_temp_dir()), static function () use (&$done): void {
+        $lane->start(new AsyncProcess(['true'], \sys_get_temp_dir()), static function () use (&$done): void {
             $done = true;
         });
 

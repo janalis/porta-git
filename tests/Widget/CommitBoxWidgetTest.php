@@ -35,7 +35,7 @@ final class CommitBoxWidgetTest extends TestCase
 
     private function type(CommitBoxWidget $widget, string $text): void
     {
-        foreach (str_split($text) as $ch) {
+        foreach (\str_split($text) as $ch) {
             $widget->handleInput($ch);
         }
     }
@@ -115,7 +115,7 @@ final class CommitBoxWidgetTest extends TestCase
 
         $this->type($widget, 'body text');
         $this->assertStringContainsString('body text', $this->rendered($widget), 'the typed text landed in the description, so focus never left it');
-        $this->assertStringNotContainsString('body text', explode("\n", $this->rendered($widget))[1], 'and specifically not in the summary row');
+        $this->assertStringNotContainsString('body text', \explode("\n", $this->rendered($widget))[1], 'and specifically not in the summary row');
     }
 
     public function testRenderShowsPlaceholdersButtonStateAndClearResets(): void
@@ -131,7 +131,7 @@ final class CommitBoxWidgetTest extends TestCase
         $widget->setFocused(true);
         $this->type($widget, 'Msg');
         $raw = $widget->render(new RenderContext(44, 10));
-        $this->assertStringContainsString("\x1b[48;5;31m", implode('', $raw), 'enabled button uses the selected style');
+        $this->assertStringContainsString("\x1b[48;5;31m", \implode('', $raw), 'enabled button uses the selected style');
 
         $widget->clear();
         $this->assertSame('', $widget->message());
@@ -229,7 +229,7 @@ final class CommitBoxWidgetTest extends TestCase
 
         $lines = $widget->render(new RenderContext(44, 10));
         $marker = AnsiUtils::cursorMarker(CursorShape::Bar);
-        $markers = array_sum(array_map(static fn (string $l): int => substr_count($l, $marker), $lines));
+        $markers = \array_sum(\array_map(static fn (string $l): int => \substr_count($l, $marker), $lines));
 
         $this->assertSame(1, $markers, 'the description caret marker stays inside the visible window');
         $this->assertStringContainsString('l5', $this->rendered($widget), 'the window scrolled to the caret line');
@@ -239,14 +239,14 @@ final class CommitBoxWidgetTest extends TestCase
     {
         $marker = AnsiUtils::cursorMarker(CursorShape::Bar);
 
-        return array_sum(array_map(static fn (string $l): int => substr_count($l, $marker), $widget->render(new RenderContext(44, 10))));
+        return \array_sum(\array_map(static fn (string $l): int => \substr_count($l, $marker), $widget->render(new RenderContext(44, 10))));
     }
 
     public function testLongDescriptionLineKeepsTheCaretVisible(): void
     {
         $widget = $this->widget();
         $widget->handleInput("\t"); // focus the description
-        $this->type($widget, str_repeat('x', times: 60)); // overflow the 44-column box
+        $this->type($widget, \str_repeat('x', times: 60)); // overflow the 44-column box
 
         $this->assertSame(1, $this->markerCount($widget), 'the description caret survives horizontal overflow');
     }
@@ -254,7 +254,7 @@ final class CommitBoxWidgetTest extends TestCase
     public function testLongSummaryLineKeepsTheCaretVisible(): void
     {
         $widget = $this->widget();
-        $this->type($widget, str_repeat('x', times: 60)); // summary is the default field
+        $this->type($widget, \str_repeat('x', times: 60)); // summary is the default field
 
         $this->assertSame(1, $this->markerCount($widget), 'the summary caret survives horizontal overflow');
     }
@@ -262,7 +262,7 @@ final class CommitBoxWidgetTest extends TestCase
     /** @return list<int> the visible width of every rendered line */
     private function lineWidths(CommitBoxWidget $widget): array
     {
-        return array_map(AnsiUtils::visibleWidth(...), $widget->render(new RenderContext(44, 10)));
+        return \array_map(AnsiUtils::visibleWidth(...), $widget->render(new RenderContext(44, 10)));
     }
 
     public function testBackspacingIntoAMultibyteDescriptionKeepsEveryLineAtWidth(): void

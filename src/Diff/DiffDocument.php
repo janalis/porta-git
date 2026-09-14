@@ -26,14 +26,14 @@ final readonly class DiffDocument
         /** @var list<array{old: int, oldCount: int, new: int, newCount: int, heading: string, lines: list<DiffLine>, oldNo: int, newNo: int}> $pending */
         $pending = [];
 
-        $lines = explode("\n", $raw);
-        if ('' === end($lines)) {
-            array_pop($lines); // trailing newline
+        $lines = \explode("\n", $raw);
+        if ('' === \end($lines)) {
+            \array_pop($lines); // trailing newline
         }
 
         foreach ($lines as $line) {
             $m = [];
-            if (preg_match('/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$/', $line, $m)) {
+            if (\preg_match('/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$/', $line, $m)) {
                 $old = (int) $m[1];
                 $new = (int) $m[3];
                 $pending[] = [
@@ -58,9 +58,9 @@ final readonly class DiffDocument
                 continue;
             }
 
-            $last = array_key_last($pending);
+            $last = \array_key_last($pending);
             $origin = $line[0] ?? ' ';
-            $text = substr($line, offset: 1);
+            $text = \substr($line, offset: 1);
             switch ($origin) {
                 case '+':
                     $pending[$last]['lines'][] = new DiffLine('+', $text, null, $pending[$last]['newNo']++);
@@ -77,7 +77,7 @@ final readonly class DiffDocument
             }
         }
 
-        $hunks = array_map(
+        $hunks = \array_map(
             static fn (array $h): DiffHunk => new DiffHunk($h['old'], $h['oldCount'], $h['new'], $h['newCount'], $h['heading'], self::withIntraline($h['lines'])),
             $pending,
         );
@@ -110,7 +110,7 @@ final readonly class DiffDocument
             while (($addStart + $adds) < $count && '+' === $lines[$addStart + $adds]->origin) {
                 ++$adds;
             }
-            for ($p = 0; $p < min($dels, $adds); ++$p) {
+            for ($p = 0; $p < \min($dels, $adds); ++$p) {
                 $del = $lines[$delStart + $p];
                 $add = $lines[$addStart + $p];
                 $ranges = IntralineDiff::changedRanges($del->text, $add->text);
@@ -142,7 +142,7 @@ final readonly class DiffDocument
         $rows = [];
         foreach ($this->hunks as $h => $hunk) {
             $rows[] = ['kind' => DiffRowKind::Hunk, 'hunk' => $h, 'line' => -1];
-            foreach (array_keys($hunk->lines) as $l) {
+            foreach (\array_keys($hunk->lines) as $l) {
                 $rows[] = ['kind' => DiffRowKind::Line, 'hunk' => $h, 'line' => $l];
             }
         }
@@ -198,7 +198,7 @@ final readonly class DiffDocument
                 while (($addStart + $adds) < $count && '+' === $lines[$addStart + $adds]->origin) {
                     ++$adds;
                 }
-                for ($p = 0; $p < max($dels, $adds); ++$p) {
+                for ($p = 0; $p < \max($dels, $adds); ++$p) {
                     $rows[] = [
                         'kind' => DiffRowKind::Pair,
                         'hunk' => $h,

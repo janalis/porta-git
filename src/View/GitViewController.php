@@ -341,7 +341,7 @@ final class GitViewController implements ContributedView
     private function copyDiffText(string $text): void
     {
         ($this->copy)($text);
-        $lines = substr_count(rtrim($text, characters: "\n"), needle: "\n") + 1;
+        $lines = \substr_count(\rtrim($text, characters: "\n"), needle: "\n") + 1;
         $this->notifier->flash($this->translator->trans('Copied %count% line|Copied %count% lines', ['%count%' => $lines]));
     }
 
@@ -710,7 +710,7 @@ final class GitViewController implements ContributedView
             ? [$this->panes->history, $this->panes->diffView]
             : [$this->panes->changes, $this->panes->diffView, $this->panes->commitBox];
         $count = \count($order);
-        $index = array_search($this->host->focused(), $order, strict: true);
+        $index = \array_search($this->host->focused(), $order, strict: true);
         $target = $order[false === $index ? 0 : ($index + $direction + $count) % $count];
         if ($target === $this->panes->commitBox) {
             $this->panes->commitBox->resetField();

@@ -50,7 +50,7 @@ final class GitStagingServiceTest extends TestCase
         // fails and Filesystem::remove throws — the delete is best-effort and the
         // "Deleted" flash still fires (the IOException is swallowed).
         $project->write('locked/x.txt', 'data');
-        chmod($project->path('locked'), permissions: 0o500); // no write on the parent → unlink denied
+        \chmod($project->path('locked'), permissions: 0o500); // no write on the parent → unlink denied
 
         $status = new StatusBarWidget();
         $service = $this->service($project->dir, $status);
@@ -61,7 +61,7 @@ final class GitStagingServiceTest extends TestCase
             $refreshed = true;
         });
 
-        chmod($project->path('locked'), permissions: 0o755); // restore so cleanup can remove the tree
+        \chmod($project->path('locked'), permissions: 0o755); // restore so cleanup can remove the tree
 
         $this->assertTrue($refreshed, 'the status refresh callback still ran');
         $this->assertStringContainsString('Deleted', $this->flashText($status));

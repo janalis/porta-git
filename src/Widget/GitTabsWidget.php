@@ -108,7 +108,7 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
 
     public function render(RenderContext $context): array
     {
-        $width = min($this->width, $context->getColumns());
+        $width = \min($this->width, $context->getColumns());
 
         $this->layout = [];
         $line = ' ';
@@ -118,7 +118,7 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
                 GitViewMode::Changes => ' Changes ',
                 GitViewMode::History => ' History ',
             });
-            $tabWidth = mb_strwidth($label);
+            $tabWidth = \mb_strwidth($label);
             $this->layout[] = ['mode' => $mode, 'start' => $col, 'width' => $tabWidth];
             $line .= TabStyle::of($this->styles, TabState::of($mode === $this->active, $mode === $this->hoveredMode))->apply($label);
             $col += $tabWidth + 1;

@@ -26,7 +26,7 @@ final class HunkParserTest extends TestCase
         // `@@ -5 +5 @@` (no `,count`) means one line on each side.
         $marks = HunkParser::parse("@@ -5 +5 @@\n context\n");
 
-        $this->assertSame(['modified'], array_values(array_intersect_key($marks, [4 => true])));
+        $this->assertSame(['modified'], \array_values(\array_intersect_key($marks, [4 => true])));
         $this->assertSame([4 => 'modified'], $marks);
     }
 
@@ -51,8 +51,8 @@ final class HunkParserTest extends TestCase
         // new count 0: a pure deletion, flagged on the line it sits after.
         $marks = HunkParser::parse("@@ -5,3 +4,0 @@\n");
 
-        $this->assertSame(['deleted'], array_values($marks));
-        $this->assertSame(3, array_key_first($marks));
+        $this->assertSame(['deleted'], \array_values($marks));
+        $this->assertSame(3, \array_key_first($marks));
     }
 
     public function testPureDeletionAtTheVeryStartOfTheFileClampsToLineZero(): void
@@ -81,6 +81,6 @@ final class HunkParserTest extends TestCase
         // proving marks accumulate by simple overwrite, not by first-match.
         $marks = HunkParser::parse("@@ -1,5 +1,1 @@\n@@ -1,0 +1,1 @@\n");
 
-        $this->assertSame(['added'], array_values($marks));
+        $this->assertSame(['added'], \array_values($marks));
     }
 }

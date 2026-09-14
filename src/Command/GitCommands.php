@@ -50,7 +50,7 @@ final class GitCommands
             return;
         }
         $this->editor->openPrompt($this->translator->trans('Commit message'), '', function (string $message): void {
-            if ('' === trim($message)) {
+            if ('' === \trim($message)) {
                 return;
             }
             $this->git->commit($message, function (Outcome $ok) use ($message): void {
@@ -77,9 +77,9 @@ final class GitCommands
 
                 return;
             }
-            $items = array_map(static fn (array $stash): array => [
+            $items = \array_map(static fn (array $stash): array => [
                 'label' => '  '.$stash['subject'],
-                'hint' => date('Y-m-d H:i', $stash['timestamp']),
+                'hint' => \date('Y-m-d H:i', $stash['timestamp']),
                 'value' => $stash['ref'],
             ], $stashes);
             $this->editor->openListOverlay($this->translator->trans('Stashes'), $items, function (string $ref): void {
@@ -166,7 +166,7 @@ final class GitCommands
         }
 
         [$left, $right] = $paths;
-        $title = basename($left).' ↔ '.basename($right);
+        $title = \basename($left).' ↔ '.\basename($right);
         $this->git->compareFiles($left, $right, function (string $raw) use ($title): void {
             $lines = self::hunks($raw);
             if ([] === $lines) {
@@ -185,8 +185,8 @@ final class GitCommands
      */
     private static function hunks(string $raw): array
     {
-        $lines = explode("\n", rtrim($raw, characters: "\n"));
-        $hunks = array_keys(array_filter($lines, static fn (string $line): bool => str_starts_with($line, '@@')));
+        $lines = \explode("\n", \rtrim($raw, characters: "\n"));
+        $hunks = \array_keys(\array_filter($lines, static fn (string $line): bool => \str_starts_with($line, '@@')));
 
         return [] === $hunks ? [] : \array_slice($lines, $hunks[0]);
     }
@@ -205,7 +205,7 @@ final class GitCommands
             return;
         }
         $this->editor->openPrompt($this->translator->trans('New branch name'), '', function (string $name) use ($commit): void {
-            $name = trim($name);
+            $name = \trim($name);
             if ('' === $name) {
                 return;
             }
@@ -330,7 +330,7 @@ final class GitCommands
                 match (true) {
                     self::CREATE === $value => $this->promptNewBranch(),
                     self::DELETE === $value => $this->pickBranchToDelete(),
-                    str_starts_with($value, self::REMOTE_PREFIX) => $this->checkoutTracking(substr($value, \strlen(self::REMOTE_PREFIX))),
+                    \str_starts_with($value, self::REMOTE_PREFIX) => $this->checkoutTracking(\substr($value, \strlen(self::REMOTE_PREFIX))),
                     default => $this->checkout($value),
                 };
             });
@@ -360,13 +360,13 @@ final class GitCommands
     private function pickBranchToDelete(): void
     {
         $this->git->branches(function (array $branches): void {
-            $deletable = array_values(array_filter($branches, static fn (array $b): bool => !$b['remote'] && !$b['current']));
+            $deletable = \array_values(\array_filter($branches, static fn (array $b): bool => !$b['remote'] && !$b['current']));
             if ([] === $deletable) {
                 $this->notifier->flash($this->translator->trans('No other local branches to delete'));
 
                 return;
             }
-            $items = array_map(static fn (array $b): array => ['label' => '  '.$b['name'], 'hint' => '', 'value' => $b['name']], $deletable);
+            $items = \array_map(static fn (array $b): array => ['label' => '  '.$b['name'], 'hint' => '', 'value' => $b['name']], $deletable);
             $this->editor->openListOverlay($this->translator->trans('Delete branch'), $items, function (string $name): void {
                 $this->editor->openListOverlay(
                     $this->translator->trans('Delete %branch%?', ['%branch%' => $name]),
@@ -392,8 +392,8 @@ final class GitCommands
     /** Check out origin/x as a local tracking branch x. */
     private function checkoutTracking(string $remoteBranch): void
     {
-        $slash = strpos($remoteBranch, needle: '/');
-        $local = false === $slash ? $remoteBranch : substr($remoteBranch, $slash + 1);
+        $slash = \strpos($remoteBranch, needle: '/');
+        $local = false === $slash ? $remoteBranch : \substr($remoteBranch, $slash + 1);
         $this->git->checkoutTracking($remoteBranch, fn (Outcome $ok, string $error) => $this->finishSwitch($ok, $error, $this->translator->trans('Switched to %branch% (tracking %remote%)', [
             '%branch%' => $local,
             '%remote%' => $remoteBranch,
@@ -403,7 +403,7 @@ final class GitCommands
     private function promptNewBranch(): void
     {
         $this->editor->openPrompt($this->translator->trans('New branch name'), '', function (string $name): void {
-            $name = trim($name);
+            $name = \trim($name);
             if ('' === $name) {
                 return;
             }

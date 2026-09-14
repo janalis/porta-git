@@ -97,7 +97,7 @@ final class BlameAnnotations
             }
             $annotations = [];
             foreach ($lines as $no => $entry) {
-                $annotations[$no] = trim(\sprintf('%s %s %s', $entry['sha'], $entry['author'], $entry['date']));
+                $annotations[$no] = \trim(\sprintf('%s %s %s', $entry['sha'], $entry['author'], $entry['date']));
             }
             $this->api->setLineAnnotations($annotations);
         });

@@ -77,7 +77,7 @@ final class HistoryListWidgetTest extends TestCase
 
         $this->assertStringContainsString('History (2)', $screen);
         // With 16 rows and 2 files, filler rows pad the files section.
-        $this->assertGreaterThan(10, substr_count($screen, needle: "\n"), 'padded to full height');
+        $this->assertGreaterThan(10, \substr_count($screen, needle: "\n"), 'padded to full height');
         $this->assertStringContainsString('aaa111 Newest work  Alice', $screen);
         $this->assertStringContainsString('Files (2)', $screen);
         $this->assertStringContainsString('M src/a.php', $screen);
@@ -288,7 +288,7 @@ final class HistoryListWidgetTest extends TestCase
         AttachedStyles::attach($widget);
 
         $lines = $widget->render(new RenderContext(44, 16));
-        $joined = implode("\n", $lines);
+        $joined = \implode("\n", $lines);
         $this->assertStringContainsString("\x1b[48;5;31m", $joined, 'the focused commit selection uses the focus rule');
         $this->assertStringContainsString("\x1b[48;5;237m", $joined, 'the parked files selection shows the unfocused shade');
 
@@ -304,7 +304,7 @@ final class HistoryListWidgetTest extends TestCase
         $widget = $this->widget();
         $lines = $widget->render(new RenderContext(44, 16));
         foreach ($lines as $line) {
-            if (!str_contains(AnsiUtils::stripAnsiCodes($line), 'Files (2)')) {
+            if (!\str_contains(AnsiUtils::stripAnsiCodes($line), 'Files (2)')) {
                 continue;
             }
 

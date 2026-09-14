@@ -51,7 +51,7 @@ final class PatchBuilder
 
         $envelope = \sprintf("diff --git a/%s b/%s\n--- a/%s\n+++ b/%s\n", $relPath, $relPath, $relPath, $relPath);
 
-        return $envelope.implode("\n", $out)."\n";
+        return $envelope.\implode("\n", $out)."\n";
     }
 
     /**
@@ -117,7 +117,7 @@ final class PatchBuilder
      */
     public static function invertHunk(DiffHunk $hunk): DiffHunk
     {
-        $lines = array_map(static fn (DiffLine $line): DiffLine => new DiffLine(
+        $lines = \array_map(static fn (DiffLine $line): DiffLine => new DiffLine(
             match ($line->origin) {
                 '+' => '-',
                 '-' => '+',

@@ -17,7 +17,7 @@ final class DiffGeometry
     /** The split view's divider column (the left half's exclusive end). */
     public static function splitBoundary(int $width): int
     {
-        return intdiv($width - 1, num2: 2);
+        return \intdiv($width - 1, num2: 2);
     }
 
     /**

@@ -63,19 +63,19 @@ final class IdeGitPluginTest extends TestCase
             $project->path('src/A.php'),
             [
                 300 => function ($tui, $terminal, $ide): void {
-                    $labels = array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
+                    $labels = \array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
                     // Core's labels, not "git:blame" — the ids were adopted bare.
                     $this->assertContains('Git: Blame Current Line', $labels);
                     $this->assertContains('Git: Toggle Blame Annotations', $labels);
 
                     // And the entry is still in the GIT menu, not the trailing
                     // Plugins one, because core still names the id.
-                    $git = array_values(array_filter(
+                    $git = \array_values(\array_filter(
                         \Porta\Tests\Support\Probe::get($tui->getById('menu'), 'menus'),
                         static fn ($menu): bool => 'Git' === $menu->title,
                     ));
                     $this->assertCount(1, $git, 'the Git menu is built');
-                    $this->assertContains('Git: Blame Current Line', array_map(static fn ($item): string => $item->label, $git[0]->items));
+                    $this->assertContains('Git: Blame Current Line', \array_map(static fn ($item): string => $item->label, $git[0]->items));
                 },
             ],
         );
@@ -147,9 +147,9 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal): void {
                     $editor = $tui->getById('editor');
-                    $joined = static fn (): string => implode('', $editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)));
+                    $joined = static fn (): string => \implode('', $editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)));
 
-                    $this->await(static fn (): bool => str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
+                    $this->await(static fn (): bool => \str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
                     $this->assertStringContainsString("\x1b[38;5;114m▎", $joined(), 'and the added mark with it');
                 },
             ],
@@ -176,7 +176,7 @@ final class IdeGitPluginTest extends TestCase
         $project->git('commit', '-qm', 'init');
         $project->write('tracked.php', "<?php\n// changed\n");
         $project->write('brandnew.php', "<?php\n");
-        unlink($project->path('removed.php')); // gone from disk: no tree row to mark
+        \unlink($project->path('removed.php')); // gone from disk: no tree row to mark
 
         $this->runIde(
             $project,
@@ -187,10 +187,10 @@ final class IdeGitPluginTest extends TestCase
                     $rows = static function () use ($tree): string {
                         $tree->beforeRender();
 
-                        return AnsiUtils::stripAnsiCodes(implode("\n", $tree->render(new \Symfony\Component\Tui\Render\RenderContext(30, 12))));
+                        return AnsiUtils::stripAnsiCodes(\implode("\n", $tree->render(new \Symfony\Component\Tui\Render\RenderContext(30, 12))));
                     };
 
-                    $this->await(static fn (): bool => 1 === preg_match('/tracked\.php\s+┆$/m', $rows()), what: 'the modified file to be marked');
+                    $this->await(static fn (): bool => 1 === \preg_match('/tracked\.php\s+┆$/m', $rows()), what: 'the modified file to be marked');
                     $this->assertMatchesRegularExpression('/brandnew\.php\s+▎$/m', $rows(), 'an untracked file reads as added');
                     $this->assertMatchesRegularExpression('/untouched\.php\s+$/m', $rows(), 'and an unchanged one carries nothing');
                 },
@@ -228,12 +228,12 @@ final class IdeGitPluginTest extends TestCase
                     $rows = static function () use ($tree): string {
                         $tree->beforeRender();
 
-                        return AnsiUtils::stripAnsiCodes(implode("\n", $tree->render(new \Symfony\Component\Tui\Render\RenderContext(30, 12))));
+                        return AnsiUtils::stripAnsiCodes(\implode("\n", $tree->render(new \Symfony\Component\Tui\Render\RenderContext(30, 12))));
                     };
                     // Everything is committed, so the control is a clean tree —
                     // otherwise a mark below could be one that was always there.
                     $this->await(
-                        static fn (): bool => 1 === preg_match('/anchor\.php\s+$/m', $rows()),
+                        static fn (): bool => 1 === \preg_match('/anchor\.php\s+$/m', $rows()),
                         what: 'the first status to come back clean',
                     );
 
@@ -243,7 +243,7 @@ final class IdeGitPluginTest extends TestCase
 
                     $this->assertFileExists($project->path('moved.php'), 'the move itself happened');
                     $this->await(
-                        static fn (): bool => 1 === preg_match('/moved\.php\s+'.Glyphs::VCS_ADDED.'$/m', $rows()),
+                        static fn (): bool => 1 === \preg_match('/moved\.php\s+'.Glyphs::VCS_ADDED.'$/m', $rows()),
                         what: 'the moved file to be marked',
                     );
                 },
@@ -295,7 +295,7 @@ final class IdeGitPluginTest extends TestCase
                 300 => function ($tui, $terminal, $ide): void {
                     Services::resolve($ide, CommandRegistry::class)->run('git_blame');
                     $this->await(
-                        static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'tester'),
+                        static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'tester'),
                         what: 'the blame flash to name the author',
                     );
                     $this->assertStringContainsString('init', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'and the commit subject');
@@ -316,9 +316,9 @@ final class IdeGitPluginTest extends TestCase
             $project->path('src/A.php'),
             [
                 300 => function ($tui, $terminal, $ide): void {
-                    $editorScreen = static fn (): string => AnsiUtils::stripAnsiCodes(implode("\n", $tui->getById('editor')->render(new \Symfony\Component\Tui\Render\RenderContext(120, 20))));
+                    $editorScreen = static fn (): string => AnsiUtils::stripAnsiCodes(\implode("\n", $tui->getById('editor')->render(new \Symfony\Component\Tui\Render\RenderContext(120, 20))));
                     Services::resolve($ide, CommandRegistry::class)->run('git_toggle_blame');
-                    $this->await(static fn (): bool => str_contains($editorScreen(), 'tester'), what: 'the annotations to paint');
+                    $this->await(static fn (): bool => \str_contains($editorScreen(), 'tester'), what: 'the annotations to paint');
 
                     Services::resolve($ide, CommandRegistry::class)->run('git_toggle_blame');
                     $this->assertStringNotContainsString('tester', $editorScreen(), 'toggling off clears them');
@@ -339,7 +339,7 @@ final class IdeGitPluginTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject([
             'src/A.php' => "<?php\n",
-            '.porta.json' => json_encode(
+            '.porta.json' => \json_encode(
                 [
                     'enabledPlugins' => ['git'],
                     // Where the pre-move writer actually put them: inside the
@@ -349,7 +349,7 @@ final class IdeGitPluginTest extends TestCase
                         'gitRefreshInterval' => 7,
                     ],
                 ],
-                JSON_THROW_ON_ERROR,
+                \JSON_THROW_ON_ERROR,
             ),
         ]);
         $project->initGit(name: 'tester', email: 't@t');
@@ -365,8 +365,8 @@ final class IdeGitPluginTest extends TestCase
             ],
         );
 
-        $porta = json_decode((string) file_get_contents($project->path('.porta.json')), associative: true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($porta);
+        $porta = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true, flags: \JSON_THROW_ON_ERROR);
+        $this->assertIsArray($porta);
         $this->assertFalse($porta['plugins']['git']['showBranch'], 'the pre-move choice was adopted');
         $this->assertSame(7, $porta['plugins']['git']['refreshInterval']);
         // The old keys are left where they are: this file is hand-editable and
@@ -392,8 +392,8 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal, $ide): void {
                     $editor = $tui->getById('editor');
-                    $joined = static fn (): string => implode('', $editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)));
-                    $this->await(static fn (): bool => str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
+                    $joined = static fn (): string => \implode('', $editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)));
+                    $this->await(static fn (): bool => \str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
 
                     // The seam the Settings page reaches once it has written
                     // the value. The write itself is `SettingsPluginsController`'s
@@ -542,7 +542,7 @@ final class IdeGitPluginTest extends TestCase
                     // by the status bar's provider during a real frame, and a
                     // bare render() of the widget re-uses its cached line.
                     $shown = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
-                    $this->await(static fn (): bool => str_contains($shown(), Glyphs::STATUS_BRANCH), what: 'the branch to resolve');
+                    $this->await(static fn (): bool => \str_contains($shown(), Glyphs::STATUS_BRANCH), what: 'the branch to resolve');
 
                     Services::resolve($ide, PluginLifecycle::class)->onPluginSettingChanged('git', 'showBranch', false);
                     $terminal->clearOutput();
@@ -590,7 +590,7 @@ final class IdeGitPluginTest extends TestCase
                     $this->assertSame(1, $general->inFlight(), 'the editor half landed in the view\'s lane');
                     $this->await(static fn (): bool => 0 === $general->inFlight(), what: 'blame to finish');
 
-                    $sleep = static fn (): AsyncProcess => new AsyncProcess(['sleep', '30'], sys_get_temp_dir());
+                    $sleep = static fn (): AsyncProcess => new AsyncProcess(['sleep', '30'], \sys_get_temp_dir());
                     $general->start($sleep(), static function (): void {});
                     $remote->start($sleep(), static function (): void {});
                     $this->assertSame(1, $general->inFlight());
@@ -627,7 +627,7 @@ final class IdeGitPluginTest extends TestCase
                 300 => function ($tui, $terminal, $ide): void {
                     $views = Services::resolve($ide, ViewRegistry::class);
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
-                    $menuTitles = static fn (): array => array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
+                    $menuTitles = static fn (): array => \array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
 
                     $this->frame($tui);
                     $this->assertNull($views->find('git'), 'off at boot');
@@ -679,7 +679,7 @@ final class IdeGitPluginTest extends TestCase
                     $general = Probe::get(Probe::get(Probe::get($view, 'git'), 'runner'), 'lane');
                     $remote = Probe::get(Probe::get(Probe::get($view, 'remoteCommands'), 'remote'), 'lane');
 
-                    $sleep = static fn (): AsyncProcess => new AsyncProcess(['sleep', '30'], sys_get_temp_dir());
+                    $sleep = static fn (): AsyncProcess => new AsyncProcess(['sleep', '30'], \sys_get_temp_dir());
                     $general->start($sleep(), static function (): void {});
                     $remote->start($sleep(), static function (): void {});
                     $this->assertSame(1, $general->inFlight());
@@ -724,7 +724,7 @@ final class IdeGitPluginTest extends TestCase
                     $tree->clickRow(3, ClickIntent::Add);
                     $this->assertSame(
                         ['a.php', 'b.php'],
-                        array_map(basename(...), $tree->selectedPaths()),
+                        \array_map(basename(...), $tree->selectedPaths()),
                         'the pair is the one the panel is about to compare',
                     );
 
@@ -734,7 +734,7 @@ final class IdeGitPluginTest extends TestCase
                     // `$x = 2;` is b.php's line and b.php is not open, so only
                     // the comparison can put it on screen.
                     $this->await(
-                        static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '$x = 2;'),
+                        static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '$x = 2;'),
                         what: 'the comparison to reach the panel',
                     );
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
@@ -800,10 +800,10 @@ final class IdeGitPluginTest extends TestCase
                         $out = [];
                         foreach ($editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)) as $row => $line) {
                             $gutter = AnsiUtils::sliceByColumn($line, 0, $editor->gutterWidth());
-                            if (str_contains($gutter, Glyphs::VCS_MODIFIED)) {
+                            if (\str_contains($gutter, Glyphs::VCS_MODIFIED)) {
                                 $out[] = 'M'.$row;
                             }
-                            if (str_contains($gutter, Glyphs::VCS_ADDED)) {
+                            if (\str_contains($gutter, Glyphs::VCS_ADDED)) {
                                 $out[] = 'A'.$row;
                             }
                         }

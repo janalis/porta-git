@@ -20,8 +20,8 @@ final class LogParser
     public static function parseLog(string $raw): array
     {
         $entries = [];
-        foreach (explode("\0", $raw) as $record) {
-            $fields = explode("\x1f", trim($record, characters: "\n"));
+        foreach (\explode("\0", $raw) as $record) {
+            $fields = \explode("\x1f", \trim($record, characters: "\n"));
             if (5 !== \count($fields) || '' === $fields[0]) {
                 continue;
             }
@@ -39,8 +39,8 @@ final class LogParser
     public static function parseStashList(string $raw): array
     {
         $stashes = [];
-        foreach (explode("\0", $raw) as $record) {
-            $fields = explode("\x1f", trim($record, characters: "\n"));
+        foreach (\explode("\0", $raw) as $record) {
+            $fields = \explode("\x1f", \trim($record, characters: "\n"));
             if (3 !== \count($fields) || '' === $fields[0]) {
                 continue;
             }
@@ -58,7 +58,7 @@ final class LogParser
      */
     public static function parseNameStatus(string $raw): array
     {
-        $tokens = explode("\0", trim($raw, characters: "\n\0"));
+        $tokens = \explode("\0", \trim($raw, characters: "\n\0"));
         $count = \count($tokens);
         $files = [];
         $i = 0;

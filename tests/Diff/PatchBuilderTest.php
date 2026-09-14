@@ -137,7 +137,7 @@ final class PatchBuilderTest extends TestCase
         $selected = [];
         foreach ($doc->hunks as $h => $hunk) {
             foreach ($hunk->lines as $i => $line) {
-                if (!str_contains($line->text, 'alpha')) {
+                if (!\str_contains($line->text, 'alpha')) {
                     continue;
                 }
 
@@ -187,13 +187,13 @@ final class PatchBuilderTest extends TestCase
         $this->gitOut($project, 'add f.txt'); // everything staged
 
         $doc = DiffDocument::parse($this->awaitDiff($git, $project->path('f.txt'), DiffSide::Cached));
-        $inverted = array_map(PatchBuilder::invertHunk(...), $doc->hunks);
+        $inverted = \array_map(PatchBuilder::invertHunk(...), $doc->hunks);
 
         // Unstage only the beta change: select its ± pair in the INVERTED hunks.
         $selected = [];
         foreach ($inverted as $h => $hunk) {
             foreach ($hunk->lines as $i => $line) {
-                if (!str_contains($line->text, 'beta')) {
+                if (!\str_contains($line->text, 'beta')) {
                     continue;
                 }
 
@@ -249,7 +249,7 @@ final class PatchBuilderTest extends TestCase
 
     private function gitOut(TempProject $project, string $args): string
     {
-        return $project->git(...explode(' ', $args));
+        return $project->git(...\explode(' ', $args));
     }
 }
 

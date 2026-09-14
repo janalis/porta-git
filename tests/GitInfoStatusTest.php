@@ -76,9 +76,9 @@ final class GitInfoStatusTest extends TestCase
 
     public function testDiffContextControlsTheSurroundingLines(): void
     {
-        $body = implode("\n", array_map(static fn (int $i): string => 'line '.$i, range(1, end: 30)))."\n";
+        $body = \implode("\n", \array_map(static fn (int $i): string => 'line '.$i, \range(1, end: 30)))."\n";
         $git = $this->repo($project, committed: ['a.txt' => $body]);
-        $project->write('a.txt', str_replace('line 15', replace: 'line 15 EDITED', subject: $body));
+        $project->write('a.txt', \str_replace('line 15', replace: 'line 15 EDITED', subject: $body));
 
         $default = null;
         $ten = null;
@@ -208,7 +208,7 @@ final class GitInfoStatusTest extends TestCase
         $this->assertTrue($unstaged);
         // Not $project->git(): its trim() would strip the leading porcelain
         // status column (' M' — worktree-modified), which is load-bearing here.
-        exec('git -C '.escapeshellarg($project->dir).' status --porcelain 2>/dev/null', $lines);
+        \exec('git -C '.\escapeshellarg($project->dir).' status --porcelain 2>/dev/null', $lines);
         $this->assertSame(' M a.txt', $lines[0], 'the edit moved back to the worktree side');
 
         $discarded = null;
@@ -219,7 +219,7 @@ final class GitInfoStatusTest extends TestCase
             return null !== $discarded;
         });
         $this->assertTrue($discarded);
-        $this->assertSame("one\n", file_get_contents($project->path('a.txt')), 'worktree restored to HEAD');
+        $this->assertSame("one\n", \file_get_contents($project->path('a.txt')), 'worktree restored to HEAD');
     }
 
     public function testAmendRewritesTheLastCommitAndPrefillReadsIt(): void
@@ -258,7 +258,7 @@ final class GitInfoStatusTest extends TestCase
             return null !== $amended;
         });
         $this->assertTrue($amended, 'the amend succeeded (a false here is git itself failing — lock contention, not a race)');
-        $subjects = explode("\n", $project->git('log', '--format=%s'));
+        $subjects = \explode("\n", $project->git('log', '--format=%s'));
         $this->assertSame(['second, reworded', 'init'], $subjects, 'amend rewrote the tip without adding a commit');
     }
 
@@ -277,7 +277,7 @@ final class GitInfoStatusTest extends TestCase
             return null !== $undone;
         });
         $this->assertTrue($undone);
-        $this->assertSame(['M  a.txt'], explode("\n", $project->git('status', '--porcelain')), 'the undone commit\'s change is back and still staged');
+        $this->assertSame(['M  a.txt'], \explode("\n", $project->git('status', '--porcelain')), 'the undone commit\'s change is back and still staged');
 
         $refused = null;
         $git->undoLastCommit(static function (Outcome $ok) use (&$refused): void {
@@ -292,7 +292,7 @@ final class GitInfoStatusTest extends TestCase
     public function testResetToSoftKeepsTheIndexAndMixedUnstagesIt(): void
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
-        $base = trim($project->git('rev-parse', 'HEAD'));
+        $base = \trim($project->git('rev-parse', 'HEAD'));
         $project->write('a.txt', "one\nmore\n");
         $project->git('commit', '-am', 'more');
 
@@ -304,8 +304,8 @@ final class GitInfoStatusTest extends TestCase
             return null !== $ok;
         });
         $this->assertTrue($ok);
-        $this->assertSame($base, trim($project->git('rev-parse', 'HEAD')));
-        $this->assertSame(['M  a.txt'], explode("\n", $project->git('status', '--porcelain')), 'soft leaves the change staged');
+        $this->assertSame($base, \trim($project->git('rev-parse', 'HEAD')));
+        $this->assertSame(['M  a.txt'], \explode("\n", $project->git('status', '--porcelain')), 'soft leaves the change staged');
 
         $project->git('commit', '-am', 'more again');
         $ok = null;
@@ -316,10 +316,10 @@ final class GitInfoStatusTest extends TestCase
             return null !== $ok;
         });
         $this->assertTrue($ok);
-        $this->assertSame($base, trim($project->git('rev-parse', 'HEAD')));
+        $this->assertSame($base, \trim($project->git('rev-parse', 'HEAD')));
         $this->assertSame(
             ['M a.txt'],
-            explode("\n", $project->git('status', '--porcelain')),
+            \explode("\n", $project->git('status', '--porcelain')),
             'mixed unstages the change but keeps it in the working tree (the leading index-status space is trimmed by the helper)',
         );
     }
@@ -421,18 +421,18 @@ final class GitInfoStatusTest extends TestCase
             $results['list'] = $branches;
         });
         $this->await(static function () use (&$results): bool {
-            return array_key_exists('list', $results);
+            return \array_key_exists('list', $results);
         });
-        $names = array_column($results['list'], 'name');
+        $names = \array_column($results['list'], 'name');
         $this->assertContains('feature', $names);
-        $current = array_values(array_filter($results['list'], static fn (array $b): bool => $b['current']));
+        $current = \array_values(\array_filter($results['list'], static fn (array $b): bool => $b['current']));
         $this->assertCount(1, $current, 'exactly one branch is current');
 
         $git->checkout('feature', static function (Outcome $ok, string $error) use (&$results): void {
             $results['checkout'] = $ok->isOk();
         });
         $this->await(static function () use (&$results): bool {
-            return array_key_exists('checkout', $results);
+            return \array_key_exists('checkout', $results);
         });
         $this->assertTrue($results['checkout']);
         $this->assertSame('feature', $project->git('rev-parse', '--abbrev-ref', 'HEAD'));
@@ -441,7 +441,7 @@ final class GitInfoStatusTest extends TestCase
             $results['create'] = $ok->isOk();
         });
         $this->await(static function () use (&$results): bool {
-            return array_key_exists('create', $results);
+            return \array_key_exists('create', $results);
         });
         $this->assertTrue($results['create']);
 
@@ -450,7 +450,7 @@ final class GitInfoStatusTest extends TestCase
             $results['dup'] = ['ok' => $ok->isOk(), 'error' => $error];
         });
         $this->await(static function () use (&$results): bool {
-            return array_key_exists('dup', $results);
+            return \array_key_exists('dup', $results);
         });
         $this->assertFalse($results['dup']['ok']);
         $this->assertNotSame('', $results['dup']['error']);
@@ -463,10 +463,10 @@ final class GitInfoStatusTest extends TestCase
         // Diverge the branches on the same file, then dirty the worktree so
         // the checkout must refuse.
         $project->git('checkout', '-q', 'other');
-        file_put_contents($project->path('a.txt'), data: "theirs\n");
+        \file_put_contents($project->path('a.txt'), data: "theirs\n");
         $project->git('commit', '-a', '-q', '-m', 'theirs');
         $project->git('checkout', '-q', '-');
-        file_put_contents($project->path('a.txt'), data: "dirty\n");
+        \file_put_contents($project->path('a.txt'), data: "dirty\n");
 
         $result = null;
         $git->checkout('other', static function (Outcome $ok, string $error) use (&$result): void {
@@ -484,7 +484,7 @@ final class GitInfoStatusTest extends TestCase
         $git = $this->repo($project, ['a.txt' => "x\n"]);
         $project->git('branch', 'merged');
         $project->git('checkout', '-q', '-b', 'unmerged');
-        file_put_contents($project->path('a.txt'), data: "diverge\n", flags: \FILE_APPEND);
+        \file_put_contents($project->path('a.txt'), data: "diverge\n", flags: \FILE_APPEND);
         $project->git('commit', '-a', '-q', '-m', 'diverge');
         $project->git('checkout', '-q', '-');
 
@@ -493,7 +493,7 @@ final class GitInfoStatusTest extends TestCase
             $results['merged'] = $ok->isOk();
         });
         $this->await(static function () use (&$results): bool {
-            return array_key_exists('merged', $results);
+            return \array_key_exists('merged', $results);
         });
         $this->assertTrue($results['merged']);
 
@@ -501,7 +501,7 @@ final class GitInfoStatusTest extends TestCase
             $results['unmerged'] = ['ok' => $ok->isOk(), 'error' => $error];
         });
         $this->await(static function () use (&$results): bool {
-            return array_key_exists('unmerged', $results);
+            return \array_key_exists('unmerged', $results);
         });
         $this->assertFalse($results['unmerged']['ok'], '-d refuses an unmerged branch');
         $this->assertNotSame('', $results['unmerged']['error'], "git's refusal (which names -D) reaches the caller");
@@ -538,12 +538,12 @@ final class GitInfoStatusTest extends TestCase
 
         $pages = [];
         $git->log(2, static function (array $commits) use (&$pages): void {
-            $pages[0] = array_column($commits, 'subject');
+            $pages[0] = \array_column($commits, 'subject');
         });
         $git->log(
             2,
             static function (array $commits) use (&$pages): void {
-                $pages[1] = array_column($commits, 'subject');
+                $pages[1] = \array_column($commits, 'subject');
             },
             skip: 2,
         );
@@ -571,7 +571,7 @@ final class GitInfoStatusTest extends TestCase
         $this->assertStringContainsString('No local changes', $result[1]);
 
         // A dirty tree stashes; the list carries the subject; pop restores.
-        file_put_contents($project->path('a.txt'), data: "two\n");
+        \file_put_contents($project->path('a.txt'), data: "two\n");
         $result = null;
         $git->stashPush(static function (Outcome $ok, string $line) use (&$result): void {
             $result = [$ok->isOk(), $line];
@@ -581,7 +581,7 @@ final class GitInfoStatusTest extends TestCase
         });
         $this->assertTrue($result[0]);
         $this->assertStringContainsString('Saved working directory', $result[1]);
-        $this->assertSame("one\n", file_get_contents($project->path('a.txt')), 'the tree reverted');
+        $this->assertSame("one\n", \file_get_contents($project->path('a.txt')), 'the tree reverted');
 
         $stashes = null;
         $git->stashList(static function (array $list) use (&$stashes): void {
@@ -604,7 +604,7 @@ final class GitInfoStatusTest extends TestCase
             return null !== $result;
         });
         $this->assertTrue($result[0]);
-        $this->assertSame("two\n", file_get_contents($project->path('a.txt')), 'apply restored the change');
+        $this->assertSame("two\n", \file_get_contents($project->path('a.txt')), 'apply restored the change');
 
         $project->git('checkout', '-q', '--', 'a.txt'); // clean again so drop/pop paths are unambiguous
         $result = null;
@@ -631,9 +631,9 @@ final class GitInfoStatusTest extends TestCase
     {
         $git = $this->repo($project, ['a.txt' => "one\n"]);
 
-        file_put_contents($project->path('a.txt'), data: "stashed\n");
+        \file_put_contents($project->path('a.txt'), data: "stashed\n");
         $project->git('stash', 'push', '-q');
-        file_put_contents($project->path('a.txt'), data: "conflicting\n");
+        \file_put_contents($project->path('a.txt'), data: "conflicting\n");
         $project->git('add', '-A');
         $project->git('commit', '-q', '-m', 'conflicting');
 
@@ -647,7 +647,7 @@ final class GitInfoStatusTest extends TestCase
         $this->assertFalse($result[0], 'the conflicting pop failed');
         // Git reports the conflict on stdout — stderr (what we surface) is
         // empty here; GitCommands supplies the fallback message.
-        $this->assertStringContainsString('<<<<<<<', (string) file_get_contents($project->path('a.txt')), 'the markers landed in the tree');
+        $this->assertStringContainsString('<<<<<<<', (string) \file_get_contents($project->path('a.txt')), 'the markers landed in the tree');
     }
 
     public function testStashVerbsWithoutARepository(): void
@@ -669,11 +669,11 @@ final class GitInfoStatusTest extends TestCase
     public function testLogWithAPathFilterComposesWithSkip(): void
     {
         $git = $this->repo($project, ['a.txt' => "a\n", 'b.txt' => "b\n"]);
-        file_put_contents($project->path('a.txt'), data: "a2\n");
+        \file_put_contents($project->path('a.txt'), data: "a2\n");
         $project->git('commit', '-a', '-q', '-m', 'touch-a-1');
-        file_put_contents($project->path('b.txt'), data: "b2\n");
+        \file_put_contents($project->path('b.txt'), data: "b2\n");
         $project->git('commit', '-a', '-q', '-m', 'touch-b');
-        file_put_contents($project->path('a.txt'), data: "a3\n");
+        \file_put_contents($project->path('a.txt'), data: "a3\n");
         $project->git('commit', '-a', '-q', '-m', 'touch-a-2');
 
         $commits = null;
@@ -687,7 +687,7 @@ final class GitInfoStatusTest extends TestCase
         $this->await(static function () use (&$commits): bool {
             return null !== $commits;
         });
-        $this->assertSame(['touch-a-2', 'touch-a-1', 'init'], array_map(static fn ($e) => $e->subject, $commits), 'only commits touching a.txt');
+        $this->assertSame(['touch-a-2', 'touch-a-1', 'init'], \array_map(static fn ($e) => $e->subject, $commits), 'only commits touching a.txt');
 
         $commits = null;
         $git->log(
@@ -701,6 +701,6 @@ final class GitInfoStatusTest extends TestCase
         $this->await(static function () use (&$commits): bool {
             return null !== $commits;
         });
-        $this->assertSame(['touch-a-1'], array_map(static fn ($e) => $e->subject, $commits), 'skip pages within the filter');
+        $this->assertSame(['touch-a-1'], \array_map(static fn ($e) => $e->subject, $commits), 'skip pages within the filter');
     }
 }

@@ -36,7 +36,7 @@ final class GitContextMenuE2eTest extends TestCase
         if (!$this->gitAvailable()) {
             $this->markTestSkipped('git not available');
         }
-        putenv('PATH='.\dirname((string) $this->whichGit()));
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
         $project->initGit();
         $project->commitAll('init');
@@ -58,7 +58,7 @@ final class GitContextMenuE2eTest extends TestCase
                     $terminal->clearOutput();
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 8, $rect->row + 2)); // right-click the first commit row (SGR is 1-based)
                     $this->assertTrue($tui->getById('context-menu')->isOpen(), 'right-clicking a commit opened its menu');
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Cherry-pick'));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Cherry-pick'));
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertStringContainsString('Copy Hash', $screen);
                     $this->assertStringContainsString('Reset to Commit', $screen);
@@ -71,7 +71,7 @@ final class GitContextMenuE2eTest extends TestCase
                     $terminal->clearOutput();
                     $tui->handleInput("\x1b[21;5~");
                     $this->assertTrue($tui->getById('context-menu')->isOpen(), 'Ctrl+F10 opened the commit menu');
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Copy Hash'));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Copy Hash'));
                     $this->assertStringContainsString('Copy Hash', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                 },
             ],

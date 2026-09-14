@@ -147,7 +147,7 @@ final class ChangesListWidgetTest extends TestCase
         ]);
 
         $screen = $this->plain($widget->render(new RenderContext(44, 8)));
-        $lines = explode("\n", $screen);
+        $lines = \explode("\n", $screen);
         $this->assertStringContainsString('Discard changes?', $lines[2], 'the confirmation followed src/a.php to its new row');
         $this->assertStringNotContainsString('Discard changes?', $lines[1], 'not left behind on the old row');
     }
@@ -264,7 +264,7 @@ final class ChangesListWidgetTest extends TestCase
         $widget->hoverRow(3);
         $widget->setEntries($this->entries());
         $rendered = $widget->render(new RenderContext(44, 8));
-        $this->assertStringNotContainsString("\x1b[48;5;236m", implode('', $rendered), 'setEntries drops a stale hover tint');
+        $this->assertStringNotContainsString("\x1b[48;5;236m", \implode('', $rendered), 'setEntries drops a stale hover tint');
     }
 
     public function testInputHookConsumesFirstAndEntryCountCounts(): void

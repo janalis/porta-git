@@ -255,8 +255,8 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
 
     public function render(RenderContext $context): array
     {
-        $width = min($this->width, $context->getColumns());
-        $rows = max(1, $context->getRows() > 0 ? $context->getRows() : 12);
+        $width = \min($this->width, $context->getColumns());
+        $rows = \max(1, $context->getRows() > 0 ? $context->getRows() : 12);
         $this->lastRows = $rows;
 
         $count = \count($this->entries);

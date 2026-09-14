@@ -44,7 +44,7 @@ final class GitProcessRunner
         // file_exists, not is_dir: a linked worktree's and a submodule's .git is a
         // FILE holding `gitdir: …`. is_dir left the whole feature silently dead
         // in both — git ran nowhere and the view said "not a repository".
-        $this->repository = file_exists($rootDir.'/.git');
+        $this->repository = \file_exists($rootDir.'/.git');
     }
 
     /**

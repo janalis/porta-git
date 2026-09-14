@@ -29,10 +29,10 @@ final class GitTabsWidgetTest extends TestCase
 
         $widget->setActive(GitViewMode::History);
         $lines = $widget->render(new RenderContext(44, 1));
-        $changesPos = mb_strpos(AnsiUtils::stripAnsiCodes($lines[0]), needle: 'Changes');
-        $highlightPos = strpos($lines[0], needle: "\x1b[48;5;238m");
+        $changesPos = \mb_strpos(AnsiUtils::stripAnsiCodes($lines[0]), needle: 'Changes');
+        $highlightPos = \strpos($lines[0], needle: "\x1b[48;5;238m");
         $this->assertNotFalse($highlightPos);
-        $this->assertStringContainsString('History', substr($lines[0], $highlightPos), 'the highlight moved to History');
+        $this->assertStringContainsString('History', \substr($lines[0], $highlightPos), 'the highlight moved to History');
         $this->assertNotFalse($changesPos);
     }
 

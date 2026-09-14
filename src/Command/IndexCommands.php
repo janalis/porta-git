@@ -69,6 +69,6 @@ final readonly class IndexCommands
     {
         $root = $this->api->projectRoot();
 
-        return str_starts_with($path, $root.'/') ? substr($path, \strlen($root) + 1) : $path;
+        return \str_starts_with($path, $root.'/') ? \substr($path, \strlen($root) + 1) : $path;
     }
 }
