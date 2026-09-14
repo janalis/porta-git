@@ -11,7 +11,6 @@ use Porta\Event\GitRemoteCompleted;
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
-use Porta\GitPlugin\Setting\GitSettings;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Presence;
 use Porta\Tests\Support\PumpsLoop;
@@ -31,7 +30,7 @@ final class GitRefresherTest extends TestCase
 
     private CodeEditorWidget $editor;
 
-    private function refresher(Presence $realRepo = Presence::With, ?GitSettings $gitSettings = null): GitRefresher
+    private function refresher(Presence $realRepo = Presence::With): GitRefresher
     {
         if (Presence::With === $realRepo && null === $this->whichGit()) {
             $this->markTestSkipped('git not available');

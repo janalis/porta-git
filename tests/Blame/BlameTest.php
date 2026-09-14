@@ -62,7 +62,7 @@ final class BlameTest extends TestCase
     }
 
     /** A committed file, open in the editor, so blame has something to answer about. */
-    private function openCommittedFile(PluginApi $api): BlameClient
+    private function openCommittedFile(): BlameClient
     {
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
@@ -372,7 +372,7 @@ final class BlameTest extends TestCase
     public function testTogglingOnAnnotatesEveryLineAndTogglingOffClearsThem(): void
     {
         $api = $this->api();
-        $blame = $this->openCommittedFile($api);
+        $blame = $this->openCommittedFile();
         $annotations = new BlameAnnotations($blame, $api);
 
         $annotations->toggle();
@@ -389,7 +389,7 @@ final class BlameTest extends TestCase
     public function testWithBlameOnASwitchOrSaveRepublishes(): void
     {
         $api = $this->api();
-        $blame = $this->openCommittedFile($api);
+        $blame = $this->openCommittedFile();
         $annotations = new BlameAnnotations($blame, $api, showByDefault: true);
 
         // The editor drops annotations on every document show, which is exactly
@@ -409,7 +409,7 @@ final class BlameTest extends TestCase
         // restart. Two directions, because only showing would pass with a
         // setter that ignores false.
         $api = $this->api();
-        $blame = $this->openCommittedFile($api);
+        $blame = $this->openCommittedFile();
         $annotations = new BlameAnnotations($blame, $api);
         $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'off to begin with');
 
@@ -426,7 +426,7 @@ final class BlameTest extends TestCase
         // that acted unconditionally would spawn a `git blame` — and flash —
         // on each one. The sentinel asserts a POSITIVE: nothing overwrote it.
         $api = $this->api();
-        $blame = $this->openCommittedFile($api);
+        $blame = $this->openCommittedFile();
         $annotations = new BlameAnnotations($blame, $api);
         Probe::get($this->editor, 'decorations')->setLineAnnotations(['sentinel']);
 
@@ -439,7 +439,7 @@ final class BlameTest extends TestCase
     public function testWithBlameOffTheHooksDoNothing(): void
     {
         $api = $this->api();
-        $blame = $this->openCommittedFile($api);
+        $blame = $this->openCommittedFile();
 
         // A sentinel, so this asserts a POSITIVE: nothing overwrote it. Asserting
         // the annotations stay EMPTY passed whether or not the run started —
@@ -460,7 +460,7 @@ final class BlameTest extends TestCase
     public function testAStaleResponseAfterTogglingOffIsDropped(): void
     {
         $api = $this->api();
-        $blame = $this->openCommittedFile($api);
+        $blame = $this->openCommittedFile();
         $annotations = new BlameAnnotations($blame, $api);
 
         $annotations->toggle(); // on: the batch blame is now in flight
@@ -495,7 +495,7 @@ final class BlameTest extends TestCase
     public function testTheLineCommandFlashesTheCommitUnderTheCaret(): void
     {
         $api = $this->api();
-        $blame = $this->openCommittedFile($api);
+        $blame = $this->openCommittedFile();
 
         new BlameLine($blame, $api)->show();
         $this->await(fn (): bool => \str_contains($this->flashText($this->status), 'tester'), what: 'the single-line blame resolved');

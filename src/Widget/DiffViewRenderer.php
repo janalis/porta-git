@@ -50,7 +50,7 @@ final readonly class DiffViewRenderer
      */
     public function row(int $rowIndex, array $row, int $width): string
     {
-        return $this->decorateRowLine($rowIndex, $this->applyCharSelectionTint($rowIndex, $row, $this->renderRow($rowIndex, $row, $width), $width));
+        return $this->decorateRowLine($rowIndex, $this->applyCharSelectionTint($rowIndex, $row, $this->renderRow($row, $width), $width));
     }
 
     /**
@@ -149,7 +149,7 @@ final readonly class DiffViewRenderer
     }
 
     /** @param Row $row */
-    private function renderRow(int $rowIndex, array $row, int $width): string
+    private function renderRow(array $row, int $width): string
     {
         $hunk = $this->document->hunks[$row['hunk']];
 

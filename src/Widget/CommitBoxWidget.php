@@ -55,11 +55,11 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     private CommitMode $amend = CommitMode::Fresh;
 
     /** @var (callable(): bool)|null anything staged to commit? */
-    private $stagedChangesProvider = null;
+    private $stagedChangesProvider;
     /** @var (callable(string, CommitMode): void)|null commit with the assembled message (+ amend mode) */
-    private $onCommit = null;
+    private $onCommit;
     /** @var (callable(CommitMode): void)|null amend toggled: the controller prefills/clears the message */
-    private $onAmendToggle = null;
+    private $onAmendToggle;
 
     public function __construct(
         private readonly Translator $translator,

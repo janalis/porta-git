@@ -150,7 +150,7 @@ final class GitFlowsE2eTest extends TestCase
             $tui->handleInput("\r");
         };
 
-        $terminal = $this->runIde(
+        $this->runIde(
             $project,
             $project->path('src/A.php'),
             [
@@ -524,7 +524,7 @@ final class GitFlowsE2eTest extends TestCase
         // Modify line 2 and append a line after committing
         $project->write('src/A.php', "<?php\n\$a = 999;\n\$b = 2;\n\$c = 3;\n");
 
-        $terminal = $this->runIde(
+        $this->runIde(
             $project,
             $project->path('src/A.php'),
             [
@@ -563,7 +563,7 @@ final class GitFlowsE2eTest extends TestCase
         $project->write('src/A.php', "<?php\n\$a = 2;\n"); // unstaged edit
         $project->write('notes.md', "hi\n"); // untracked
 
-        $terminal = $this->runIde(
+        $this->runIde(
             $project,
             $project->path('src/A.php'),
             [
@@ -696,7 +696,7 @@ final class GitFlowsE2eTest extends TestCase
         $project->commitAll('init');
         $project->write('f.txt', "alpha CHANGED\nbeta\ngamma CHANGED\n");
 
-        $terminal = $this->runIde(
+        $this->runIde(
             $project,
             $project->path('f.txt'),
             [

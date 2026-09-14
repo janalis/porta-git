@@ -34,7 +34,7 @@ final class GitBranchSegmentTest extends TestCase
     private function segment(bool $showBranch, ?string $branch): GitBranchSegment
     {
         $translator = new Translator('en');
-        $tui = TestTui::create(80, 24);
+        TestTui::create(80, 24);
         $project = new TempProject();
         $git = new GitInfo($project->dir);
         $refresher = new GitRefresher($git, static function (): void {});

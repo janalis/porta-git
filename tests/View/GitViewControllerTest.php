@@ -818,7 +818,7 @@ final class GitViewControllerTest extends TestCase
         // pin both at their values here and quietly run the real binary
         // throughout — which is a test that passes against the bug.
         $controller = $this->controller(gitPath: static function () use (&$useShim, &$shim): ?string {
-            return true === $useShim ? $shim : null;
+            return $useShim ? $shim : null;
         });
         $release = $this->gitHoldingItsAnswer($shim);
         $useShim = false; // open() and everything up to the forced race runs on the real binary
@@ -871,7 +871,7 @@ final class GitViewControllerTest extends TestCase
         // pin both at their values here and quietly run the real binary
         // throughout — which is a test that passes against the bug.
         $controller = $this->controller(gitPath: static function () use (&$useShim, &$shim): ?string {
-            return true === $useShim ? $shim : null;
+            return $useShim ? $shim : null;
         });
         $release = $this->gitHoldingItsCall($shim);
         $useShim = false;
