@@ -272,7 +272,7 @@ final class IdeGitPluginTest extends TestCase
             $project->path('a.txt'),
             [
                 400 => function ($tui, $terminal, $ide) use ($project): void {
-                    $decorations = Probe::get($tui->getById('editor'), 'decorations');
+                    $decorations = $tui->getById('editor')->decorations;
                     $this->assertSame([], $decorations->vcsMarks(), 'committed and unmodified: no marks');
 
                     $project->write('a.txt', "one\nCHANGED\n"); // external edit

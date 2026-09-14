@@ -18,7 +18,6 @@ use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\Tests\Support\GitPluginHarness;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Tests\Support\GitBinary;
-use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\RecordingChangeMarkSink;
 use Porta\Tests\Support\StatusReads;
@@ -376,14 +375,14 @@ final class BlameTest extends TestCase
         $annotations = new BlameAnnotations($blame, $api);
 
         $annotations->toggle();
-        $this->await(fn (): bool => [] !== Probe::get($this->editor, 'decorations')->lineAnnotations(), what: 'the batch blame resolved');
+        $this->await(fn (): bool => [] !== $this->editor->decorations->lineAnnotations(), what: 'the batch blame resolved');
 
-        $shown = Probe::get($this->editor, 'decorations')->lineAnnotations();
+        $shown = $this->editor->decorations->lineAnnotations();
         $this->assertCount(2, $shown, 'one annotation per line');
         $this->assertStringContainsString('tester', $shown[0], 'the author is in the annotation');
 
         $annotations->toggle();
-        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'toggling off clears them');
+        $this->assertSame([], $this->editor->decorations->lineAnnotations(), 'toggling off clears them');
     }
 
     public function testWithBlameOnASwitchOrSaveRepublishes(): void
@@ -394,11 +393,11 @@ final class BlameTest extends TestCase
 
         // The editor drops annotations on every document show, which is exactly
         // why the hooks exist: nothing is showing until one fires.
-        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations());
+        $this->assertSame([], $this->editor->decorations->lineAnnotations());
 
         $annotations->refreshIfEnabled();
-        $this->await(fn (): bool => [] !== Probe::get($this->editor, 'decorations')->lineAnnotations(), what: 'the hook republished');
-        $this->assertNotSame([], Probe::get($this->editor, 'decorations')->lineAnnotations());
+        $this->await(fn (): bool => [] !== $this->editor->decorations->lineAnnotations(), what: 'the hook republished');
+        $this->assertNotSame([], $this->editor->decorations->lineAnnotations());
     }
 
     public function testTheBlameDefaultSettingTurnsAnnotationsOnAndOffLive(): void
@@ -411,13 +410,13 @@ final class BlameTest extends TestCase
         $api = $this->api();
         $blame = $this->openCommittedFile();
         $annotations = new BlameAnnotations($blame, $api);
-        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'off to begin with');
+        $this->assertSame([], $this->editor->decorations->lineAnnotations(), 'off to begin with');
 
         $annotations->setEnabled(true);
-        $this->await(fn (): bool => [] !== Probe::get($this->editor, 'decorations')->lineAnnotations(), what: 'the setting to show annotations');
+        $this->await(fn (): bool => [] !== $this->editor->decorations->lineAnnotations(), what: 'the setting to show annotations');
 
         $annotations->setEnabled(false);
-        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'and to hide them again');
+        $this->assertSame([], $this->editor->decorations->lineAnnotations(), 'and to hide them again');
     }
 
     public function testSettingBlameDefaultToTheStateItAlreadyHasIsANoOp(): void
@@ -428,12 +427,12 @@ final class BlameTest extends TestCase
         $api = $this->api();
         $blame = $this->openCommittedFile();
         $annotations = new BlameAnnotations($blame, $api);
-        Probe::get($this->editor, 'decorations')->setLineAnnotations(['sentinel']);
+        $this->editor->decorations->setLineAnnotations(['sentinel']);
 
         $annotations->setEnabled(false);
         $this->pump(0.2); // a non-event: nothing is spawned, so there is nothing to await
 
-        $this->assertSame(['sentinel'], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'already off: nothing ran');
+        $this->assertSame(['sentinel'], $this->editor->decorations->lineAnnotations(), 'already off: nothing ran');
     }
 
     public function testWithBlameOffTheHooksDoNothing(): void
@@ -454,7 +453,7 @@ final class BlameTest extends TestCase
         new BlameAnnotations($blame, $api)->refreshIfEnabled();
         $this->pump(2.0); // ample: the enabled tests above resolve well inside this
 
-        $this->assertSame([0 => 'sentinel'], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'disabled: no blame is run, so nothing replaced the sentinel');
+        $this->assertSame([0 => 'sentinel'], $this->editor->decorations->lineAnnotations(), 'disabled: no blame is run, so nothing replaced the sentinel');
     }
 
     public function testAStaleResponseAfterTogglingOffIsDropped(): void
@@ -467,7 +466,7 @@ final class BlameTest extends TestCase
         $annotations->toggle(); // off, before it can answer
         $this->pump(0.5);
 
-        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations(), 'the answer to a cancelled run is dropped');
+        $this->assertSame([], $this->editor->decorations->lineAnnotations(), 'the answer to a cancelled run is dropped');
     }
 
     public function testEnabledWithNoActiveFileIsANoOp(): void
@@ -479,7 +478,7 @@ final class BlameTest extends TestCase
         new BlameAnnotations(new BlameClient($this->project->dir), $api, showByDefault: true)->refreshIfEnabled();
 
         $this->pump(0.2);
-        $this->assertSame([], Probe::get($this->editor, 'decorations')->lineAnnotations());
+        $this->assertSame([], $this->editor->decorations->lineAnnotations());
     }
 
     public function testTogglingOnWithoutARepositorySaysSo(): void

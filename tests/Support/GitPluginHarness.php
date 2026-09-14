@@ -66,7 +66,7 @@ final readonly class GitPluginHarness
             new RecordingFileOpener(),
             $tui,
             new RecordingDiagnosticsSink(),
-            $editor->decorations(),
+            $editor->decorations,
             $marks = new RecordingChangeMarkSink(),
             $statuses = new FileStatuses(),
             $buffers = new BufferManager(),
