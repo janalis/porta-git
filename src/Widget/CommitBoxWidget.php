@@ -253,13 +253,14 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         $lines[] = HeaderRenderer::title($header, $width, $this->styles, suffix: 'Esc');
 
         $summary = ' '.$this->summary->render(cursor: $focused && 0 === $this->activeField ? CaretVisibility::Shown : CaretVisibility::Hidden, width: $width - 1);
-        $summaryHint = '' === $this->summary->value() && !($focused && 0 === $this->activeField)
-            ? $this->styles->of(Role::Dim)->apply(' '.$this->translator->trans('Summary (required)'))
-            : $summary;
+        $summaryHint =
+            '' === $this->summary->value() && (!$focused || 0 !== $this->activeField)
+                ? $this->styles->of(Role::Dim)->apply(' '.$this->translator->trans('Summary (required)'))
+                : $summary;
         $lines[] = $this->styles->of(Role::RowHighlightBg)->apply(AnsiText::truncate($summaryHint, $width, pad: true));
 
         $descriptionLines = $this->description->render($width - 1, self::DESCRIPTION_ROWS, cursor: $focused && 1 === $this->activeField ? CaretVisibility::Shown : CaretVisibility::Hidden);
-        if ($this->description->isEmpty() && !($focused && 1 === $this->activeField)) {
+        if ($this->description->isEmpty() && (!$focused || 1 !== $this->activeField)) {
             $descriptionLines = [$this->styles->of(Role::Dim)->apply($this->translator->trans('Description'))];
         }
         for ($i = 0; $i < self::DESCRIPTION_ROWS; ++$i) {

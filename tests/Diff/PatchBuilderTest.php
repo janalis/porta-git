@@ -166,7 +166,7 @@ final class PatchBuilderTest extends TestCase
         $selected = [];
         foreach ($doc->hunks as $h => $hunk) {
             foreach ($hunk->lines as $i => $line) {
-                if (!('-' === $line->origin && 'three' === $line->text)) {
+                if ('-' !== $line->origin || 'three' !== $line->text) {
                     continue;
                 }
 
