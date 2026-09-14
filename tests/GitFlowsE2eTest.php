@@ -6,6 +6,7 @@ namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
+use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\EditorState;
 use Porta\Tests\Support\GitBinary;
@@ -14,6 +15,7 @@ use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RunsIde;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
+use Porta\Tests\Support\Toasts;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\ContextMenu;
@@ -21,6 +23,8 @@ use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Terminal\VirtualTerminal;
+use Symfony\Component\Tui\Tui;
 
 /**
  * Git flows through the full app: staging, commits, branches,
@@ -46,7 +50,7 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('a.php'),
             [
-                300 => function ($tui, $terminal, $ide): void {
+                300 => function (Tui $tui, $terminal, Ide $ide): void {
                     $status = $tui->getById('status');
                     // The branch resolves asynchronously; wait for it to render.
                     $this->await(static fn (): bool => null !== self::clickableColumn($status), what: 'the branch to render in the status bar');
@@ -102,7 +106,7 @@ final class GitFlowsE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
-                600 => function ($tui): void {
+                600 => function (Tui $tui): void {
                     $this->frame($tui);
                     $this->assertSame(40, $tui->getById('git-changes')->width(), 'the seeded percent applied at startup');
                     // Drag the git separator (SGR col 41 with a 40-wide sidebar)
@@ -190,7 +194,7 @@ final class GitFlowsE2eTest extends TestCase
                     }
                     $tui->handleInput("\r"); // commit
                 },
-                500 => function ($tui, $terminal, $ide) use ($project): void {
+                500 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Committed: my commit'), what: 'the async commit to flash');
                     // Undoing it is `git_undo_commit`, which the git plugin owns
                     // now; its own suite covers that half.
@@ -227,7 +231,7 @@ final class GitFlowsE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // ctrl+alt+d → the git view owns the main area
                 },
-                600 => function ($tui, $terminal, $ide): void {
+                600 => function ($tui, $terminal, Ide $ide): void {
                     $screen = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     // From the container, not getById: the git view has DETACHED the
                     // editor and getById refuses a widget that is not mounted.
@@ -294,7 +298,7 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                300 => function ($tui, $terminal, $ide): void {
+                300 => function ($tui, $terminal, Ide $ide): void {
                     $labels = \array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
                     // 'Git: Changes' is ide_git, which this plugin ADOPTS. It
                     // was core's until the view became a plugin's, and the flip
@@ -323,7 +327,7 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                300 => function ($tui, $terminal, $ide): void {
+                300 => function ($tui, $terminal, Ide $ide): void {
                     $labels = \array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
                     // A contiguous tail, not one pinned label: git is a plugin
                     // now, and plugins commit after every core provider has
@@ -374,7 +378,7 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                300 => function ($tui, $terminal, $ide) use ($project, $palette): void {
+                300 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project, $palette): void {
                     $editor = $tui->getById('editor');
                     $screen = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
 
@@ -435,7 +439,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\r");
                     $this->awaitGit($ide);
                     $this->await(static fn (): bool => 'origin/remote-only' === $project->git('rev-parse', '--abbrev-ref', 'remote-only@{upstream}'), what: 'the tracking branch to exist');
-                    $this->assertStringContainsString('Switched to remote-only (tracking origin/remote-only)', \Porta\Tests\Support\Toasts::last($ide));
+                    $this->assertStringContainsString('Switched to remote-only (tracking origin/remote-only)', Toasts::last($ide));
 
                     // Round 5: the delete picker, cancelled. The gates read
                     // the CURRENT grid (screenGrid forces a full frame) — the
@@ -492,12 +496,12 @@ final class GitFlowsE2eTest extends TestCase
                     }
                     $tui->handleInput("\r");
                 },
-                700 => function ($tui): void {
+                700 => function (Tui $tui): void {
                     $this->frame($tui);
                     $tui->handleInput("\x1b[B"); // the "− Delete branch…" row
                     $tui->handleInput("\r");
                 },
-                1100 => function ($tui, $terminal): void {
+                1100 => function (Tui $tui, VirtualTerminal $terminal): void {
                     $this->awaitPainted($tui, $terminal, 'No other local branches to delete');
                     $this->assertStringContainsString('No other local branches to delete', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                 },
@@ -524,7 +528,7 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                500 => function ($tui, $terminal): void {
+                500 => function (Tui $tui, $terminal): void {
                     // Branch + gutter marks resolve through two async git
                     // round trips; await each, never a fixed gap.
                     $status = $tui->getById('status');
@@ -537,7 +541,7 @@ final class GitFlowsE2eTest extends TestCase
                     // asserted in its own suite; the width contract the gutter
                     // column imposes is still core's.
                     $editor = $tui->getById('editor');
-                    foreach ($editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)) as $line) {
+                    foreach ($editor->render(new RenderContext(80, 10)) as $line) {
                         $this->assertSame(80, AnsiUtils::visibleWidth($line));
                     }
                 },
@@ -566,7 +570,7 @@ final class GitFlowsE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // ctrl+alt+d opens the git view
                 },
-                550 => function ($tui, $terminal, $ide) use ($project): void {
+                550 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     // The view fills through status -> chained diff; await the
                     // rendered tail, never a fixed gap.
                     $screen = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
@@ -629,7 +633,7 @@ final class GitFlowsE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // ctrl+alt+d opens the git view
                 },
-                550 => function ($tui, $terminal, $ide) use ($project): void {
+                550 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '[ ] M src/A.php'));
                     $renderer = Services::resolve($ide, Renderer::class);
                     $rect = $renderer->getWidgetRect($tui->getById('git-changes'));
@@ -658,7 +662,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->awaitGit($ide);
                     $this->assertContains('M  src/A.php', \explode("\n", $project->git('status', '--porcelain')), 'the row staged');
                 },
-                1000 => function ($tui, $terminal, $ide): void {
+                1000 => function (Tui $tui, $terminal, $ide): void {
                     $this->frame($tui);
                     // Keyboard parity: Ctrl+F10 on the (focused) changes list —
                     // a staged row offers Unstage; Discard… arms the confirm bar.
@@ -699,7 +703,7 @@ final class GitFlowsE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
-                600 => function ($tui, $terminal, $ide) use ($project): void {
+                600 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     // The diff pane fills through status -> chained diff; the
                     // arrows must not walk rows that aren't there yet.
                     $screen = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
@@ -747,12 +751,12 @@ final class GitFlowsE2eTest extends TestCase
                 150 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
-                250 => function ($tui): void {
+                250 => function (Tui $tui): void {
                     $this->frame($tui);
                     // F10 opens the app menu OVER the git view now.
                     $tui->handleInput("\x1b[21~");
                 },
-                350 => function ($tui, $terminal): void {
+                350 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertSame('menu', $tui->getFocus()?->getId(), 'F10 focused the menu bar');
@@ -766,7 +770,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;5;3M");
                     $tui->handleInput("\x1b[<0;5;3m");
                 },
-                450 => function ($tui, $terminal, $ide): void {
+                450 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
                     $this->frame($tui);
                     $this->assertSame('git-changes', $tui->getFocus()?->getId(), 'closing the menu restores the git focus target');
                     // The row clicked below only exists once `git status` has
@@ -800,7 +804,7 @@ final class GitFlowsE2eTest extends TestCase
                     // Hover row 5 (b.txt): a tint only — the diff must NOT load.
                     $tui->handleInput("\x1b[<35;10;5M");
                 },
-                650 => function ($tui, $terminal): void {
+                650 => function (Tui $tui, VirtualTerminal $terminal): void {
                     // The POSITIVE first: a.txt's diff on screen is what makes
                     // "+new is absent" mean the hover declined to load, rather
                     // than that nothing has happened yet.
@@ -813,7 +817,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;10;5M");
                     $tui->handleInput("\x1b[<0;10;5m");
                 },
-                750 => function ($tui, $terminal): void {
+                750 => function (Tui $tui, VirtualTerminal $terminal): void {
                     $this->awaitPainted($tui, $terminal, '+new');
                     $this->assertStringContainsString('+new', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the click loaded the untracked diff');
                     // Horizontal wheel (trackpad code 67) over the diff pane
@@ -886,13 +890,13 @@ final class GitFlowsE2eTest extends TestCase
                 100 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
-                200 => function ($tui): void {
+                200 => function (Tui $tui): void {
                     $this->frame($tui);
                     // Click the [History] tab cell (tab strip = screen row 2).
                     $tui->handleInput("\x1b[<0;14;2M");
                     $tui->handleInput("\x1b[<0;14;2m");
                 },
-                300 => function ($tui, $terminal): void {
+                300 => function (Tui $tui, VirtualTerminal $terminal): void {
                     // TWO subprocesses, not one: `git log` fills the history
                     // list, and selecting its top commit then loads that
                     // commit's file list. Awaiting the first (History (2))
@@ -910,7 +914,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;10;4M");
                     $tui->handleInput("\x1b[<0;10;4m");
                 },
-                400 => function ($tui, $terminal): void {
+                400 => function (Tui $tui, VirtualTerminal $terminal): void {
                     // The clicked commit's files settled AND its first file's
                     // patch auto-loaded — no keystroke needed to see a diff.
                     $this->awaitPainted($tui, $terminal, '+more');
@@ -918,7 +922,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[B"); // wiggle selection to refire the load
                     $tui->handleInput("\x1b[A");
                 },
-                500 => function ($tui, $terminal): void {
+                500 => function (Tui $tui, VirtualTerminal $terminal): void {
                     $this->assertStringContainsString('+more', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the commit patch renders read-only');
                     // Click the [Changes] tab to switch back, and await the
                     // paint the post-run assertion reads — the loop stops 80 ms
@@ -948,7 +952,7 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('a.php'),
             [
-                400 => function ($tui, $terminal, $ide): void {
+                400 => function (Tui $tui, $terminal, Ide $ide): void {
                     $commands = Services::resolve($ide, CommandRegistry::class);
                     $views = Services::resolve($ide, ViewRegistry::class);
                     // The verb TOGGLES, and it has to go through the registry
@@ -976,14 +980,14 @@ final class GitFlowsE2eTest extends TestCase
                     $this->frame($tui);
                     $this->assertStringContainsString(
                         "\x1b[48;5;240m",
-                        \implode('', $tui->getById('git-tabs')->render(new \Symfony\Component\Tui\Render\RenderContext(44, 1))),
+                        \implode('', $tui->getById('git-tabs')->render(new RenderContext(44, 1))),
                         'the hovered git tab tints',
                     );
                     $tui->handleInput(\sprintf("\x1b[<35;%d;%dM", $tabsRect->col + 2, $tabsRect->row + 3)); // off the strip
                     $this->frame($tui);
                     $this->assertStringNotContainsString(
                         "\x1b[48;5;240m",
-                        \implode('', $tui->getById('git-tabs')->render(new \Symfony\Component\Tui\Render\RenderContext(44, 1))),
+                        \implode('', $tui->getById('git-tabs')->render(new RenderContext(44, 1))),
                         'leaving the strip clears the tint',
                     );
 
@@ -1030,7 +1034,7 @@ final class GitFlowsE2eTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal, $ide) use ($palette): void {
+                400 => function ($tui, $terminal, Ide $ide) use ($palette): void {
                     $this->awaitGit($ide);
                     $terminal->clearOutput();
                     $palette($tui, label: 'Git: File History');

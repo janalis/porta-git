@@ -10,6 +10,7 @@ use Porta\GitPlugin\Parse\HunkParser;
 use Porta\GitPlugin\Setting\GitSettings;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
 
@@ -170,7 +171,7 @@ final class GitInfoTest extends TestCase
         $this->gitCommit($project, 'a.txt');
 
         $git = new GitInfo($project->dir);
-        $lane = \Porta\Tests\Support\Probe::get(\Porta\Tests\Support\Probe::get($git, 'runner'), 'lane');
+        $lane = Probe::get(Probe::get($git, 'runner'), 'lane');
         $busy = static fn (): bool => 0 !== $lane->inFlight();
         $this->assertFalse($busy(), 'idle before any op is dispatched');
 

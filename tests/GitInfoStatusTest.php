@@ -687,7 +687,7 @@ final class GitInfoStatusTest extends TestCase
         $this->await(static function () use (&$commits): bool {
             return null !== $commits;
         });
-        $this->assertSame(['touch-a-2', 'touch-a-1', 'init'], \array_map(static fn ($e) => $e->subject, $commits), 'only commits touching a.txt');
+        $this->assertSame(['touch-a-2', 'touch-a-1', 'init'], \array_map(static fn ($e): string => $e->subject, $commits), 'only commits touching a.txt');
 
         $commits = null;
         $git->log(
@@ -701,6 +701,6 @@ final class GitInfoStatusTest extends TestCase
         $this->await(static function () use (&$commits): bool {
             return null !== $commits;
         });
-        $this->assertSame(['touch-a-1'], \array_map(static fn ($e) => $e->subject, $commits), 'skip pages within the filter');
+        $this->assertSame(['touch-a-1'], \array_map(static fn ($e): string => $e->subject, $commits), 'skip pages within the filter');
     }
 }

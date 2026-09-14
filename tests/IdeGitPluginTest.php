@@ -10,6 +10,7 @@ use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
 use Porta\Event\IdeShuttingDown;
 use Porta\Event\TreeDropRequested;
+use Porta\Ide;
 use Porta\Plugin\Lifecycle\PluginLifecycle;
 use Porta\Support\AsyncProcess;
 use Porta\Tests\Support\ClearsPortaLsp;
@@ -25,7 +26,9 @@ use Porta\Ui\Glyphs;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
+use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Tui;
 
 /**
  * Blame through a real IDE — and above all, that moving it out of `src/` cost
@@ -62,7 +65,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                300 => function ($tui, $terminal, $ide): void {
+                300 => function ($tui, $terminal, Ide $ide): void {
                     $labels = \array_column(Services::resolve($ide, CommandRegistry::class)->paletteCommands(), 'label');
                     // Core's labels, not "git:blame" — the ids were adopted bare.
                     $this->assertContains('Git: Blame Current Line', $labels);
@@ -71,7 +74,7 @@ final class IdeGitPluginTest extends TestCase
                     // And the entry is still in the GIT menu, not the trailing
                     // Plugins one, because core still names the id.
                     $git = \array_values(\array_filter(
-                        \Porta\Tests\Support\Probe::get($tui->getById('menu'), 'menus'),
+                        Probe::get($tui->getById('menu'), 'menus'),
                         static fn ($menu): bool => 'Git' === $menu->title,
                     ));
                     $this->assertCount(1, $git, 'the Git menu is built');
@@ -98,7 +101,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal, $ide): void {
+                400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     self::assertNotNull($view, 'the git view registered');
 
@@ -147,7 +150,7 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal): void {
                     $editor = $tui->getById('editor');
-                    $joined = static fn (): string => \implode('', $editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)));
+                    $joined = static fn (): string => \implode('', $editor->render(new RenderContext(80, 10)));
 
                     $this->await(static fn (): bool => \str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
                     $this->assertStringContainsString("\x1b[38;5;114m▎", $joined(), 'and the added mark with it');
@@ -187,7 +190,7 @@ final class IdeGitPluginTest extends TestCase
                     $rows = static function () use ($tree): string {
                         $tree->beforeRender();
 
-                        return AnsiUtils::stripAnsiCodes(\implode("\n", $tree->render(new \Symfony\Component\Tui\Render\RenderContext(30, 12))));
+                        return AnsiUtils::stripAnsiCodes(\implode("\n", $tree->render(new RenderContext(30, 12))));
                     };
 
                     $this->await(static fn (): bool => 1 === \preg_match('/tracked\.php\s+┆$/m', $rows()), what: 'the modified file to be marked');
@@ -223,12 +226,12 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('anchor.php'),
             [
-                600 => function ($tui, $terminal, $ide) use ($project): void {
+                600 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     $tree = $tui->getById('tree');
                     $rows = static function () use ($tree): string {
                         $tree->beforeRender();
 
-                        return AnsiUtils::stripAnsiCodes(\implode("\n", $tree->render(new \Symfony\Component\Tui\Render\RenderContext(30, 12))));
+                        return AnsiUtils::stripAnsiCodes(\implode("\n", $tree->render(new RenderContext(30, 12))));
                     };
                     // Everything is committed, so the control is a clean tree —
                     // otherwise a mark below could be one that was always there.
@@ -292,7 +295,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                300 => function ($tui, $terminal, $ide): void {
+                300 => function ($tui, $terminal, Ide $ide): void {
                     Services::resolve($ide, CommandRegistry::class)->run('git_blame');
                     $this->await(
                         static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'tester'),
@@ -315,8 +318,8 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                300 => function ($tui, $terminal, $ide): void {
-                    $editorScreen = static fn (): string => AnsiUtils::stripAnsiCodes(\implode("\n", $tui->getById('editor')->render(new \Symfony\Component\Tui\Render\RenderContext(120, 20))));
+                300 => function ($tui, $terminal, Ide $ide): void {
+                    $editorScreen = static fn (): string => AnsiUtils::stripAnsiCodes(\implode("\n", $tui->getById('editor')->render(new RenderContext(120, 20))));
                     Services::resolve($ide, CommandRegistry::class)->run('git_toggle_blame');
                     $this->await(static fn (): bool => \str_contains($editorScreen(), 'tester'), what: 'the annotations to paint');
 
@@ -390,9 +393,9 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal, $ide): void {
+                400 => function (Tui $tui, $terminal, Ide $ide): void {
                     $editor = $tui->getById('editor');
-                    $joined = static fn (): string => \implode('', $editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)));
+                    $joined = static fn (): string => \implode('', $editor->render(new RenderContext(80, 10)));
                     $this->await(static fn (): bool => \str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
 
                     // The seam the Settings page reaches once it has written
@@ -429,7 +432,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal, $ide): void {
+                400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     self::assertNotNull($view);
                     $settings = Probe::get($view, 'gitSettings');
@@ -508,7 +511,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal, $ide): void {
+                400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     self::assertNotNull($view);
                     $git = Probe::get($view, 'git');
@@ -537,7 +540,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal, $ide): void {
+                400 => function (Tui $tui, $terminal, Ide $ide): void {
                     // Read off the TERMINAL, not the widget: the cell is pulled
                     // by the status bar's provider during a real frame, and a
                     // bare render() of the widget re-uses its cached line.
@@ -571,7 +574,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal, $ide) use ($project): void {
+                400 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     self::assertNotNull($view);
                     $general = Probe::get(Probe::get($view, 'git'), 'runner');
@@ -624,7 +627,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                300 => function ($tui, $terminal, $ide): void {
+                300 => function (Tui $tui, $terminal, Ide $ide): void {
                     $views = Services::resolve($ide, ViewRegistry::class);
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
                     $menuTitles = static fn (): array => \array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
@@ -673,7 +676,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal, $ide): void {
+                400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     self::assertNotNull($view);
                     $general = Probe::get(Probe::get(Probe::get($view, 'git'), 'runner'), 'lane');
@@ -715,7 +718,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('a.php'),
             [
-                300 => function ($tui, $terminal, $ide): void {
+                300 => function ($tui, $terminal, Ide $ide): void {
                     $tree = $tui->getById('tree');
                     // Rows are alphabetical with dot files shown, so the tree
                     // reads `.porta.json`, `a.php`, `b.php` — and the cursor
@@ -742,7 +745,7 @@ final class IdeGitPluginTest extends TestCase
                     $this->assertStringContainsString('+$x = 2;', $screen, "and the right file's, marked as brought in");
                     $this->assertStringContainsString('a.php ↔ b.php', $screen, 'and the pair is named, because the rows do not say which file is which');
                 },
-                600 => function ($tui, $terminal, $ide): void {
+                600 => function (Tui $tui, $terminal, Ide $ide): void {
                     // And the way a person finds it: the tree row's own
                     // right-click, on the pair that is still selected.
                     $rect = Services::resolve($ide, Renderer::class)->getWidgetRect($tui->getById('tree'));
@@ -798,7 +801,7 @@ final class IdeGitPluginTest extends TestCase
                     /** @return list<string> e.g. ['M1'] — the kind and row of each GUTTER mark */
                     $gutterMarks = static function () use ($editor): array {
                         $out = [];
-                        foreach ($editor->render(new \Symfony\Component\Tui\Render\RenderContext(80, 10)) as $row => $line) {
+                        foreach ($editor->render(new RenderContext(80, 10)) as $row => $line) {
                             $gutter = AnsiUtils::sliceByColumn($line, 0, $editor->gutterWidth());
                             if (\str_contains($gutter, Glyphs::VCS_MODIFIED)) {
                                 $out[] = 'M'.$row;

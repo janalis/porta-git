@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Tests\Command;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\Editor\Document;
 use Porta\GitPlugin\Command\GitCommands;
@@ -119,7 +120,7 @@ final class GitCommandsTest extends TestCase
     }
 
     /** @param callable(GitCommands): void $action */
-    #[\PHPUnit\Framework\Attributes\DataProvider('outsideARepo')]
+    #[DataProvider('outsideARepo')]
     public function testActionsRefuseOutsideARepository(callable $action): void
     {
         $commands = $this->commandsOutsideRepo(['a.txt' => "one\n"]);

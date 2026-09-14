@@ -10,6 +10,7 @@ use Porta\Editor\BufferManager;
 use Porta\Editor\EditorPanes;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
+use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\Command\GitRemoteCommands;
 use Porta\GitPlugin\Command\RefreshMode;
@@ -67,6 +68,7 @@ use Porta\Widget\ResultsPanelWidget;
 use Porta\Widget\StatusBarWidget;
 use Porta\Widget\TerminalPanelWidget;
 use Porta\Workbench\EditorArea;
+use Porta\Workbench\Menu\Menu;
 use Porta\Workbench\Notifier;
 use Porta\Workbench\View\ViewHost;
 use Porta\Workbench\View\ViewRegistry;
@@ -389,25 +391,25 @@ final class GitViewControllerTest extends TestCase
     {
         $controller = $this->controller();
 
-        $this->menuBar->setMenus([new \Porta\Workbench\Menu\Menu('File', [])]);
+        $this->menuBar->setMenus([new Menu('File', [])]);
         $this->menuBar->open(0);
         $controller->toggle();
         $this->assertTrue($controller->isOpen());
-        $this->assertSame(['git-area'], \array_map(static fn ($w) => $w->getId(), $this->main->all()));
+        $this->assertSame(['git-area'], \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all()));
         $this->assertFalse($this->menuBar->isOpen(), 'an open dropdown closes across the swap');
         $controller->open(); // idempotent
         $this->assertTrue($controller->isOpen());
 
         $controller->toggle();
         $this->assertFalse($controller->isOpen());
-        $this->assertSame(['edit-stub'], \array_map(static fn ($w) => $w->getId(), $this->main->all()));
+        $this->assertSame(['edit-stub'], \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all()));
         $this->assertSame($this->editor, $this->tui->getFocus(), 'close restores focus to the editor area');
         $controller->close(); // idempotent
-        $this->assertSame(['edit-stub'], \array_map(static fn ($w) => $w->getId(), $this->main->all()));
+        $this->assertSame(['edit-stub'], \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all()));
 
         $controller->toggle(); // second round trip stays stable
         $controller->toggle();
-        $this->assertSame(['edit-stub'], \array_map(static fn ($w) => $w->getId(), $this->main->all()));
+        $this->assertSame(['edit-stub'], \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all()));
     }
 
     public function testFocusTargetFollowsTheActiveTab(): void
@@ -603,7 +605,7 @@ final class GitViewControllerTest extends TestCase
         $controller->open();
         $this->await($controller->isOpen(...));
 
-        $ghost = new \Porta\GitPlugin\ChangeEntry('does-not-exist.txt', ' ', 'M');
+        $ghost = new ChangeEntry('does-not-exist.txt', ' ', 'M');
         Probe::invoke($controller, 'toggleStage', $ghost);
         $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'git refused the staging change'));
         $this->addToAssertionCount(1); // the throwing awaits above are the assertions
@@ -1092,7 +1094,11 @@ final class GitViewControllerTest extends TestCase
         $this->changes->setFocused(true);
         $this->changes->handleInput('2'); // switch to History
         $this->await(fn (): bool => null !== $this->history->selectedCommit());
-        $this->assertSame(['git-tabs', 'git-history'], \array_map(static fn ($w) => $w->getId(), $this->gitLeft->all()), 'the left pane swapped to the history list (tabs stay on top)');
+        $this->assertSame(
+            ['git-tabs', 'git-history'],
+            \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->gitLeft->all()),
+            'the left pane swapped to the history list (tabs stay on top)',
+        );
         $this->assertSame('second', $this->history->selectedCommit()?->subject);
         $this->assertTrue(Probe::get($this->diffView, 'readOnly'));
 
@@ -1251,7 +1257,7 @@ final class GitViewControllerTest extends TestCase
 
     private function historyText(): string
     {
-        return \implode("\n", \array_map(\Symfony\Component\Tui\Ansi\AnsiUtils::stripAnsiCodes(...), $this->history->render(new RenderContext(44, 20))));
+        return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->history->render(new RenderContext(44, 20))));
     }
 
     public function testFocusCycleWalksTheThreePanes(): void

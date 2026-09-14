@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\TestCase;
+use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
@@ -14,6 +15,7 @@ use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Tui;
 
 /**
  * The git view's right-click menus, through a real IDE.
@@ -48,7 +50,7 @@ final class GitContextMenuE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // ctrl+alt+d opens the git view
                 },
-                550 => function ($tui, $terminal, $ide): void {
+                550 => function ($tui, $terminal, Ide $ide): void {
                     $this->await(static fn (): bool => 'git-changes' === $tui->getFocus()?->getId());
                     $tui->handleInput('2'); // switch to the History tab
                     $this->await(static fn (): bool => null !== $tui->getById('git-history')->selectedCommit());
@@ -64,7 +66,7 @@ final class GitContextMenuE2eTest extends TestCase
                     $this->assertStringContainsString('Reset to Commit', $screen);
                     $tui->handleInput("\x1b"); // close the menu
                 },
-                900 => function ($tui, $terminal): void {
+                900 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     // Keyboard parity: Ctrl+F10 on the (focused) history list.
                     $this->assertSame('git-history', $tui->getFocus()?->getId());

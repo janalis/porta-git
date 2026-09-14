@@ -39,6 +39,7 @@ use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\GitPlugin\WorkingTreeStatus;
 use Porta\Plugin\Api\AbstractPlugin;
+use Porta\Plugin\Api\DisposablePlugin;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Support\ProjectPaths;
 use Porta\Workbench\Menu\MenuSurface;
@@ -115,7 +116,7 @@ use Symfony\Component\Tui\Style\Style;
  * - **`Widget/`**, **`Event/`** — as in `src/`: things that render, and values
  *   that travel on the dispatcher above.
  */
-return new class('git') extends AbstractPlugin implements Porta\Plugin\Api\DisposablePlugin {
+return new class('git') extends AbstractPlugin implements DisposablePlugin {
     /** The dock tab a file comparison lands in — the plugin's own bare id. */
     private const string COMPARE_TOOL = 'compare';
 
