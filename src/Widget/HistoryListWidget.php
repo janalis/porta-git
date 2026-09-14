@@ -186,7 +186,11 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
 
             return;
         }
-        if (ListNavigation::handleKey($data, $kb, $this->commitList, \count($this->commits), page: $this->lastRows)) {
+        // The commit list owns only the middle of this pane: a title, then the
+        // commits, then the Files header and its eight rows. Paging by the pane
+        // height therefore jumped TEN commits further than the screen showed —
+        // on a 20-row pane, a page skipped an entire page.
+        if (ListNavigation::handleKey($data, $kb, $this->commitList, \count($this->commits), page: $this->commitRowCount())) {
             $this->fireSelectCommit();
             // Hitting the bottom of the loaded page pulls the next one in
             // (keyboard and wheel — GitMouseRouter translates scroll to keys).

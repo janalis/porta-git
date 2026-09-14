@@ -141,7 +141,8 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         if ($this->handleGitPaneKey($data, $kb)) {
             return;
         }
-        if (ListNavigation::handleKey($data, $kb, $this->list, \count($this->entries), page: $this->lastRows)) {
+        // Minus the title row, matching render()'s follow() budget.
+        if (ListNavigation::handleKey($data, $kb, $this->list, \count($this->entries), page: $this->lastRows - 1)) {
             $this->fireSelect();
             $this->invalidate();
 

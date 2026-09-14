@@ -12,6 +12,7 @@ use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\I18n\Translator;
+use Porta\Tests\Support\PagesThroughRows;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RendersWidget;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -19,7 +20,28 @@ use Symfony\Component\Tui\Render\RenderContext;
 
 final class ChangesListWidgetTest extends TestCase
 {
+    use PagesThroughRows;
     use RendersWidget;
+
+    /** Minus the title row: paging by the pane height slid one file per press past the screen. */
+    public function testPagingDownShowsEveryChangedFile(): void
+    {
+        $widget = new ChangesListWidget(new Translator('en'));
+        $entries = [];
+        $labels = [];
+        for ($i = 0; $i < 40; ++$i) {
+            $path = \sprintf('src/f%02d.php', $i);
+            $labels[] = $path;
+            $entries[] = new ChangeEntry($path, ' ', 'M');
+        }
+        $widget->setEntries($entries);
+
+        self::assertPagingShowsEveryRow(
+            fn (): string => $this->plain($widget->render(new RenderContext(44, 9))),
+            static fn () => $widget->handleInput("\x1b[6~"),
+            $labels,
+        );
+    }
 
     /** @return list<ChangeEntry> */
     private function entries(): array

@@ -13,6 +13,7 @@ use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\AttachedStyles;
+use Porta\Tests\Support\PagesThroughRows;
 use Porta\Tests\Support\RendersWidget;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
@@ -20,7 +21,34 @@ use Symfony\Component\Tui\Render\RenderContext;
 
 final class HistoryListWidgetTest extends TestCase
 {
+    use PagesThroughRows;
     use RendersWidget;
+
+    /**
+     * The worst of the four. This pane gives the commit list only its middle:
+     * a title, the commits, the Files header and eight file rows. Paging by the
+     * pane height therefore moved TEN commits further than the screen showed,
+     * so on a twenty-row pane a page skipped a whole page.
+     */
+    public function testPagingDownShowsEveryCommit(): void
+    {
+        $widget = new HistoryListWidget(new Translator('en'));
+        $widget->setFocused(true);
+        $commits = [];
+        $labels = [];
+        for ($i = 0; $i < 60; ++$i) {
+            $subject = \sprintf('Commit %02d', $i);
+            $labels[] = $subject;
+            $commits[] = new LogEntry("full{$i}", \sprintf('sha%03d', $i), 'Alice', 1_700_000_000 - $i, $subject);
+        }
+        $widget->setCommits($commits);
+
+        self::assertPagingShowsEveryRow(
+            fn (): string => $this->plain($widget->render(new RenderContext(60, 20))),
+            static fn () => $widget->handleInput("\x1b[6~"),
+            $labels,
+        );
+    }
 
     private function widget(?EventDispatcher $events = null): HistoryListWidget
     {
