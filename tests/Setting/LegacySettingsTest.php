@@ -39,9 +39,9 @@ final class LegacySettingsTest extends TestCase
 
         $settings = new GitSettings($legacy->seed($this->defaults()));
 
-        $this->assertFalse($settings->showBranch());
-        $this->assertSame(9, $settings->refreshInterval());
-        $this->assertSame('/opt/git', $settings->path());
+        $this->assertFalse($settings->showBranch);
+        $this->assertSame(9, $settings->refreshInterval);
+        $this->assertSame('/opt/git', $settings->path);
         $this->assertSame(['showBranch' => false, 'refreshInterval' => 9, 'path' => '/opt/git'], $legacy->adoptions(), 'exactly the touched keys write through');
         $this->assertCount(8, LegacySettings::RENAMED, 'all eight pre-move keys stay adoptable');
     }

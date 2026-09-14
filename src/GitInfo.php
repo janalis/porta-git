@@ -433,11 +433,11 @@ final readonly class GitInfo
             return [];
         }
         // Explicit --no-gpg-sign so "off" overrides a repo's commit.gpgsign=true.
-        $flags = [$this->gitSettings->signCommits() ? '-S' : '--no-gpg-sign'];
-        if ($this->gitSettings->noVerify()) {
+        $flags = [$this->gitSettings->signCommits ? '-S' : '--no-gpg-sign'];
+        if ($this->gitSettings->noVerify) {
             $flags[] = '--no-verify';
         }
-        if ($this->gitSettings->signoff()) {
+        if ($this->gitSettings->signoff) {
             $flags[] = '--signoff';
         }
 

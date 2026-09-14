@@ -38,7 +38,7 @@ final readonly class GitBranchSegment
     /** The cell, or null when the setting is off or git has not answered yet. */
     public function statusCell(): ?StatusCell
     {
-        if (!$this->settings->showBranch()) {
+        if (!$this->settings->showBranch) {
             return null;
         }
         $branch = $this->refresher->branch();

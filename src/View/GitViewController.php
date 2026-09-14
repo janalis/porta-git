@@ -247,7 +247,7 @@ final class GitViewController implements ContributedView
         if (null !== $this->poll) {
             EventLoop::cancel($this->poll);
         }
-        $interval = (float) ($this->gitSettings?->refreshInterval() ?? 2);
+        $interval = (float) ($this->gitSettings->refreshInterval ?? 2);
         $this->poll = EventLoop::repeat($interval, fn () => $this->refresh(RefreshMode::Quiet));
     }
 

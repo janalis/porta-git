@@ -21,14 +21,21 @@ namespace Porta\GitPlugin\Setting;
  */
 final class GitSettings
 {
-    private bool $showBranch;
-    private bool $gutterMarks;
-    private bool $blameDefault;
-    private bool $signCommits;
-    private bool $noVerify;
-    private bool $signoff;
-    private int $refreshInterval;
-    private string $path;
+    /** The configured `git` binary, or '' to discover one. */
+    public string $path;
+    public bool $showBranch;
+    public bool $gutterMarks;
+    public bool $blameDefault;
+    public bool $signCommits;
+    public bool $noVerify;
+    public bool $signoff;
+
+    /** Seconds between background status polls; never below one. */
+    public int $refreshInterval {
+        set(int $seconds) {
+            $this->refreshInterval = \max(1, $seconds);
+        }
+    }
 
     /** @param array<string, int|bool|string> $settings this plugin's resolved settings (defaults merged) */
     public function __construct(array $settings)
@@ -39,88 +46,7 @@ final class GitSettings
         $this->signCommits = (bool) ($settings['signCommits'] ?? false);
         $this->noVerify = (bool) ($settings['noVerify'] ?? false);
         $this->signoff = (bool) ($settings['signoff'] ?? false);
-        $this->refreshInterval = \max(1, (int) ($settings['refreshInterval'] ?? 2));
+        $this->refreshInterval = (int) ($settings['refreshInterval'] ?? 2);
         $this->path = (string) ($settings['path'] ?? '');
-    }
-
-    /** The configured `git` binary, or '' to discover one. */
-    public function path(): string
-    {
-        return $this->path;
-    }
-
-    public function setPath(string $path): void
-    {
-        $this->path = $path;
-    }
-
-    public function showBranch(): bool
-    {
-        return $this->showBranch;
-    }
-
-    public function setShowBranch(bool $on): void
-    {
-        $this->showBranch = $on;
-    }
-
-    public function gutterMarks(): bool
-    {
-        return $this->gutterMarks;
-    }
-
-    public function setGutterMarks(bool $on): void
-    {
-        $this->gutterMarks = $on;
-    }
-
-    public function blameDefault(): bool
-    {
-        return $this->blameDefault;
-    }
-
-    public function setBlameDefault(bool $on): void
-    {
-        $this->blameDefault = $on;
-    }
-
-    public function signCommits(): bool
-    {
-        return $this->signCommits;
-    }
-
-    public function setSignCommits(bool $on): void
-    {
-        $this->signCommits = $on;
-    }
-
-    public function noVerify(): bool
-    {
-        return $this->noVerify;
-    }
-
-    public function setNoVerify(bool $on): void
-    {
-        $this->noVerify = $on;
-    }
-
-    public function signoff(): bool
-    {
-        return $this->signoff;
-    }
-
-    public function setSignoff(bool $on): void
-    {
-        $this->signoff = $on;
-    }
-
-    public function refreshInterval(): int
-    {
-        return $this->refreshInterval;
-    }
-
-    public function setRefreshInterval(int $seconds): void
-    {
-        $this->refreshInterval = \max(1, $seconds);
     }
 }

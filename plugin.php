@@ -152,7 +152,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         // asks per spawn, so editing the `path` setting reaches the next git
         // command with no restart. '' means "discover", which the runners spell
         // as null.
-        $gitPath = static fn (): ?string => '' === $settings->path() ? null : $settings->path();
+        $gitPath = static fn (): ?string => '' === $settings->path ? null : $settings->path;
         // Write whatever was adopted through, so the file stops answering the
         // same question twice and the settings page shows what is in force.
         // From onReady, because persisting is an IDE action and activate() may
@@ -268,14 +268,14 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             // at the moment it acts, so a commit picks up `signoff` on the next
             // commit without anything else happening.
             match ($key) {
-                'showBranch' => $settings->setShowBranch((bool) $value),
-                'gutterMarks' => $settings->setGutterMarks((bool) $value),
-                'blameDefault' => $settings->setBlameDefault((bool) $value),
-                'signCommits' => $settings->setSignCommits((bool) $value),
-                'noVerify' => $settings->setNoVerify((bool) $value),
-                'signoff' => $settings->setSignoff((bool) $value),
-                'refreshInterval' => $settings->setRefreshInterval((int) $value),
-                'path' => $settings->setPath((string) $value),
+                'showBranch' => $settings->showBranch = (bool) $value,
+                'gutterMarks' => $settings->gutterMarks = (bool) $value,
+                'blameDefault' => $settings->blameDefault = (bool) $value,
+                'signCommits' => $settings->signCommits = (bool) $value,
+                'noVerify' => $settings->noVerify = (bool) $value,
+                'signoff' => $settings->signoff = (bool) $value,
+                'refreshInterval' => $settings->refreshInterval = (int) $value,
+                'path' => $settings->path = (string) $value,
                 default => null, // the two diff toggles the view writes itself
             };
             // `blameDefault` seeds a toggle whose live state lives in the
@@ -449,17 +449,17 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         // Built once, not per call: BlameAnnotations is a toggle, so it has to
         // remember whether it is on between the command and the hooks.
         $blame = new BlameClient($api->projectRoot(), $gitPath, $processes->general);
-        $annotations = new BlameAnnotations($blame, $api, $settings->blameDefault());
+        $annotations = new BlameAnnotations($blame, $api, $settings->blameDefault);
         $this->annotations = $annotations;
 
         $api->adoptCommand('git_blame', new BlameLine($blame, $api)->show(...));
         $api->adoptCommand('git_toggle_blame', $annotations->toggle(...));
 
         $api->onBufferSwitched(static fn (string $path) => $annotations->refreshIfEnabled());
-        // @mago-expect lint:prefer-first-class-callable -- refreshIfEnabled() takes no path; the arrow function is where "the saved file is deliberately ignored" is visible
+        // refreshIfEnabled() takes no path; the arrow function is where "the saved file is deliberately ignored" is visible.
         $api->onFileSaved(static fn (string $path) => $annotations->refreshIfEnabled());
 
-        $marks = new ChangeMarks($git, $api, static fn (): bool => $settings->gutterMarks());
+        $marks = new ChangeMarks($git, $api, static fn (): bool => $settings->gutterMarks);
         // The file tree's whole-repository marks. Only on things that move the
         // working tree — a save, and the three facts below (commit, remote,
         // stage/discard). Never on a buffer switch: nothing changed on disk.
@@ -478,7 +478,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
 
         // From onReady, not here: PluginApi refuses every IDE action during
         // activate().
-        $api->onReady(static fn () => $api->showChangeMarkGutter($settings->gutterMarks()));
+        $api->onReady(static fn () => $api->showChangeMarkGutter($settings->gutterMarks));
         // No onFileOpened wiring: a fresh open also fires the deduped
         // buffer-switch (the blame annotations above rely on exactly that),
         // so subscribing to both spawned two identical `git diff` processes

@@ -273,13 +273,13 @@ final class IdeGitPluginTest extends TestCase
             [
                 400 => function ($tui, $terminal, $ide) use ($project): void {
                     $decorations = $tui->getById('editor')->decorations;
-                    $this->assertSame([], $decorations->vcsMarks(), 'committed and unmodified: no marks');
+                    $this->assertSame([], $decorations->vcsMarks, 'committed and unmodified: no marks');
 
                     $project->write('a.txt', "one\nCHANGED\n"); // external edit
                     $ide->pollFilesystem();
 
-                    $this->await(static fn (): bool => [] !== $decorations->vcsMarks(), what: 'the reload to recompute the stripe');
-                    $this->assertArrayHasKey(1, $decorations->vcsMarks(), 'the changed line is marked');
+                    $this->await(static fn (): bool => [] !== $decorations->vcsMarks, what: 'the reload to recompute the stripe');
+                    $this->assertArrayHasKey(1, $decorations->vcsMarks, 'the changed line is marked');
                 },
             ],
         );
@@ -450,14 +450,14 @@ final class IdeGitPluginTest extends TestCase
                         $lifecycle->onPluginSettingChanged('git', $key, $value);
                     }
 
-                    $this->assertTrue($settings->blameDefault());
-                    $this->assertTrue($settings->signCommits());
-                    $this->assertTrue($settings->noVerify());
-                    $this->assertTrue($settings->signoff());
-                    $this->assertSame(9, $settings->refreshInterval());
+                    $this->assertTrue($settings->blameDefault);
+                    $this->assertTrue($settings->signCommits);
+                    $this->assertTrue($settings->noVerify);
+                    $this->assertTrue($settings->signoff);
+                    $this->assertSame(9, $settings->refreshInterval);
                     // `path` reaches the holder like the rest now; the runners
                     // read it through a closure per spawn, so it is live too.
-                    $this->assertSame('/opt/git', $settings->path());
+                    $this->assertSame('/opt/git', $settings->path);
 
                     // The control, and it has to start from the value an
                     // unhandled key would OVERWRITE: every holder is truthy by
@@ -466,28 +466,28 @@ final class IdeGitPluginTest extends TestCase
                     $lifecycle->onPluginSettingChanged('git', 'showBranch', false);
                     $lifecycle->onPluginSettingChanged('git', 'gutterMarks', false);
                     $before = [
-                        $settings->showBranch(),
-                        $settings->gutterMarks(),
-                        $settings->blameDefault(),
-                        $settings->signCommits(),
-                        $settings->noVerify(),
-                        $settings->signoff(),
-                        $settings->refreshInterval(),
-                        $settings->path(),
+                        $settings->showBranch,
+                        $settings->gutterMarks,
+                        $settings->blameDefault,
+                        $settings->signCommits,
+                        $settings->noVerify,
+                        $settings->signoff,
+                        $settings->refreshInterval,
+                        $settings->path,
                     ];
                     // The two diff toggles the VIEW writes itself: the match
                     // must not name them, and must not fall through to a holder.
                     $lifecycle->onPluginSettingChanged('git', 'diffSplit', true);
                     $lifecycle->onPluginSettingChanged('git', 'diffHideWhitespace', true);
                     $after = [
-                        $settings->showBranch(),
-                        $settings->gutterMarks(),
-                        $settings->blameDefault(),
-                        $settings->signCommits(),
-                        $settings->noVerify(),
-                        $settings->signoff(),
-                        $settings->refreshInterval(),
-                        $settings->path(),
+                        $settings->showBranch,
+                        $settings->gutterMarks,
+                        $settings->blameDefault,
+                        $settings->signCommits,
+                        $settings->noVerify,
+                        $settings->signoff,
+                        $settings->refreshInterval,
+                        $settings->path,
                     ];
 
                     $this->assertSame([false, false], [$before[0], $before[1]], 'the two live toggles are off before the control');
