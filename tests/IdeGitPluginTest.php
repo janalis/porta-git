@@ -576,6 +576,7 @@ final class IdeGitPluginTest extends TestCase
             $project->path('src/A.php'),
             [
                 400 => function ($tui, $terminal, Ide $ide) use ($project): void {
+                    $this->awaitGit($ide); // the boot's own status/branch reads start the count
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     $this->assertInstanceOf(ContributedView::class, $view);
                     $general = Probe::get(Probe::get($view, 'git'), 'runner');
@@ -678,6 +679,7 @@ final class IdeGitPluginTest extends TestCase
             $project->path('src/A.php'),
             [
                 400 => function ($tui, $terminal, Ide $ide): void {
+                    $this->awaitGit($ide); // the boot's own status/branch reads start the count
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     $this->assertInstanceOf(ContributedView::class, $view);
                     $general = Probe::get(Probe::get(Probe::get($view, 'git'), 'runner'), 'lane');

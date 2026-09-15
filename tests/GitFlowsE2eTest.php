@@ -496,7 +496,8 @@ final class GitFlowsE2eTest extends TestCase
                     }
                     $tui->handleInput("\r");
                 },
-                700 => function (Tui $tui): void {
+                700 => function (Tui $tui, $terminal, Ide $ide): void {
+                    $this->awaitGit($ide); // the branch picker's rows arrive in a git callback
                     $this->frame($tui);
                     $tui->handleInput("\x1b[B"); // the "− Delete branch…" row
                     $tui->handleInput("\r");
