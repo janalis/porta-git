@@ -45,7 +45,19 @@ final class WorkingTreeStatusTest extends TestCase
 
         $status->refresh();
         $status->refresh(); // still in flight: this one becomes the rerun
-        $this->pump(0.4);
+        // The control: without these, two SEQUENTIAL runs would satisfy every
+        // assertion below and the in-flight path would go untested.
+        $this->assertTrue(Probe::get($status, 'inFlight'), 'the first run is still going');
+        $this->assertTrue(Probe::get($status, 'rerun'), 'so the second was armed, not started');
+
+        // Two serial `git status` subprocesses, so a fixed pump was a gap: the
+        // marks landing with nothing in flight is the barrier. In the callback
+        // the rerun re-arms inFlight synchronously, so there is no window where
+        // both hold before the SECOND run has answered.
+        $this->await(
+            fn (): bool => [] !== $this->statuses->statuses && false === Probe::get($status, 'inFlight'),
+            what: 'both status runs to finish',
+        );
 
         $this->assertFalse(Probe::get($status, 'rerun'), 'the rerun was consumed, not left armed');
         $this->assertFalse(Probe::get($status, 'inFlight'), 'and the second run finished too');
