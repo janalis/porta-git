@@ -451,7 +451,11 @@ final class BlameTest extends TestCase
         // guard still drops the answer. See the note on that method.
         $api->setLineAnnotations([0 => 'sentinel']);
         new BlameAnnotations($blame, $api)->refreshIfEnabled();
-        $this->pump(2.0); // ample: the enabled tests above resolve well inside this
+        // 0.5s, which is the longest span any POSITIVE in this file needs (the
+        // stale-response case below) — so a run that would have written has
+        // had as long as a run that does. 2.0s was four times that and bought
+        // the same evidence.
+        $this->pump(0.5);
 
         $this->assertSame([0 => 'sentinel'], $this->editor->decorations->lineAnnotations, 'disabled: no blame is run, so nothing replaced the sentinel');
     }
