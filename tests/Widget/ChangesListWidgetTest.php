@@ -15,6 +15,8 @@ use Porta\I18n\Translator;
 use Porta\Tests\Support\PagesThroughRows;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RendersWidget;
+use Porta\Ui\Role;
+use Porta\Ui\Theme\Styles;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -413,5 +415,18 @@ final class ChangesListWidgetTest extends TestCase
         $row = $this->painted($widget, new RenderContext(300, 5))[0];
         $this->assertSame($widget->width(), AnsiUtils::visibleWidth($row));
         $this->assertStringContainsString('MMM', $row);
+    }
+
+    /** The staged mark takes the accent on every row but the selected one, whose shade it would fight. */
+    public function testTheStagedMarkIsTintedOffTheSelection(): void
+    {
+        $widget = new ChangesListWidget(new Translator('en'));
+        $widget->setEntries([new ChangeEntry('a.php', 'M', ' '), new ChangeEntry('b.php', 'M', ' ')]);
+        $accent = Styles::dark()->of(Role::TabAccent)->apply('✓');
+
+        $rows = $widget->render(new RenderContext(44, 4));
+
+        $this->assertStringNotContainsString($accent, $rows[1], 'the selected row');
+        $this->assertStringContainsString($accent, $rows[2], 'the other');
     }
 }

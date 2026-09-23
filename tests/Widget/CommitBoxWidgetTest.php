@@ -9,6 +9,8 @@ use Porta\GitPlugin\Command\CommitMode;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\RendersWidget;
+use Porta\Ui\Role;
+use Porta\Ui\Theme\Styles;
 use Porta\Widget\Render\FieldBox;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -397,5 +399,25 @@ final class CommitBoxWidgetTest extends TestCase
         $row = $this->painted($widget, new RenderContext(300, 5))[0];
         $this->assertSame($widget->width(), AnsiUtils::visibleWidth($row));
         $this->assertStringContainsString('MMM', $row);
+    }
+
+    /**
+     * The amend mark takes the accent at rest; under the pointer the whole
+     * row is Bright and underlined, and a tint's closing code there would
+     * cut that short after the mark.
+     */
+    public function testTheAmendMarkIsTintedExceptUnderThePointer(): void
+    {
+        $widget = $this->widget();
+        $widget->handleInput("\x1bm"); // Alt+M: amend on
+        $accent = Styles::dark()->of(Role::TabAccent)->apply('✓');
+        $amendRow = static fn (): string => \array_find($widget->render(new RenderContext(44, 14)), static fn (string $line): bool => \str_contains(
+            AnsiUtils::stripAnsiCodes($line),
+            'Amend last commit  ',
+        )) ?? '';
+
+        $this->assertStringContainsString($accent, $amendRow());
+        $widget->hoverRow($widget->buttonRow() - 1);
+        $this->assertStringNotContainsString($accent, $amendRow());
     }
 }

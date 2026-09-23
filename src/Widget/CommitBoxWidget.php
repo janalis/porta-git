@@ -347,11 +347,14 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         // while Space would toggle it, and dashed on a branch with no commit.
         $amend = CommitMode::Amend === $this->amend;
         $state = $this->amendable ? FieldState::of($focused && self::AMEND_FIELD === $this->activeField) : FieldState::Disabled;
-        $label = ' '.FieldBox::checkbox($amend, $state).' '.$this->translator->trans('Amend last commit');
+        // The accent on the mark, except under the pointer: the hovered row is
+        // Bright throughout, and the tint's closing code would cut that short.
+        $hovered = self::AMEND_ROW === $this->hoveredIndex;
+        $label = ' '.FieldBox::checkbox($amend, $state, $hovered ? null : $this->styles).' '.$this->translator->trans('Amend last commit');
         $lines[] = AnsiText::truncate(
             match (true) {
                 !$this->amendable => $this->styles->of(Role::Faint)->apply($label.'  '.$this->translator->trans('No commit to amend')),
-                self::AMEND_ROW === $this->hoveredIndex => $this->styles->of(Role::Bright)->withUnderline()->apply($label).$this->hint(),
+                $hovered => $this->styles->of(Role::Bright)->withUnderline()->apply($label).$this->hint(),
                 default => $label.$this->hint(),
             },
             $width,

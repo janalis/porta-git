@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
+use Porta\Ui\Theme\Styles;
 use Porta\Widget\Render\FieldBox;
 
 /**
@@ -17,12 +18,13 @@ enum StagedState
     case Partial;
     case Full;
 
-    public function checkbox(): string
+    /** @param ?Styles $tint the accent for the mark, off the selected row only ({@see FieldBox::checkbox()}) */
+    public function checkbox(?Styles $tint = null): string
     {
         return FieldBox::checkbox(match ($this) {
             self::Full => true,
             self::Partial => null,
             self::None => false,
-        });
+        }, tint: $tint);
     }
 }

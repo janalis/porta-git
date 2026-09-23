@@ -350,7 +350,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     private function entryRow(int $index, int $width): string
     {
         $entry = $this->entries[$index];
-        $checkbox = $entry->stagedState()->checkbox();
+        $checkbox = $entry->stagedState()->checkbox($this->list->isSelected($index) ? null : $this->styles);
         $status = $entry->displayStatus();
         $statusText = \array_key_exists($status, self::STATUS_ROLE) ? $this->styles->of(self::STATUS_ROLE[$status])->apply($status) : $status;
         $label = $entry->path.(null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '');
