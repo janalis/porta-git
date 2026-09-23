@@ -677,7 +677,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[B"); // → Discard…
                     $tui->handleInput("\r");
                     $this->frame($tui);
-                    $this->assertStringContainsString('Discard changes?', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Discard… armed the two-press confirmation');
+                    $this->assertStringContainsString('Discard changes to', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Discard… armed the two-press confirmation');
                     $tui->handleInput('n'); // decline
                 },
             ],

@@ -42,7 +42,7 @@ final class CommitBoxWidgetTest extends TestCase
 
     private function rendered(CommitBoxWidget $widget): string
     {
-        return $this->plain($widget->render(new RenderContext(44, 10)));
+        return $this->plain($widget->render(new RenderContext(44, 14))); // header, two boxes, the amend row, the button
     }
 
     public function testMessageAssemblyAndEnabledState(): void
@@ -89,12 +89,17 @@ final class CommitBoxWidgetTest extends TestCase
         $this->type($widget, '!');
         $this->assertStringStartsWith('Click me!', $widget->message());
 
-        $widget->handleClick($widget->buttonRow() - 1); // the description box's bottom border
+        $widget->handleClick($widget->buttonRow() - 2); // the description box's bottom border
         $this->type($widget, '.');
         $this->assertSame("Click me!\n\ndesc.", $widget->message());
         $widget->handleInput("\x7f");
 
-        $widget->handleClick($widget->buttonRow());
+        $widget->handleClick($widget->buttonRow() - 1); // the amend row: its label toggles it, like an HTML <label>
+        $this->assertTrue($widget->isAmend());
+        $widget->handleClick($widget->buttonRow() - 1);
+        $this->assertFalse($widget->isAmend());
+
+        $widget->handleClick($widget->buttonRow() + 2); // the button's bottom border is still the button
         $this->assertSame("Click me!\n\ndesc", $committed);
     }
 
@@ -133,10 +138,12 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertStringContainsString('Description', $screen);
         $this->assertStringContainsString('Commit to branch', $screen);
 
+        $this->assertMatchesRegularExpression('/┆\s+Commit to branch\s+┆/u', $screen, 'with no summary the button is disabled: dashed');
+
         $widget->setFocused(true);
         $this->type($widget, 'Msg');
-        $raw = $widget->render(new RenderContext(44, 10));
-        $this->assertStringContainsString("\x1b[48;5;31m", \implode('', $raw), 'enabled button uses the selected style');
+        $this->assertMatchesRegularExpression('/│\s+Commit to branch\s+│/u', $this->rendered($widget), 'enabled, it is an ordinary button');
+        $this->assertStringContainsString('Ctrl+Enter', $this->rendered($widget), 'its key in its border');
 
         $widget->clear();
         $this->assertSame('', $widget->message());
@@ -184,7 +191,7 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertTrue($widget->commitEnabled(), 'amending only the message needs nothing staged');
 
         $screen = $this->rendered($widget);
-        $this->assertStringContainsString('Alt+M amend '.Glyphs::CHECKBOX_ON, $screen, 'the amend state reads as a checkbox, without colour');
+        $this->assertStringContainsString(Glyphs::CHECKBOX_ON.' Amend last commit  Alt+M', $screen, 'the amend state reads as a labelled checkbox, without colour');
         $this->assertStringContainsString('Amend last commit', $screen);
 
         $widget->handleInput("\x1b[13;5u");
@@ -309,11 +316,15 @@ final class CommitBoxWidgetTest extends TestCase
         $this->type($widget, 'feat: something');
         $this->assertTrue($widget->hoverRow($widget->buttonRow()), 'the enabled button reacts under the pointer');
         $this->assertFalse($widget->hoverRow($widget->buttonRow()));
-        $lines = $widget->render(new RenderContext(44, 12));
-        $this->assertStringContainsString("\x1b[4m", $lines[$widget->buttonRow()], 'the hovered button underlines');
+        $this->assertFalse($widget->hoverRow($widget->buttonRow() + 2), 'the button is three rows, and all three are the button');
+        $lines = $widget->render(new RenderContext(44, 14));
+        $this->assertStringContainsString("\x1b[4m", $lines[$widget->buttonRow() + 1], 'the hovered button underlines its caption');
 
         $this->assertTrue($widget->hoverRow(0), 'the summary field is not the button — the tint clears');
-        $this->assertStringNotContainsString("\x1b[4m", $widget->render(new RenderContext(44, 12))[$widget->buttonRow()]);
+        $this->assertStringNotContainsString("\x1b[4m", $widget->render(new RenderContext(44, 14))[$widget->buttonRow() + 1]);
+
+        $this->assertTrue($widget->hoverRow($widget->buttonRow() - 1), 'the amend row reacts too');
+        $this->assertStringContainsString("\x1b[4m", $widget->render(new RenderContext(44, 14))[$widget->buttonRow() - 1], 'its label underlines');
     }
 
     /**

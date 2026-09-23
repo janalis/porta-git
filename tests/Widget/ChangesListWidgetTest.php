@@ -111,6 +111,72 @@ final class ChangesListWidgetTest extends TestCase
         $this->assertSame('src/a.php', $toggled);
     }
 
+    /**
+     * The armed discard asks like a browser dialog: the question, a
+     * double-bordered Discard button and a Keep beside it, both clickable. A
+     * click anywhere else keeps the file and still does what it would have.
+     */
+    public function testTheArmedDiscardAnswersToItsButtons(): void
+    {
+        $events = new EventDispatcher();
+        $widget = new ChangesListWidget(new Translator('en'), events: $events);
+        $widget->setEntries($this->entries());
+        $discarded = [];
+        $selected = [];
+        GitWidgetEvents::wire(
+            $events,
+            onDiscard: static function (ChangeEntry $entry) use (&$discarded): void {
+                $discarded[] = $entry->path;
+            },
+            onSelect: static function (ChangeEntry $entry) use (&$selected): void {
+                $selected[] = $entry->path;
+            },
+        );
+
+        $widget->handleInput('d');
+        $screen = \explode("\n", $this->plain($widget->render(new RenderContext(44, 9))));
+        $this->assertStringContainsString('Discard changes to src/a.php?', $screen[1]);
+        $this->assertMatchesRegularExpression('/╔═+╗ ╭─+╮/u', $screen[2], 'a double-bordered destructive button, the keeping one beside it');
+        $this->assertMatchesRegularExpression('/║\s+Discard \(y\)\s+║ │\s+Keep\s+│/u', $screen[3]);
+        $this->assertSame(1, $widget->selectedRow(), 'the armed entry still answers where it is drawn');
+
+        $widget->handleClick(3, 18); // the gap between the buttons: part of the question, so it keeps
+        $widget->handleInput('d');
+        $widget->render(new RenderContext(44, 9));
+        $widget->handleClick(3, 22); // Keep
+        $this->assertSame([], $discarded, 'Keep keeps');
+        $widget->handleInput('d');
+        $widget->render(new RenderContext(44, 9));
+        $widget->handleClick(1, 5); // the question itself
+        $this->assertSame([], $discarded, 'and so does the question');
+
+        $widget->handleInput('d');
+        $widget->render(new RenderContext(44, 9));
+        $widget->handleClick(4, 3); // Discard's bottom border
+        $this->assertSame(['src/a.php'], $discarded, 'Discard discards, border and all');
+
+        $widget->handleInput('d');
+        $widget->render(new RenderContext(44, 9));
+        $widget->handleClick(6, 10); // c.txt, below the block
+        $this->assertSame(['src/a.php'], $discarded, 'elsewhere keeps');
+        $this->assertSame(['c.txt'], $selected, 'and the click still selects what it landed on');
+    }
+
+    /** A pane too short for the armed block shows its start — the question first — and never a row too many. */
+    public function testAnArmedBlockTallerThanThePaneIsCutNotOverflowed(): void
+    {
+        $widget = new ChangesListWidget(new Translator('en'));
+        $widget->setEntries($this->entries());
+        $widget->handleInput("\x1b[B");
+        $widget->handleInput('d'); // arm src/b.php
+
+        $lines = $widget->render(new RenderContext(44, 3));
+
+        $this->assertCount(3, $lines, 'the title and two rows, however tall the block');
+        $this->assertStringContainsString('Discard changes to src/b.php?', $this->plain([$lines[1]]), 'the window pins the armed entry, its question first');
+        $this->assertStringContainsString('╔', $this->plain([$lines[2]]), 'then as much of its buttons as fits');
+    }
+
     public function testDiscardNeedsInlineConfirmation(): void
     {
         $events = new EventDispatcher();
@@ -123,11 +189,11 @@ final class ChangesListWidgetTest extends TestCase
         });
 
         $widget->handleInput('d');
-        $this->assertStringContainsString('Discard changes?', $this->plain($widget->render(new RenderContext(44, 8))));
+        $this->assertStringContainsString('Discard changes to', $this->plain($widget->render(new RenderContext(44, 8))));
 
         $widget->handleInput('n'); // anything but y cancels
         $this->assertNull($discarded);
-        $this->assertStringNotContainsString('Discard changes?', $this->plain($widget->render(new RenderContext(44, 8))));
+        $this->assertStringNotContainsString('Discard changes to', $this->plain($widget->render(new RenderContext(44, 8))));
 
         $widget->handleInput('d');
         $widget->handleInput('y');
@@ -149,8 +215,8 @@ final class ChangesListWidgetTest extends TestCase
 
         $screen = $this->plain($widget->render(new RenderContext(44, 8)));
         $lines = \explode("\n", $screen);
-        $this->assertStringContainsString('Discard changes?', $lines[2], 'the confirmation followed src/a.php to its new row');
-        $this->assertStringNotContainsString('Discard changes?', $lines[1], 'not left behind on the old row');
+        $this->assertStringContainsString('Discard changes to', $lines[2], 'the confirmation followed src/a.php to its new row');
+        $this->assertStringNotContainsString('Discard changes to', $lines[1], 'not left behind on the old row');
     }
 
     public function testContextMenuTriggersReuseTheExistingCallbacks(): void
@@ -188,7 +254,7 @@ final class ChangesListWidgetTest extends TestCase
         $this->assertSame(1, $history, 'the File History item dispatches the mode request');
 
         $widget->armDiscardSelected();
-        $this->assertStringContainsString('Discard changes?', $this->plain($widget->render(new RenderContext(60, 8))), 'the Discard… item arms the two-press confirmation');
+        $this->assertStringContainsString('Discard changes to', $this->plain($widget->render(new RenderContext(60, 8))), 'the Discard… item arms the two-press confirmation');
     }
 
     public function testSetEntriesKeepsSelectionByPath(): void
@@ -228,6 +294,7 @@ final class ChangesListWidgetTest extends TestCase
             },
         );
 
+        $widget->render(new RenderContext(44, 8)); // the pointer lands on what was drawn
         $widget->handleClick(2, 2); // row of src/b.php, inside [✓]
         $this->assertSame('src/b.php', $toggled);
 
@@ -249,6 +316,7 @@ final class ChangesListWidgetTest extends TestCase
             ++$selectFired;
         });
 
+        $widget->render(new RenderContext(44, 8)); // the pointer lands on what was drawn
         $this->assertTrue($widget->hoverRow(2));
         $this->assertFalse($widget->hoverRow(2), 'same row: no repaint needed');
         $this->assertSame('src/a.php', $widget->selectedEntry()?->path, 'selection stays where it was');

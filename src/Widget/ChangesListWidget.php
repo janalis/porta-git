@@ -18,6 +18,8 @@ use Porta\Ui\ListSelection;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\HoverableList;
+use Porta\Widget\Render\FieldBox;
+use Porta\Widget\Render\FieldState;
 use Porta\Widget\Render\HeaderRenderer;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
@@ -68,9 +70,25 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     /** @var list<ChangeEntry> */
     private array $entries = [];
     private readonly ListSelection $list;
-    private int $lastRows = 10;
+    /** Entries the pane last had room for from its scroll — the page size for PgUp/PgDn. */
+    private int $lastPage = 1;
     /** Index of the entry an inline discard confirmation is armed for, or null. */
     private ?int $confirmDiscard = null;
+    /**
+     * Which entry each screen row of the last render belongs to — null for the
+     * title and the padding — so a click and a hover land on what was drawn:
+     * an armed entry is a block of rows, not one.
+     *
+     * @var list<int|null>
+     */
+    private array $rowOwner = [];
+    /**
+     * The armed confirmation's two buttons as drawn: the pane rows they span
+     * and each one's columns.
+     *
+     * @var array{rows: array{int, int}, discard: array{int, int}, keep: array{int, int}}|null
+     */
+    private ?array $confirmButtons = null;
 
     public function __construct(
         private readonly Translator $translator,
@@ -141,8 +159,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         if ($this->handleGitPaneKey($data, $kb)) {
             return;
         }
-        // Minus the title row, matching render()'s follow() budget.
-        if (ListNavigation::handleKey($data, $kb, $this->list, \count($this->entries), page: $this->lastRows - 1)) {
+        if (ListNavigation::handleKey($data, $kb, $this->list, \count($this->entries), page: $this->lastPage)) {
             $this->fireSelect();
             $this->invalidate();
 
@@ -206,15 +223,37 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         $this->events?->dispatch(new GitViewModeRequested(GitViewMode::History));
     }
 
-    /** The selected entry's widget-relative row (row 0 is the header). */
+    /** The selected entry's widget-relative row as last drawn (row 0 is the header). */
     public function selectedRow(): int
     {
-        return $this->list->selected() - $this->list->scroll() + 1;
+        $row = \array_search($this->list->selected(), $this->rowOwner, strict: true);
+
+        return false === $row ? 1 : $row;
     }
 
-    /** Left-click: the checkbox column toggles staging, anywhere else selects. */
+    /**
+     * Left-click: the checkbox column toggles staging, anywhere else selects.
+     *
+     * While a discard is armed, its buttons answer first — Discard discards,
+     * Keep and the question keep — and a click anywhere else disarms it and
+     * then does what it would have, just as any other key disarms it.
+     */
     public function handleClick(int $relRow, int $relCol): void
     {
+        $armed = $this->confirmDiscard;
+        if (null !== $armed) {
+            $choice = $this->confirmChoiceAt($relRow, $relCol);
+            $entry = $this->entries[$armed] ?? null;
+            $question = ($this->rowOwner[$relRow] ?? null) === $armed;
+            $this->confirmDiscard = null;
+            $this->invalidate();
+            if ('discard' === $choice && null !== $entry) {
+                $this->events?->dispatch(new GitChangeDiscardRequested($entry));
+            }
+            if (null !== $choice || $question) {
+                return;
+            }
+        }
         $index = $this->rowIndexAt($relRow);
         if (null === $index) {
             return;
@@ -243,7 +282,23 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
 
     private function rowIndexAt(int $relRow): ?int
     {
-        return $this->list->rowIndexAt($relRow, \count($this->entries));
+        return $this->rowOwner[$relRow] ?? null;
+    }
+
+    /** 'discard' or 'keep' when the cell is on one of the armed confirmation's buttons. */
+    private function confirmChoiceAt(int $relRow, int $relCol): ?string
+    {
+        $buttons = $this->confirmButtons;
+        if (null === $buttons || $relRow < $buttons['rows'][0] || $relRow >= $buttons['rows'][1]) {
+            return null;
+        }
+        foreach (['discard', 'keep'] as $name) {
+            if ($relCol >= $buttons[$name][0] && $relCol < $buttons[$name][1]) {
+                return $name;
+            }
+        }
+
+        return null;
     }
 
     private function fireSelect(): void
@@ -257,36 +312,78 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     {
         $width = $this->panelColumns($context);
         $rows = \max(1, $context->getRows() > 0 ? $context->getRows() : 12);
-        $this->lastRows = $rows;
 
         $count = \count($this->entries);
         $title = $this->translator->trans(' %count% changed file| %count% changed files', ['%count%' => $count]);
         $lines = [HeaderRenderer::title($title, $width, $this->styles)];
+        $this->rowOwner = [null];
+        $this->confirmButtons = null;
 
-        $scroll = $this->list->follow($rows - 1);
-        for ($row = 1; $row < $rows; ++$row) {
-            $index = $scroll + $row - 1;
-            $entry = $this->entries[$index] ?? null;
-            if (null === $entry) {
-                $lines[] = AnsiText::blank($width);
-                continue;
+        // Every entry is a row, the armed one a block: its question, then
+        // its two buttons.
+        $heights = [];
+        foreach (\array_keys($this->entries) as $index) {
+            $heights[] = $index === $this->confirmDiscard ? 1 + FieldBox::ROWS : 1;
+        }
+        $scroll = $this->list->followHeights($heights, $rows - 1);
+        $this->lastPage = $this->list->countFitting($heights, $scroll, $rows - 1);
+        for ($index = $scroll; $index < $count && \count($lines) < $rows; ++$index) {
+            $block = $index === $this->confirmDiscard ? $this->confirmBlock($this->entries[$index], $width, \count($lines)) : [$this->entryRow($index, $width)];
+            foreach ($block as $line) {
+                if (\count($lines) >= $rows) {
+                    break;
+                }
+                $lines[] = $line;
+                $this->rowOwner[] = $index;
             }
-            if ($index === $this->confirmDiscard) {
-                $confirm = $this->translator->trans(' Discard changes? y = yes · any key = no');
-                $lines[] = $this->styles->merge(Role::DangerBg, Role::Bright)->apply(AnsiText::truncate($confirm, $width, pad: true));
-                continue;
-            }
-
-            $checkbox = $entry->stagedState()->checkbox();
-            $status = $entry->displayStatus();
-            $statusText = \array_key_exists($status, self::STATUS_ROLE) ? $this->styles->of(self::STATUS_ROLE[$status])->apply($status) : $status;
-            $label = $entry->path.(null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '');
-
-            $text = AnsiText::truncate(' '.$checkbox.' '.$statusText.' '.$label, $width, pad: true);
-            $lines[] = $this->shadeRow($text, $this->list->isSelected($index), $index === $this->hoveredIndex);
+        }
+        while (\count($lines) < $rows) {
+            $lines[] = AnsiText::blank($width);
+            $this->rowOwner[] = null;
         }
 
         return $lines;
+    }
+
+    private function entryRow(int $index, int $width): string
+    {
+        $entry = $this->entries[$index];
+        $checkbox = $entry->stagedState()->checkbox();
+        $status = $entry->displayStatus();
+        $statusText = \array_key_exists($status, self::STATUS_ROLE) ? $this->styles->of(self::STATUS_ROLE[$status])->apply($status) : $status;
+        $label = $entry->path.(null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '');
+
+        return $this->shadeRow(AnsiText::truncate(' '.$checkbox.' '.$statusText.' '.$label, $width, pad: true), $this->list->isSelected($index), $index === $this->hoveredIndex);
+    }
+
+    /**
+     * The armed discard, as a browser would ask it: the question, then a
+     * destructive button — double-bordered, so "this destroys" reads without
+     * colour — beside the one that keeps. y still discards and any other key
+     * still keeps; the buttons are the same answer for the pointer.
+     *
+     * @return list<string>
+     */
+    private function confirmBlock(ChangeEntry $entry, int $width, int $top): array
+    {
+        $discard = $this->translator->trans('Discard (y)');
+        $keep = $this->translator->trans('Keep');
+        $discardWidth = FieldBox::controlWidth($discard);
+        $keepWidth = FieldBox::controlWidth($keep);
+        $discardRows = FieldBox::button($discard, FieldState::Danger, false, $discardWidth, FieldBox::ROWS, $this->styles);
+        $keepRows = FieldBox::button($keep, FieldState::Idle, false, $keepWidth, FieldBox::ROWS, $this->styles);
+        $this->confirmButtons = [
+            'rows' => [$top + 1, $top + 1 + FieldBox::ROWS],
+            'discard' => [1, 1 + $discardWidth],
+            'keep' => [2 + $discardWidth, 2 + $discardWidth + $keepWidth],
+        ];
+
+        $block = [AnsiText::truncate(' '.$this->styles->of(Role::Bright)->apply($this->translator->trans('Discard changes to %path%?', ['%path%' => $entry->path])), $width, pad: true)];
+        foreach ($discardRows as $i => $row) {
+            $block[] = AnsiText::truncate(' '.$row.' '.$keepRows[$i], $width, pad: true, ellipsis: '');
+        }
+
+        return $block;
     }
 
     /** @return array<string, string[]> */
