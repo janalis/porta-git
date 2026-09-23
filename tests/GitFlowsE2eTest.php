@@ -756,8 +756,9 @@ final class GitFlowsE2eTest extends TestCase
                 },
                 250 => function (Tui $tui): void {
                     $this->frame($tui);
-                    // F10 opens the app menu OVER the git view now.
+                    // F10 then ↓ opens the app menu OVER the git view now.
                     $tui->handleInput("\x1b[21~");
+                    $tui->handleInput("\x1b[B");
                 },
                 350 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
