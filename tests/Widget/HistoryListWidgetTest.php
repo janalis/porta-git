@@ -299,6 +299,29 @@ final class HistoryListWidgetTest extends TestCase
         $this->assertStringContainsString("\x1b[48;5;237m", $lines[1], 'the commit selection dims when the files own the focus');
     }
 
+    /**
+     * Which sub-list holds the keys is a shape as well as a shade: the full
+     * bar on the one that does, the quarter bar on the parked one, swapped by
+     * Enter and by losing the pane's focus altogether.
+     */
+    public function testEachSubListsCursorBarSaysWhetherItHoldsTheKeys(): void
+    {
+        $widget = $this->widget();
+        $first = static function (HistoryListWidget $widget): array {
+            $lines = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(44, 16)));
+            $commit = \array_find($lines, static fn (string $line): bool => \str_contains($line, 'aaa111')) ?? '';
+            $file = \array_find($lines, static fn (string $line): bool => \str_contains($line, 'src/a.php')) ?? '';
+
+            return [\mb_substr($commit, start: 0, length: 1), \mb_substr($file, start: 0, length: 1)];
+        };
+
+        $this->assertSame(['▌', '▎'], $first($widget), 'the commits hold the keys');
+        $widget->handleInput("\r");
+        $this->assertSame(['▎', '▌'], $first($widget), 'Enter hands them to the files');
+        $widget->setFocused(false);
+        $this->assertSame(['▎', '▎'], $first($widget), 'and a pane without focus holds none');
+    }
+
     public function testTheFilesSubHeaderUsesTheSectionHeaderConvention(): void
     {
         $widget = $this->widget();

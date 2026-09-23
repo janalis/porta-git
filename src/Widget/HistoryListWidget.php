@@ -20,6 +20,7 @@ use Porta\Widget\HoverableList;
 use Porta\Widget\Render\HeaderRenderer;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
+use Porta\Widget\Render\SelectionBar;
 use Porta\Widget\Support\ArrowScrollTrait;
 use Porta\Widget\Support\FillsPaneTrait;
 use Porta\Widget\Support\InputHook;
@@ -375,7 +376,12 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             if (!$selected && ($scroll + $row) === $this->hoveredCommit) {
                 $bg = $this->styles->of(Role::RowHighlightBg);
             }
-            $text = ' '.$this->styles->of(Role::Modified)->apply($commit->shortSha).' '.$commit->subject.$this->styles->of(Role::Dim)->apply('  '.$commit->author);
+            $text =
+                SelectionBar::of($selected, $this->focused && !$this->filesFocused)->value
+                .$this->styles->of(Role::Modified)->apply($commit->shortSha)
+                .' '
+                .$commit->subject
+                .$this->styles->of(Role::Dim)->apply('  '.$commit->author);
             $text = AnsiText::truncate($text, $width, pad: true);
             $lines[] = null !== $bg ? $bg->apply($text) : $text;
         }
@@ -396,7 +402,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             if (!$selected && ($fileScroll + $row) === $this->hoveredFile) {
                 $bg = $this->styles->of(Role::RowHighlightBg);
             }
-            $text = AnsiText::truncate(' '.$file['status'].' '.$file['path'], $width, pad: true);
+            $text = AnsiText::truncate(SelectionBar::of($selected, $this->focused && $this->filesFocused)->value.$file['status'].' '.$file['path'], $width, pad: true);
             $lines[] = null !== $bg ? $bg->apply($text) : $text;
         }
 
