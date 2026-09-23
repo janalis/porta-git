@@ -247,6 +247,16 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
             return;
         }
+        // Shift+Tab walks back — amend, description, summary — and stops at
+        // the summary: no pane hook names the one before this box.
+        if ($kb->matches($data, 'prev_field')) {
+            if ($this->activeField > 0) {
+                --$this->activeField;
+                $this->invalidate();
+            }
+
+            return;
+        }
         if (self::AMEND_FIELD === $this->activeField) {
             if ($kb->matches($data, 'toggle_checkbox')) {
                 $this->toggleAmend();
@@ -389,6 +399,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             'toggle_amend' => ['alt+m'],
             'toggle_checkbox' => [Key::SPACE],
             'next_field' => [Key::TAB],
+            'prev_field' => ['shift+tab'],
             'delete_char_backward' => [Key::BACKSPACE],
             'exit_view' => [Key::ESCAPE],
         ];

@@ -403,6 +403,9 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame([true], $toggles);
         $raw = $widget->render(new RenderContext(80, 12));
         $this->assertStringContainsString("\x1b[48;5;31m", $raw[0], 'active tag renders selected');
+        $plain = AnsiUtils::stripAnsiCodes($raw[0]);
+        $this->assertStringContainsString('[S split]  W hide-ws ', $plain, 'on is bracketed, off bare — the state reads without colour');
+        $this->assertSame(80, \mb_strwidth($plain), 'in the same width, so no zone moved');
 
         $widget->handleClick(0, 5); // title text: not a button
         $this->assertTrue($widget->isSplit());
@@ -477,11 +480,11 @@ final class DiffViewWidgetTest extends TestCase
 
         // The tag reflects the controller-owned state.
         $off = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringNotContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m W hide-ws ", $off, 'inactive until the controller says so');
+        $this->assertStringNotContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m[W hide-ws]", $off, 'inactive until the controller says so');
         $widget->hideWhitespace();
         $widget->hideWhitespace(); // idempotent
         $on = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m W hide-ws ", $on, 'active tag renders selected');
+        $this->assertStringContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m[W hide-ws]", $on, 'active tag renders selected');
     }
 
     public function testLayoutAndWhitespaceSettersAreIdempotentBothWays(): void
@@ -497,11 +500,11 @@ final class DiffViewWidgetTest extends TestCase
 
         $widget->hideWhitespace();
         $on = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m W hide-ws ", $on);
+        $this->assertStringContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m[W hide-ws]", $on);
         $widget->showWhitespace();
         $widget->showWhitespace(); // idempotent (already shown)
         $off = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringNotContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m W hide-ws ", $off, 'tag clears once whitespace is shown again');
+        $this->assertStringNotContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m[W hide-ws]", $off, 'tag clears once whitespace is shown again');
     }
 
     public function testHorizontalScrollSlidesTextUnderPinnedGutters(): void

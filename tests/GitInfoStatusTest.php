@@ -223,6 +223,46 @@ final class GitInfoStatusTest extends TestCase
         $this->assertSame("one\n", \file_get_contents($project->path('a.txt')), 'worktree restored to HEAD');
     }
 
+    /**
+     * Stage everything, untracked included, then unstage it all — and on a
+     * branch with no commit yet, where `reset` has no HEAD to go back to and
+     * empties the index instead: the one command covers both.
+     */
+    public function testStageAllAndUnstageAllRoundTrip(): void
+    {
+        $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
+        $project->write('a.txt', "one changed\n");
+        $project->write('new.txt', "fresh\n");
+        $porcelain = static function () use ($project): array {
+            $lines = [];
+            \exec('git -C '.\escapeshellarg($project->dir).' status --porcelain 2>/dev/null', $lines);
+
+            return $lines;
+        };
+        $run = function (\Closure $call): bool {
+            $done = null;
+            $call(static function (Outcome $ok) use (&$done): void {
+                $done = $ok->isOk();
+            });
+            $this->await(static function () use (&$done): bool {
+                return null !== $done;
+            });
+
+            return (bool) $done;
+        };
+
+        $this->assertTrue($run($git->stageAll(...)));
+        $this->assertSame(['M  a.txt', 'A  new.txt'], $porcelain(), 'every change staged, the untracked file too');
+
+        $this->assertTrue($run($git->unstageAll(...)));
+        $this->assertSame([' M a.txt', '?? new.txt'], $porcelain(), 'and all of it back');
+
+        $project->git('update-ref', '-d', 'HEAD'); // a branch with no commit
+        $this->assertTrue($run($git->stageAll(...)));
+        $this->assertTrue($run($git->unstageAll(...)), 'no HEAD to reset to: reset empties the index');
+        $this->assertSame(['?? a.txt', '?? new.txt'], $porcelain());
+    }
+
     public function testAmendRewritesTheLastCommitAndPrefillReadsIt(): void
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\n"]);

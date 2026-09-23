@@ -98,6 +98,26 @@ final readonly class GitStagingService
     }
 
     /**
+     * Stage every change, or unstage every one — the changes list's header
+     * checkbox, whose mixed state stages, as a browser's indeterminate box
+     * checks.
+     *
+     * @param \Closure(): void $onChanged re-read status after the index moves
+     */
+    // @mago-expect lint:no-boolean-flag-parameter -- stage or unstage IS the request, the header box's one bit.
+    public function stageAll(bool $stage, \Closure $onChanged): void
+    {
+        $done = function (Outcome $ok) use ($onChanged): void {
+            if (!$ok->isOk()) {
+                $this->notifier->flash($this->translator->trans('git refused the staging change'));
+            }
+            $onChanged();
+        };
+
+        $stage ? $this->git->stageAll($done) : $this->git->unstageAll($done);
+    }
+
+    /**
      * Discard a file's working-tree changes; an untracked file is deleted.
      *
      * @param \Closure(): void $onChanged re-read status after the file reverts

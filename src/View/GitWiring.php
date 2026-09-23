@@ -20,6 +20,7 @@ use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
 use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitRemoteRequested;
+use Porta\GitPlugin\Event\GitStageAllRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\GitRefresher;
 
@@ -49,6 +50,7 @@ final class GitWiring
         GitChangeDiscardRequested::class => 'onChangeDiscarded',
         GitChangeSelected::class => 'onChangeSelected',
         GitChangeStageToggleRequested::class => 'onChangeStageToggled',
+        GitStageAllRequested::class => 'onStageAllRequested',
         GitCommitFileSelected::class => 'onCommitFileSelected',
         GitCommitSelected::class => 'onCommitSelected',
         GitDiffContextCycleRequested::class => 'onDiffContextCycled',

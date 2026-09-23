@@ -181,6 +181,28 @@ final readonly class GitInfo
      *
      * @param callable(Outcome): void $onDone
      */
+    /**
+     * Stage every change in the working tree, untracked files included.
+     *
+     * @param callable(Outcome): void $onDone
+     */
+    public function stageAll(callable $onDone): void
+    {
+        $this->runner->runStatus(['add', '--all'], static fn (int $code) => $onDone(Outcome::of(0 === $code)));
+    }
+
+    /**
+     * Unstage everything: the index back to HEAD. On a branch with no commit
+     * yet `reset` empties the index instead (asserted against a real
+     * repository), so one command covers both.
+     *
+     * @param callable(Outcome): void $onDone
+     */
+    public function unstageAll(callable $onDone): void
+    {
+        $this->runner->runStatus(['reset', '--quiet'], static fn (int $code) => $onDone(Outcome::of(0 === $code)));
+    }
+
     public function stage(string $absPath, callable $onDone): void
     {
         $this->runner->runStatus(['add', '--', $absPath], static fn (int $code) => $onDone(Outcome::of(0 === $code)));

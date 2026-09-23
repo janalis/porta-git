@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitRemoteOperation;
 use Porta\GitPlugin\Event\GitRemoteRequested;
+use Porta\GitPlugin\Event\GitStageAllRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\ChangesListWidget;
@@ -428,5 +429,70 @@ final class ChangesListWidgetTest extends TestCase
 
         $this->assertStringNotContainsString($accent, $rows[1], 'the selected row');
         $this->assertStringContainsString($accent, $rows[2], 'the other');
+    }
+
+    /**
+     * A select-all box heads the list: checked when every change is staged,
+     * clear when none is, the partial mark for a mix — and it acts from its
+     * box (with the target around it a row's has) or from `a`: a mix stages,
+     * as a browser's indeterminate box checks, and only a full box unstages.
+     */
+    public function testTheHeaderBoxStagesOrUnstagesEverything(): void
+    {
+        $events = new EventDispatcher();
+        $asked = [];
+        $events->addListener(GitStageAllRequested::class, static function (GitStageAllRequested $event) use (&$asked): void {
+            $asked[] = $event->stage;
+        });
+        $widget = new ChangesListWidget(new Translator('en'), events: $events);
+        $header = static fn (): string => AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(44, 6))[0]);
+
+        $widget->setEntries([new ChangeEntry('a.php', 'M', ' '), new ChangeEntry('b.php', ' ', 'M')]);
+        $this->assertStringStartsWith(' [–] 2 changed files', $header());
+        $widget->handleClick(0, 2);
+        $widget->handleClick(0, 4);
+        $widget->handleInput('a');
+
+        $widget->setEntries([new ChangeEntry('a.php', 'M', ' ')]);
+        $this->assertStringStartsWith(' [✓]', $header());
+        $widget->handleInput('a');
+
+        $widget->setEntries([new ChangeEntry('a.php', ' ', 'M')]);
+        $this->assertStringStartsWith(' [ ]', $header());
+        $widget->handleClick(0, 5); // the title, past the box's target
+        $widget->handleInput('a');
+
+        $this->assertSame([true, true, true, false, true], $asked);
+
+        $widget->setEntries([]);
+        $this->assertStringNotContainsString('[', $header(), 'no changes, no box');
+        $widget->handleInput('a');
+        $this->assertCount(5, $asked, 'and nothing to ask');
+    }
+
+    /**
+     * A staging box is its own target, apart from its row, so it answers the
+     * pointer: over the box (and the target round it) it underlines, along
+     * the rest of the row it does not; the header's box answers too.
+     */
+    public function testAStagingBoxAnswersThePointer(): void
+    {
+        $widget = new ChangesListWidget(new Translator('en'));
+        $widget->setEntries($this->entries());
+        $drawn = static fn (): array => $widget->render(new RenderContext(44, 8));
+        $drawn();
+
+        $this->assertTrue($widget->hoverBoxAt(2, 2), 'onto src/b.php\'s box');
+        $this->assertStringContainsString("\x1b[4m[✓]", $drawn()[2]);
+        $this->assertFalse($widget->hoverBoxAt(2, 4), 'the target round it is the same box');
+        $this->assertTrue($widget->hoverBoxAt(2, 10), 'along the path');
+        $this->assertStringNotContainsString("\x1b[4m", $drawn()[2]);
+        $this->assertTrue($widget->hoverBoxAt(0, 2), 'the header\'s box');
+        $this->assertStringContainsString("\x1b[4m[–]", $drawn()[0]);
+        $this->assertTrue($widget->hoverBoxAt(null, 0), 'off the list');
+
+        $widget->hoverBoxAt(2, 2);
+        $widget->setEntries($this->entries());
+        $this->assertStringNotContainsString("\x1b[4m", $drawn()[2], 'rows moved under the pointer: no stale box');
     }
 }

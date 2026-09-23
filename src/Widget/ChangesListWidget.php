@@ -8,7 +8,9 @@ use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Event\GitChangeDiscardRequested;
 use Porta\GitPlugin\Event\GitChangeSelected;
 use Porta\GitPlugin\Event\GitChangeStageToggleRequested;
+use Porta\GitPlugin\Event\GitStageAllRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
+use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
@@ -33,6 +35,7 @@ use Porta\Widget\Support\WheelScrollable;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Input\Key;
 use Symfony\Component\Tui\Render\RenderContext;
+use Symfony\Component\Tui\Style\Style;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 use Symfony\Component\Tui\Widget\FocusableInterface;
 use Symfony\Component\Tui\Widget\FocusableTrait;
@@ -114,6 +117,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         $previous = $this->selectedEntry()?->path;
         $this->entries = $entries;
         $this->hoveredIndex = null; // rows moved under the pointer
+        $this->hoveredBox = null;
         if (null !== $previous) {
             foreach ($entries as $i => $entry) {
                 if ($entry->path !== $previous) {
@@ -169,6 +173,11 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
             if (null !== ($entry = $this->selectedEntry())) {
                 $this->events?->dispatch(new GitChangeStageToggleRequested($entry));
             }
+
+            return;
+        }
+        if ($kb->matches($data, 'stage_all')) {
+            $this->stageAll();
 
             return;
         }
@@ -254,6 +263,12 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
                 return;
             }
         }
+        // The header's box, with the same target around it as a row's.
+        if (0 === $relRow && $relCol <= (FieldBox::CHECKBOX_WIDTH + 1)) {
+            $this->stageAll();
+
+            return;
+        }
         $index = $this->rowIndexAt($relRow);
         if (null === $index) {
             return;
@@ -280,6 +295,37 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     public function hoverRow(int $relRow): bool
     {
         return $this->setHovered($this->rowIndexAt($relRow));
+    }
+
+    /**
+     * The box under the pointer, where the box is its own target apart from
+     * the row — an entry's index, -1 for the header's, null for none. A
+     * browser's checkbox answers the pointer; the row's tint alone did not
+     * say which of the two a click there would do.
+     */
+    private ?int $hoveredBox = null;
+
+    /** The pointer at a widget-relative cell, or off the list (null row): lights the box under it. Returns whether that changed. */
+    public function hoverBoxAt(?int $relRow, int $relCol): bool
+    {
+        $box = match (true) {
+            null === $relRow || $relCol > (FieldBox::CHECKBOX_WIDTH + 1) => null,
+            0 === $relRow => [] === $this->entries ? null : -1,
+            default => $this->rowIndexAt($relRow),
+        };
+        if ($box === $this->hoveredBox) {
+            return false;
+        }
+        $this->hoveredBox = $box;
+        $this->invalidate();
+
+        return true;
+    }
+
+    /** A box, underlined while the pointer is on it — the form controls' hover. */
+    private function litBox(string $box, int $index): string
+    {
+        return $index === $this->hoveredBox ? new Style(underline: true)->apply($box) : $box;
     }
 
     private function rowIndexAt(int $relRow): ?int
@@ -317,7 +363,12 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
 
         $count = \count($this->entries);
         $title = $this->translator->trans(' %count% changed file| %count% changed files', ['%count%' => $count]);
-        $lines = [HeaderRenderer::title($title, $width, $this->styles)];
+        // A select-all box heads the list, as a browser's table of checkboxes
+        // has one: checked when every change is staged, clear when none is,
+        // and the partial mark for a mix. Untinted: the header's style runs
+        // across it, and a tint's closing code would drop it for the title.
+        $box = [] === $this->entries ? '' : ' '.$this->litBox(FieldBox::checkbox($this->allStaged()), -1).' ';
+        $lines = [HeaderRenderer::title($box.\ltrim($title), $width, $this->styles)];
         $this->rowOwner = [null];
         $this->confirmButtons = null;
 
@@ -347,10 +398,35 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         return $lines;
     }
 
+    /** Every change staged (true), none (false), or a mix (null) — the header box's state. */
+    private function allStaged(): ?bool
+    {
+        $states = \array_unique(\array_map(static fn (ChangeEntry $entry): string => $entry->stagedState()->name, $this->entries));
+
+        return match ($states) {
+            [StagedState::Full->name] => true,
+            [StagedState::None->name] => false,
+            default => null,
+        };
+    }
+
+    /**
+     * The header box: stage everything, or — when everything is staged —
+     * unstage it. A mix stages, as a browser's indeterminate box checks.
+     */
+    private function stageAll(): void
+    {
+        if ([] !== $this->entries) {
+            $this->events?->dispatch(new GitStageAllRequested(true !== $this->allStaged()));
+        }
+    }
+
     private function entryRow(int $index, int $width): string
     {
         $entry = $this->entries[$index];
-        $checkbox = $entry->stagedState()->checkbox($this->list->isSelected($index) ? null : $this->styles);
+        // Lit, the box is untinted: the underline's close would cut the tint.
+        $lit = $index === $this->hoveredBox;
+        $checkbox = $this->litBox($entry->stagedState()->checkbox($lit || $this->list->isSelected($index) ? null : $this->styles), $index);
         $status = $entry->displayStatus();
         $statusText = \array_key_exists($status, self::STATUS_ROLE) ? $this->styles->of(self::STATUS_ROLE[$status])->apply($status) : $status;
         $label = $entry->path.(null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '');
@@ -399,6 +475,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
             'page_up' => [Key::PAGE_UP],
             'page_down' => [Key::PAGE_DOWN],
             'toggle_stage' => [Key::SPACE],
+            'stage_all' => ['a'],
             'discard' => ['d', Key::DELETE],
             'show_history' => ['2'],
             'fetch' => ['f'],

@@ -163,6 +163,9 @@ final class GitMouseRouter implements ViewPointer
     public function hover(MouseEvent $mouse): void
     {
         $changed = $this->hit->hover($mouse->row, $mouse->col, $this->changes, $this->history, $this->commitBox);
+        // A staging box is its own target apart from its row, so it answers the pointer too.
+        $changesRel = $this->hit->hit($this->changes, $mouse->row, $mouse->col);
+        $boxChanged = $this->changes->hoverBoxAt($changesRel['row'] ?? null, $changesRel['col'] ?? 0);
 
         $tabsRect = $this->hit->rect($this->tabs);
         $onTabs = null !== $tabsRect && $tabsRect->contains($mouse->row, $mouse->col);
@@ -174,7 +177,7 @@ final class GitMouseRouter implements ViewPointer
 
         $sepChanged = $this->hit->hoverDivider($mouse->row, $mouse->col, $this->separator);
 
-        if ($changed || $tabsChanged || $diffChanged || $sepChanged) {
+        if ($changed || $boxChanged || $tabsChanged || $diffChanged || $sepChanged) {
             $this->host->invalidate();
         }
     }

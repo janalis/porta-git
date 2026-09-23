@@ -693,7 +693,11 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         foreach ($tags as $tag) {
             $tagWidth = \mb_strwidth($tag['label']);
             $this->buttonZones->add($tag['name'], $col, $col + $tagWidth);
-            $rendered .= $this->tagStyle(OptionTagState::of($tag['on'], $tag['name'] === $this->hoveredButton))->apply($tag['label']).' ';
+            // On, the tag's padding becomes brackets — the find bar's option
+            // chips, in the same width — so the state reads without the
+            // colour it used to rest on alone.
+            $text = $tag['on'] ? '['.\trim($tag['label']).']' : $tag['label'];
+            $rendered .= $this->tagStyle(OptionTagState::of($tag['on'], $tag['name'] === $this->hoveredButton))->apply($text).' ';
             $col += $tagWidth + 1;
         }
 

@@ -420,4 +420,20 @@ final class CommitBoxWidgetTest extends TestCase
         $widget->hoverRow($widget->buttonRow() - 1);
         $this->assertStringNotContainsString($accent, $amendRow());
     }
+
+    /** Shift+Tab walks the fields back — amend, description, summary — and stops at the summary. */
+    public function testShiftTabWalksBack(): void
+    {
+        $widget = $this->widget();
+        $widget->handleInput("\t");
+        $widget->handleInput("\t"); // on amend
+
+        $widget->handleInput("\x1b[Z"); // Shift+Tab → description
+        $this->type($widget, 'd');
+        $widget->handleInput("\x1b[Z"); // → summary
+        $widget->handleInput("\x1b[Z"); // stays
+        $this->type($widget, 's');
+
+        $this->assertSame("s\n\nd", $widget->message());
+    }
 }

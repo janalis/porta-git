@@ -26,6 +26,7 @@ use Porta\GitPlugin\Event\GitDiffStagingRequested;
 use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitRemoteRequested;
+use Porta\GitPlugin\Event\GitStageAllRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
@@ -295,6 +296,7 @@ final class GitViewControllerTest extends TestCase
         $dispatcher->addListener(GitRemoteRequested::class, $controller->onRemoteRequested(...));
         $dispatcher->addListener(GitChangeSelected::class, $controller->onChangeSelected(...));
         $dispatcher->addListener(GitChangeStageToggleRequested::class, $controller->onChangeStageToggled(...));
+        $dispatcher->addListener(GitStageAllRequested::class, $controller->onStageAllRequested(...));
         $dispatcher->addListener(GitChangeDiscardRequested::class, $controller->onChangeDiscarded(...));
         $dispatcher->addListener(GitCommitSelected::class, $controller->onCommitSelected(...));
         $dispatcher->addListener(GitCommitFileSelected::class, $controller->onCommitFileSelected(...));
@@ -610,6 +612,35 @@ final class GitViewControllerTest extends TestCase
         Probe::invoke($controller, 'toggleStage', $ghost);
         $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'git refused the staging change'));
         $this->addToAssertionCount(1); // the throwing awaits above are the assertions
+    }
+
+    /** The header box, end to end: `a` stages every change, untracked included, and `a` again unstages them all. */
+    public function testTheHeaderBoxStagesAndUnstagesEverything(): void
+    {
+        $controller = $this->controller();
+        $this->project->write('a.txt', "changed\n");
+        $this->project->write('b.txt', "new\n");
+        $controller->open();
+        $this->await(fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($this->changes->render(new RenderContext(44, 6))[0]), '[ ] 2 changed files'));
+
+        $this->changes->handleInput('a');
+        $this->await(fn (): bool => ['M  a.txt', 'A  b.txt'] === $this->porcelain(), what: 'a stages everything');
+        $this->await(fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($this->changes->render(new RenderContext(44, 6))[0]), '[✓]'), what: 'and the box says so');
+
+        $this->changes->handleInput('a');
+        $this->await(fn (): bool => [' M a.txt', '?? b.txt'] === $this->porcelain(), what: 'a on a full box unstages everything');
+        $this->addToAssertionCount(1); // the throwing awaits are the assertions
+    }
+
+    public function testStageAllFailureFlashes(): void
+    {
+        $controller = $this->controller(Presence::Without); // no repository: git refuses
+        $controller->open();
+
+        $controller->onStageAllRequested(new GitStageAllRequested(true));
+
+        $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'git refused the staging change'));
+        $this->addToAssertionCount(1);
     }
 
     public function testDiffArrivingAfterCloseIsDropped(): void

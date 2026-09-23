@@ -28,6 +28,7 @@ use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
 use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitRemoteRequested;
+use Porta\GitPlugin\Event\GitStageAllRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\LogEntry;
@@ -572,6 +573,11 @@ final class GitViewController implements ContributedView
     public function onChangeStageToggled(GitChangeStageToggleRequested $event): void
     {
         $this->toggleStage($event->entry);
+    }
+
+    public function onStageAllRequested(GitStageAllRequested $event): void
+    {
+        $this->staging->stageAll($event->stage, $this->refresh(...));
     }
 
     public function onChangeDiscarded(GitChangeDiscardRequested $event): void
