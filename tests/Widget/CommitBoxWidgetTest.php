@@ -9,7 +9,7 @@ use Porta\GitPlugin\Command\CommitMode;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\RendersWidget;
-use Porta\Ui\Glyphs;
+use Porta\Widget\Render\FieldBox;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Style\CursorShape;
@@ -103,7 +103,7 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertSame("Click me!\n\ndesc", $committed);
     }
 
-    public function testTabWalksSummaryDescriptionThenNextPane(): void
+    public function testTabWalksSummaryDescriptionAmendThenNextPane(): void
     {
         $widget = $this->widget();
         $focusNext = 0;
@@ -112,20 +112,77 @@ final class CommitBoxWidgetTest extends TestCase
         });
 
         $widget->handleInput("\t"); // summary -> description
+        $widget->handleInput("\t"); // description -> the amend checkbox
         $this->assertSame(0, $focusNext);
-        $widget->handleInput("\t"); // description -> next pane
+        $this->assertStringContainsString('┃ ┃ Amend last commit', $this->rendered($widget), 'the checkbox has the keys: heavy rails');
+        $widget->handleInput("\t"); // amend -> next pane
         $this->assertSame(1, $focusNext);
     }
 
-    public function testTabFromDescriptionWithNoNextPaneHookStaysOnDescription(): void
+    /** On the checkbox, Space toggles it and nothing is typed anywhere. */
+    public function testSpaceTogglesTheFocusedCheckboxAndTypesNothing(): void
+    {
+        $widget = $this->widget();
+        $widget->handleInput("\t");
+        $widget->handleInput("\t");
+
+        $widget->handleInput(' ');
+        $this->assertTrue($widget->isAmend());
+        $widget->handleInput('x');
+        $this->assertSame('', $widget->message(), 'a checkbox takes no text');
+        $widget->handleInput(' ');
+        $this->assertFalse($widget->isAmend(), 'and Space toggles it back');
+    }
+
+    /**
+     * A branch with no commit has nothing to amend: the checkbox is dashed,
+     * says why, and Tab, Space, Alt+M and a click all pass it by — a
+     * disabled browser control is not a Tab stop either.
+     */
+    public function testWithNoCommitTheCheckboxIsDisabledAndSkipped(): void
+    {
+        $widget = $this->widget();
+        $focusNext = 0;
+        $widget->onFocusNext(static function () use (&$focusNext): void {
+            ++$focusNext;
+        });
+        $widget->setAmendable(false);
+
+        $screen = $this->rendered($widget);
+        $this->assertStringContainsString('┆ ┆ Amend last commit  No commit to amend', $screen);
+
+        $widget->handleInput("\t");
+        $widget->handleInput("\t");
+        $this->assertSame(1, $focusNext, 'description -> next pane: the checkbox is no Tab stop');
+        $widget->handleInput("\x1bm"); // Alt+M
+        $this->assertFalse($widget->isAmend(), 'no key toggles it');
+        $widget->handleClick($widget->buttonRow() - 1); // the amend row, just above the button
+        $this->assertFalse($widget->isAmend(), 'nor a click');
+        $this->assertFalse($widget->hoverRow($widget->buttonRow() - 1), 'nor does the pointer light it');
+    }
+
+    /** Losing the commit it was focused on hands the keys back to the summary. */
+    public function testDisablingTheFocusedCheckboxReturnsToTheSummary(): void
+    {
+        $widget = $this->widget();
+        $widget->handleInput("\t");
+        $widget->handleInput("\t");
+
+        $widget->setAmendable(false);
+        $this->type($widget, 'fix');
+
+        $this->assertSame('fix', $widget->message());
+    }
+
+    public function testTabFromTheCheckboxWithNoNextPaneHookStaysOnIt(): void
     {
         $widget = $this->widget(); // no onFocusNext wired
         $widget->handleInput("\t"); // summary -> description
+        $widget->handleInput("\t"); // description -> amend
         $widget->handleInput("\t"); // no hook to advance past it: must stay put
 
-        $this->type($widget, 'body text');
-        $this->assertStringContainsString('body text', $this->rendered($widget), 'the typed text landed in the description, so focus never left it');
-        $this->assertStringNotContainsString('body text', \explode("\n", $this->rendered($widget))[2], 'and specifically not in the summary box');
+        $widget->handleInput(' ');
+        $this->assertTrue($widget->isAmend(), 'Space still lands on the checkbox, so focus never left it');
     }
 
     public function testRenderShowsPlaceholdersButtonStateAndClearResets(): void
@@ -191,7 +248,7 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertTrue($widget->commitEnabled(), 'amending only the message needs nothing staged');
 
         $screen = $this->rendered($widget);
-        $this->assertStringContainsString(Glyphs::CHECKBOX_ON.' Amend last commit  Alt+M', $screen, 'the amend state reads as a labelled checkbox, without colour');
+        $this->assertStringContainsString(FieldBox::checkbox(true).' Amend last commit  Alt+M', $screen, 'the amend state reads as a labelled checkbox, without colour');
         $this->assertStringContainsString('Amend last commit', $screen);
 
         $widget->handleInput("\x1b[13;5u");

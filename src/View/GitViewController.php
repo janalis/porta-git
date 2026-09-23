@@ -272,6 +272,13 @@ final class GitViewController implements ContributedView
         }
         $this->statusInFlight = true;
         $generation = ++$this->statusGeneration;
+        if (RefreshMode::Eager === $mode) {
+            // Not per poll: a branch gains its first commit through a commit,
+            // and a commit refreshes eagerly.
+            $this->git->hasHead(function (bool $head): void {
+                $this->panes->commitBox->setAmendable($head);
+            });
+        }
         $this->git->status(function (array $entries, string $raw) use ($mode, $generation): void {
             if ($generation !== $this->statusGeneration) {
                 return; // a newer status is out or already applied; see $statusGeneration

@@ -260,7 +260,9 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         }
         $this->list->select($index);
         $entry = $this->entries[$index];
-        if ($relCol <= 3) {
+        // The bar, the box and the gap after it: a target a column wider
+        // each side of `[✓]`, since the path beside it is a link of its own.
+        if ($relCol <= (FieldBox::CHECKBOX_WIDTH + 1)) {
             $this->events?->dispatch(new GitChangeStageToggleRequested($entry));
             $this->invalidate();
 

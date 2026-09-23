@@ -593,7 +593,9 @@ final class GitFlowsE2eTest extends TestCase
                     $this->awaitGit($ide);
                     $this->await(static fn (): bool => ['Update A', 'init'] === \explode("\n", $project->git('log', '--format=%s')), what: 'ctrl+enter to commit the staged change');
                     // Discard the untracked notes.md: Tab walks summary -> description
-                    // -> next pane (the changes list), then arm + confirm.
+                    // -> the amend checkbox -> next pane (the changes list), then
+                    // arm + confirm.
+                    $tui->handleInput("\t");
                     $tui->handleInput("\t");
                     $tui->handleInput("\t");
                     $tui->handleInput('d');

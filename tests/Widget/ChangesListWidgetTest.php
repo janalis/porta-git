@@ -301,9 +301,17 @@ final class ChangesListWidgetTest extends TestCase
         $widget->handleClick(3, 10); // row of c.txt, on the path
         $this->assertSame('c.txt', $selected);
 
+        // The toggle's target is the bar, the box and the gap after it — the
+        // status letter at column 5 is the row's, and selects.
+        $widget->handleClick(3, 4);
+        $this->assertSame('c.txt', $toggled, 'the gap after the box still toggles');
+        $widget->handleClick(2, 5);
+        $this->assertSame('src/b.php', $selected, 'the status letter selects');
+        $this->assertSame('c.txt', $toggled, 'and does not toggle');
+
         $widget->handleClick(0, 2); // header row: ignored
         $widget->handleClick(7, 2); // past the list: ignored
-        $this->assertSame('src/b.php', $toggled);
+        $this->assertSame('c.txt', $toggled);
     }
 
     public function testHoverTintsWithoutTouchingSelectionOrFiringSelect(): void

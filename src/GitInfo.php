@@ -210,6 +210,17 @@ final readonly class GitInfo
     }
 
     /**
+     * Whether the branch has a commit yet — a fresh `git init` has none, and
+     * there is nothing to amend until it does.
+     *
+     * @param callable(bool): void $onDone
+     */
+    public function hasHead(callable $onDone): void
+    {
+        $this->runner->runStatus(['rev-parse', '--verify', '--quiet', 'HEAD'], static fn (int $code) => $onDone(0 === $code));
+    }
+
+    /**
      * Undo the last commit, keeping its changes staged (`reset --soft`).
      * Refused when HEAD has no parent (nothing to undo onto).
      *

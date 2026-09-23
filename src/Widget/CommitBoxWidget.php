@@ -9,7 +9,6 @@ use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
 use Porta\Ui\CaretVisibility;
 use Porta\Ui\CursorStyle;
-use Porta\Ui\Glyphs;
 use Porta\Ui\MultilineInput;
 use Porta\Ui\Role;
 use Porta\Ui\TextField;
@@ -59,10 +58,16 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     /** The amend checkbox's row: below the description box and its two border rows. */
     private const int AMEND_ROW = self::DESCRIPTION_TOP + self::DESCRIPTION_ROWS + 2;
 
+    /** The amend checkbox as a Tab stop, after the two fields. */
+    private const int AMEND_FIELD = 2;
+
     private readonly TextField $summary;
     private readonly MultilineInput $description;
-    private int $activeField = 0; // 0 = summary, 1 = description
+    private int $activeField = 0; // 0 = summary, 1 = description, 2 = the amend checkbox
     private CommitMode $amend = CommitMode::Fresh;
+
+    /** Whether there is a commit to amend: a branch with none shows the checkbox disabled. */
+    private bool $amendable = true;
 
     /** @var (callable(): bool)|null anything staged to commit? */
     private $stagedChangesProvider;
@@ -105,6 +110,20 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         $this->onAmendToggle = $callback;
 
         return $this;
+    }
+
+    /** A branch with no commit yet has nothing to amend: the checkbox is shown disabled, and no key or click reaches it. */
+    // @mago-expect lint:no-boolean-flag-parameter -- the bool IS the domain: whether the branch has a commit.
+    public function setAmendable(bool $amendable): void
+    {
+        if ($amendable === $this->amendable) {
+            return;
+        }
+        $this->amendable = $amendable;
+        if (!$amendable && self::AMEND_FIELD === $this->activeField) {
+            $this->activeField = 0;
+        }
+        $this->invalidate();
     }
 
     public function isAmend(): bool
@@ -172,7 +191,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     public function hoverRow(int $relRow): bool
     {
         return $this->setHovered(match (true) {
-            self::AMEND_ROW === $relRow => self::AMEND_ROW,
+            self::AMEND_ROW === $relRow && $this->amendable => self::AMEND_ROW,
             $this->onButton($relRow) && $this->commitEnabled() => $this->buttonRow(),
             default => null,
         });
@@ -212,8 +231,11 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             return;
         }
         if ($kb->matches($data, 'next_field')) {
-            if (0 === $this->activeField) {
-                $this->activeField = 1;
+            // Summary, description, then the checkbox — skipped while it is
+            // disabled, the way a browser's Tab passes a disabled control.
+            $last = $this->amendable ? self::AMEND_FIELD : 1;
+            if ($this->activeField < $last) {
+                ++$this->activeField;
                 $this->invalidate();
 
                 return;
@@ -224,6 +246,13 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             }
 
             return;
+        }
+        if (self::AMEND_FIELD === $this->activeField) {
+            if ($kb->matches($data, 'toggle_checkbox')) {
+                $this->toggleAmend();
+            }
+
+            return; // a checkbox takes no text
         }
 
         if (0 === $this->activeField) {
@@ -259,6 +288,9 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             return;
         }
         if (self::AMEND_ROW === $relRow) {
+            if ($this->amendable) {
+                $this->activeField = self::AMEND_FIELD; // a clicked checkbox takes the focus, as in a browser
+            }
             $this->toggleAmend();
 
             return;
@@ -269,6 +301,9 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
     private function toggleAmend(): void
     {
+        if (!$this->amendable) {
+            return;
+        }
         $this->amend = CommitMode::Amend === $this->amend ? CommitMode::Fresh : CommitMode::Amend;
         if (null !== $this->onAmendToggle) {
             ($this->onAmendToggle)($this->amend);
@@ -308,11 +343,20 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         // A checkbox with its label, the way a form offers an option: the
         // state reads by glyph without colour, and the whole row is its hit
         // target. It used to be a checkbox glued to the header, reachable
-        // only by Alt+M.
+        // only by Alt+M; it is the form's third Tab stop now, heavy-railed
+        // while Space would toggle it, and dashed on a branch with no commit.
         $amend = CommitMode::Amend === $this->amend;
-        $label = ' '.($amend ? Glyphs::CHECKBOX_ON : Glyphs::CHECKBOX_OFF).' '.$this->translator->trans('Amend last commit');
-        $hint = '  '.$this->styles->of(Role::Faint)->apply('Alt+M');
-        $lines[] = AnsiText::truncate(self::AMEND_ROW === $this->hoveredIndex ? $this->styles->of(Role::Bright)->withUnderline()->apply($label).$hint : $label.$hint, $width, pad: true);
+        $state = $this->amendable ? FieldState::of($focused && self::AMEND_FIELD === $this->activeField) : FieldState::Disabled;
+        $label = ' '.FieldBox::checkbox($amend, $state).' '.$this->translator->trans('Amend last commit');
+        $lines[] = AnsiText::truncate(
+            match (true) {
+                !$this->amendable => $this->styles->of(Role::Faint)->apply($label.'  '.$this->translator->trans('No commit to amend')),
+                self::AMEND_ROW === $this->hoveredIndex => $this->styles->of(Role::Bright)->withUnderline()->apply($label).$this->hint(),
+                default => $label.$this->hint(),
+            },
+            $width,
+            pad: true,
+        );
 
         // The form's submit button, its key in its border: dashed while
         // there is nothing to commit, so "not now" reads without colour.
@@ -329,12 +373,18 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         return $lines;
     }
 
+    private function hint(): string
+    {
+        return '  '.$this->styles->of(Role::Faint)->apply('Alt+M');
+    }
+
     /** @return array<string, string[]> */
     protected static function getDefaultKeybindings(): array
     {
         return [
             'commit' => ['ctrl+enter'],
             'toggle_amend' => ['alt+m'],
+            'toggle_checkbox' => [Key::SPACE],
             'next_field' => [Key::TAB],
             'delete_char_backward' => [Key::BACKSPACE],
             'exit_view' => [Key::ESCAPE],

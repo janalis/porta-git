@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
-use Porta\Ui\Glyphs;
+use Porta\Widget\Render\FieldBox;
 
 /**
  * How much of a changed file the next commit would take: the changes list's
@@ -19,10 +19,10 @@ enum StagedState
 
     public function checkbox(): string
     {
-        return match ($this) {
-            self::Full => Glyphs::CHECKBOX_ON,
-            self::Partial => Glyphs::CHECKBOX_PARTIAL,
-            self::None => Glyphs::CHECKBOX_OFF,
-        };
+        return FieldBox::checkbox(match ($this) {
+            self::Full => true,
+            self::Partial => null,
+            self::None => false,
+        });
     }
 }

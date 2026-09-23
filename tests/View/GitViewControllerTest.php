@@ -1261,6 +1261,27 @@ final class GitViewControllerTest extends TestCase
         return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->history->render(new RenderContext(44, 20))));
     }
 
+    /**
+     * A branch with no commit yet — a fresh `git init` — has nothing to amend,
+     * so the checkbox opens disabled; the commit that gives it one refreshes
+     * eagerly, and the checkbox comes alive with it.
+     */
+    public function testTheAmendCheckboxWaitsForAFirstCommit(): void
+    {
+        $controller = $this->controller();
+        $this->project->git('update-ref', '-d', 'HEAD'); // the branch unborn, as after `git init`
+        $commitBox = fn (): string => \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->commitBox->render(new RenderContext(44, 12))));
+
+        $controller->open();
+        $this->await(static fn (): bool => \str_contains($commitBox(), 'No commit to amend'), what: 'the unborn branch disables amend');
+        $this->assertStringContainsString('┆ ┆ Amend last commit', $commitBox(), 'dashed');
+
+        $this->project->commitAll('first');
+        $controller->refresh();
+        $this->await(static fn (): bool => !\str_contains($commitBox(), 'No commit to amend'), what: 'a first commit enables it');
+        $this->assertStringContainsString('[ ] Amend last commit', $commitBox());
+    }
+
     public function testFocusCycleWalksTheThreePanes(): void
     {
         $controller = $this->controller();
@@ -1275,7 +1296,8 @@ final class GitViewControllerTest extends TestCase
         $this->assertSame($this->commitBox, $this->tui->getFocus());
         $this->commitBox->setFocused(true);
         $this->commitBox->handleInput("\t"); // summary -> description
-        $this->commitBox->handleInput("\t"); // description -> next pane
+        $this->commitBox->handleInput("\t"); // description -> the amend checkbox
+        $this->commitBox->handleInput("\t"); // amend -> next pane
         $this->assertSame($this->changes, $this->tui->getFocus());
     }
 
