@@ -724,7 +724,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertStringContainsString('gamma CHANGED', $project->git('diff'), 'gamma remains a worktree change');
                     // The post-apply refresh repaints the mixed checkbox; await
                     // it here instead of scraping after the loop stopped.
-                    $this->await(static fn (): bool => \str_contains($screen(), '[~] M f.txt'), what: 'partial staging to show the mixed checkbox');
+                    $this->await(static fn (): bool => \str_contains($screen(), '[–] M f.txt'), what: 'partial staging to show the mixed checkbox');
                     $tui->handleInput("\x1b");
                 },
             ],
@@ -797,7 +797,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->await(
                         static fn (): bool => \str_contains(
                             AnsiUtils::stripAnsiCodes($tui->getById('git-changes')->render(new RenderContext(44, 4))[1] ?? ''),
-                            '[x]',
+                            '[✓]',
                         ),
                         what: 'the changes list to show a.txt staged',
                     );

@@ -64,9 +64,9 @@ final class ChangesListWidgetTest extends TestCase
 
         $this->assertStringContainsString('4 changed files', $screen);
         $this->assertStringContainsString('[ ] M src/a.php', $screen);
-        $this->assertStringContainsString('[x] M src/b.php', $screen);
+        $this->assertStringContainsString('[✓] M src/b.php', $screen);
         $this->assertStringContainsString('[ ] A c.txt', $screen, 'untracked shows as an unstaged addition');
-        $this->assertStringContainsString('[x] R renamed.php ← old.php', $screen);
+        $this->assertStringContainsString('[✓] R renamed.php ← old.php', $screen);
     }
 
     public function testPartialStagingShowsTheMixedCheckbox(): void
@@ -74,7 +74,7 @@ final class ChangesListWidgetTest extends TestCase
         $widget = new ChangesListWidget(new Translator('en'));
         $widget->setEntries([new ChangeEntry('x.php', 'M', 'M')]);
 
-        $this->assertStringContainsString('[~] M x.php', $this->plain($widget->render(new RenderContext(44, 4))));
+        $this->assertStringContainsString('[–] M x.php', $this->plain($widget->render(new RenderContext(44, 4))));
     }
 
     public function testNavigationFiresOnSelect(): void
@@ -228,7 +228,7 @@ final class ChangesListWidgetTest extends TestCase
             },
         );
 
-        $widget->handleClick(2, 2); // row of src/b.php, inside [x]
+        $widget->handleClick(2, 2); // row of src/b.php, inside [✓]
         $this->assertSame('src/b.php', $toggled);
 
         $widget->handleClick(3, 10); // row of c.txt, on the path

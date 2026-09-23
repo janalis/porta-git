@@ -713,6 +713,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     {
         return match ($state) {
             OptionTagState::On => $this->styles->of(Role::SelectedRow),
+            OptionTagState::OnHovered => $this->styles->of(Role::SelectedRow)->withUnderline(),
             OptionTagState::Hovered => $this->styles->of(Role::RowHighlightBg),
             OptionTagState::Off => $this->styles->merge(Role::TagOffBg, Role::Muted),
         };

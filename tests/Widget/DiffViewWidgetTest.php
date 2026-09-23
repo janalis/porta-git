@@ -788,7 +788,11 @@ final class DiffViewWidgetTest extends TestCase
         $widget->hideWhitespace();
         $on = $widget->render(new RenderContext(80, 12))[0];
         $this->assertStringContainsString("\x1b[48;5;31m", $on, 'the on toggle keeps its selection background under the pointer');
+        $this->assertStringContainsString("\x1b[4m", $on, 'and underlines, so the pointer over a lit toggle still shows');
         $this->assertSame(80, AnsiUtils::visibleWidth($on));
+
+        $widget->clearHeaderHover();
+        $this->assertStringNotContainsString("\x1b[4m", $widget->render(new RenderContext(80, 12))[0], 'the underline is the pointer, not the state');
     }
 
     public function testATeamThemeSwitchRebuildsTheBakedRows(): void

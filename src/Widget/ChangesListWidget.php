@@ -39,7 +39,7 @@ use Symfony\Component\Tui\Widget\VerticallyExpandableInterface;
 
 /**
  * The git view's changed-files list (GitHub Desktop's left column): one row
- * per {@see ChangeEntry} as `[x] M path`, where the checkbox mirrors the
+ * per {@see ChangeEntry} as `[✓] M path`, where the checkbox mirrors the
  * staged state. Space toggles staging, `d` arms an inline discard
  * confirmation, Enter/selection drives the diff pane via onSelect.
  */
