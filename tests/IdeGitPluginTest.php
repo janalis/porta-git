@@ -23,12 +23,14 @@ use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Ui\ClickIntent;
 use Porta\Ui\Glyphs;
+use Porta\Widget\ContextMenu;
 use Porta\Workbench\View\ContributedView;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
 
 /**
@@ -558,6 +560,37 @@ final class IdeGitPluginTest extends TestCase
         );
 
         $this->addToAssertionCount(1);
+    }
+
+    /**
+     * The branch cell wears a select's `▾`, so it opens like one: on a LEFT
+     * click, where only a right-click used to reach its menu.
+     */
+    public function testALeftClickOnTheBranchCellOpensItsMenu(): void
+    {
+        $this->skipWithoutGit();
+        $project = self::repo();
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                400 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
+                    $shown = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
+                    $this->await(static fn (): bool => \str_contains($shown(), Glyphs::STATUS_BRANCH), what: 'the branch to resolve');
+                    $grid = $this->screenGrid($tui, $terminal);
+                    $row = \count($grid) - 1; // the status bar is the last row
+                    $col = \mb_strpos($grid[$row], Glyphs::STATUS_BRANCH);
+                    $this->assertNotFalse($col, 'the branch cell is on the status row');
+                    $this->assertStringContainsString(Glyphs::STATUS_MENU, $grid[$row], 'and says it opens a menu');
+
+                    $tui->handleInput(\sprintf("\x1b[<0;%d;%dM", $col + 1, $row + 1));
+                    $tui->handleInput(\sprintf("\x1b[<0;%d;%dm", $col + 1, $row + 1));
+
+                    $this->assertTrue(Services::resolve($ide, ContextMenu::class)->isOpen(), 'a left click opened the branch menu');
+                },
+            ],
+        );
     }
 
     public function testShutdownStopsBothLanesAndTheHalvesShareTheGeneralOne(): void
