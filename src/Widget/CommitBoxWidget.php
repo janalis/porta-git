@@ -16,6 +16,9 @@ use Porta\Ui\TextField;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\HoverableList;
 use Porta\Widget\PaneNavigationCallbacks;
+use Porta\Widget\Render\FieldBox;
+use Porta\Widget\Render\FieldSpec;
+use Porta\Widget\Render\FieldState;
 use Porta\Widget\Render\HeaderRenderer;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
@@ -47,7 +50,11 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     use PaneNavigationCallbacks;
     use StylesDefault;
 
-    private const int DESCRIPTION_ROWS = 3;
+    /** The description box's text rows; the box adds its two border rows. */
+    private const int DESCRIPTION_ROWS = 2;
+
+    /** The description box's first row: below the header and the summary box. */
+    private const int DESCRIPTION_TOP = 1 + FieldBox::ROWS;
 
     private readonly TextField $summary;
     private readonly MultilineInput $description;
@@ -163,7 +170,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     /** The widget-relative row of the [Commit] button, for mouse hit-testing. */
     public function buttonRow(): int
     {
-        return 2 + self::DESCRIPTION_ROWS + 1;
+        return self::DESCRIPTION_TOP + self::DESCRIPTION_ROWS + 2;
     }
 
     public function handleInput(string $data): void
@@ -235,7 +242,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
             return;
         }
-        $this->activeField = $relRow >= 2 && $relRow < (2 + self::DESCRIPTION_ROWS) ? 1 : 0;
+        $this->activeField = $relRow >= self::DESCRIPTION_TOP && $relRow < $this->buttonRow() ? 1 : 0;
         $this->invalidate();
     }
 
@@ -252,22 +259,28 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         $header = $this->translator->trans(' Commit  ·  Alt+M amend ').(CommitMode::Amend === $this->amend ? Glyphs::CHECKBOX_ON : Glyphs::CHECKBOX_OFF);
         $lines[] = HeaderRenderer::title($header, $width, $this->styles, suffix: 'Esc');
 
-        $summary = ' '.$this->summary->render(cursor: $focused && 0 === $this->activeField ? CaretVisibility::Shown : CaretVisibility::Hidden, width: $width - 1);
-        $summaryHint =
-            '' === $this->summary->value() && (!$focused || 0 !== $this->activeField)
-                ? $this->styles->of(Role::Dim)->apply(' '.$this->translator->trans('Summary (required)'))
-                : $summary;
-        $lines[] = $this->styles->of(Role::RowHighlightBg)->apply(AnsiText::truncate($summaryHint, $width, pad: true));
+        // Two boxed fields whose legends name them — always on screen, so
+        // what each box is for no longer vanishes the moment it takes focus.
+        // The border shape says which one is taking the keys.
+        $typingSummary = $focused && 0 === $this->activeField;
+        \array_push($lines, ...FieldBox::render(
+            new FieldSpec($this->translator->trans('Summary (required)')),
+            $this->summary,
+            FieldState::of($typingSummary),
+            $typingSummary ? CaretVisibility::Shown : CaretVisibility::Hidden,
+            $width,
+            $this->styles,
+        ));
 
-        $descriptionLines = $this->description->render($width - 1, self::DESCRIPTION_ROWS, cursor: $focused && 1 === $this->activeField ? CaretVisibility::Shown : CaretVisibility::Hidden);
-        if ($this->description->isEmpty() && (!$focused || 1 !== $this->activeField)) {
-            $descriptionLines = [$this->styles->of(Role::Dim)->apply($this->translator->trans('Description'))];
-        }
-        for ($i = 0; $i < self::DESCRIPTION_ROWS; ++$i) {
-            $lines[] = $this->styles->of(Role::Toolbar)->apply(AnsiText::truncate(' '.($descriptionLines[$i] ?? ''), $width, pad: true));
-        }
-
-        $lines[] = AnsiText::blank($width);
+        $typingDescription = $focused && 1 === $this->activeField;
+        $descriptionLines = $this->description->render(\max(1, $width - FieldBox::CHROME_COLS), self::DESCRIPTION_ROWS, cursor: $typingDescription ? CaretVisibility::Shown : CaretVisibility::Hidden);
+        \array_push($lines, ...FieldBox::frame(
+            new FieldSpec($this->translator->trans('Description')),
+            \array_pad(\array_slice($descriptionLines, offset: 0, length: self::DESCRIPTION_ROWS), self::DESCRIPTION_ROWS, value: ''),
+            FieldState::of($typingDescription),
+            $width,
+            $this->styles,
+        ));
         $label = CommitMode::Amend === $this->amend ? $this->translator->trans('  Amend last commit  ') : $this->translator->trans('  Commit to branch  ');
         // SelectedRow already carries the bright fg, so the hover cue is an
         // underline — the one attribute that reads on any theme.

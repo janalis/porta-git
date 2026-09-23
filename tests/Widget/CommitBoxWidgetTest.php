@@ -81,13 +81,18 @@ final class CommitBoxWidgetTest extends TestCase
         $widget = $this->widget($committed);
         $this->type($widget, 'Click me');
 
-        $widget->handleClick(2); // description rows start at rel row 2
+        $widget->handleClick(4); // the description box starts at rel row 4, its top border
         $this->type($widget, 'desc');
         $this->assertSame("Click me\n\ndesc", $widget->message());
 
-        $widget->handleClick(1); // back to the summary row
+        $widget->handleClick(3); // back to the summary box, by its bottom border
         $this->type($widget, '!');
         $this->assertStringStartsWith('Click me!', $widget->message());
+
+        $widget->handleClick($widget->buttonRow() - 1); // the description box's bottom border
+        $this->type($widget, '.');
+        $this->assertSame("Click me!\n\ndesc.", $widget->message());
+        $widget->handleInput("\x7f");
 
         $widget->handleClick($widget->buttonRow());
         $this->assertSame("Click me!\n\ndesc", $committed);
@@ -115,7 +120,7 @@ final class CommitBoxWidgetTest extends TestCase
 
         $this->type($widget, 'body text');
         $this->assertStringContainsString('body text', $this->rendered($widget), 'the typed text landed in the description, so focus never left it');
-        $this->assertStringNotContainsString('body text', \explode("\n", $this->rendered($widget))[1], 'and specifically not in the summary row');
+        $this->assertStringNotContainsString('body text', \explode("\n", $this->rendered($widget))[2], 'and specifically not in the summary box');
     }
 
     public function testRenderShowsPlaceholdersButtonStateAndClearResets(): void
