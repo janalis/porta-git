@@ -83,6 +83,7 @@ final class GitTabsWidgetTest extends TestCase
     public function testHoverTintsTheInactiveTabOnly(): void
     {
         $widget = new GitTabsWidget(new Translator('en'));
+        $widget->render(new RenderContext(44, 1)); // the pointer lands on what was drawn
 
         $this->assertTrue($widget->hoverMode(GitViewMode::History), 'hovering the inactive tab changes the tint');
         $this->assertFalse($widget->hoverMode(GitViewMode::History), 'same tab: no change');
@@ -108,5 +109,28 @@ final class GitTabsWidgetTest extends TestCase
         $row = $this->painted($widget, new RenderContext(300, 5))[0];
         $this->assertSame($widget->width(), AnsiUtils::visibleWidth($row));
         $this->assertStringContainsString('MMM', $row);
+    }
+
+    /**
+     * A tab the pane cut off is not a target. The strip used to lay out
+     * every mode and truncate the line after, so a click past the edge —
+     * or on the ellipsis — still switched to a tab nobody could see.
+     */
+    public function testATabThePaneCutOffCannotBeClicked(): void
+    {
+        $events = new EventDispatcher();
+        $requested = [];
+        $events->addListener(GitViewModeRequested::class, static function (GitViewModeRequested $event) use (&$requested): void {
+            $requested[] = $event->mode;
+        });
+        $widget = new GitTabsWidget(new Translator('en'), events: $events);
+
+        $line = AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(14, 1))[0]);
+        $this->assertStringNotContainsString('History', $line, 'too narrow for the second tab');
+        for ($col = 0; $col < 14; ++$col) {
+            $widget->handleClick($col);
+        }
+
+        $this->assertSame([], $requested);
     }
 }

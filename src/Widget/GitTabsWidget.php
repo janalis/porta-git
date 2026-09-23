@@ -12,8 +12,7 @@ use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
-use Porta\Widget\Render\TabState;
-use Porta\Widget\Render\TabStyle;
+use Porta\Widget\Render\TabStripRenderer;
 use Porta\Widget\Support\PanelWidth;
 use Porta\Widget\Support\StylesDefault;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -36,7 +35,7 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
 
     /** The tab under the mouse pointer (visual only), or null. */
     private ?GitViewMode $hoveredMode = null;
-    /** @var list<array{mode: GitViewMode, start: int, width: int}> tab layout from the last render, for hit-testing */
+    /** @var list<array{mode: GitViewMode, start: int, width: int}> the tabs the last render DREW, for hit-testing — a tab the pane cut off has no zone */
     private array $layout = [];
 
     public function __construct(
@@ -109,23 +108,23 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
     public function render(RenderContext $context): array
     {
         $width = $this->panelColumns($context);
-
-        $this->layout = [];
-        $line = ' ';
-        $col = 1;
-        foreach (GitViewMode::cases() as $mode) {
-            $label = $this->translator->trans(match ($mode) {
+        $modes = GitViewMode::cases();
+        // The editor's and the dock's strip, uncloseable: a mode is always
+        // there. The hovered mode came from the last render's layout, so its
+        // column there is the column the renderer resolves hover from.
+        $tabs = \array_map(fn (GitViewMode $mode): array => [
+            'label' => \trim($this->translator->trans(match ($mode) {
                 GitViewMode::Changes => ' Changes ',
                 GitViewMode::History => ' History ',
-            });
-            $tabWidth = \mb_strwidth($label);
-            $this->layout[] = ['mode' => $mode, 'start' => $col, 'width' => $tabWidth];
-            $line .= TabStyle::of($this->styles, TabState::of($mode === $this->active, $mode === $this->hoveredMode))->apply($label);
-            $col += $tabWidth + 1;
-            $line .= ' ';
-        }
+            })),
+            'active' => $mode === $this->active,
+            'closable' => false,
+        ], $modes);
+        $hover = \array_find($this->layout, fn (array $tab): bool => $tab['mode'] === $this->hoveredMode);
+        $strip = TabStripRenderer::render($tabs, $width, $this->styles, $hover['start'] ?? null);
+        $this->layout = \array_map(static fn (array $zone): array => ['mode' => $modes[$zone['index']], 'start' => $zone['start'], 'width' => $zone['width']], $strip['hitMap']);
 
-        return [$this->styles->of(Role::Toolbar)->apply(AnsiText::truncate($line, $width, pad: true))];
+        return $this->withMenuOverlay([$this->styles->of(Role::Toolbar)->apply(AnsiText::padRight($strip['line'], $width))], $width);
     }
 
     protected function overlayWidth(RenderContext $context): int
