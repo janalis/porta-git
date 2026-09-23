@@ -133,4 +133,32 @@ final class GitTabsWidgetTest extends TestCase
 
         $this->assertSame([], $requested);
     }
+
+    /**
+     * The sidebar's height plus the menu and status bars is the terminal's:
+     * folder tabs from 30 rows, compact below — and the active mode's lid is
+     * heavy all round while the sidebar has the keys.
+     */
+    public function testTheModeTabsAreFolderTabsOnATallSidebar(): void
+    {
+        $widget = new GitTabsWidget(new Translator('en'));
+        $focused = true;
+        $widget->setFocusProbe(static function () use (&$focused): bool {
+            return $focused;
+        });
+
+        $tall = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(44, 28)));
+        $short = $widget->render(new RenderContext(44, 27));
+
+        $this->assertCount(2, $tall);
+        $this->assertStringStartsWith('┏━━━━━━━━━┓╭─────────╮', $tall[0]);
+        $this->assertStringStartsWith('┃ Changes ┃│ History │─', $tall[1]);
+        $this->assertCount(1, $short);
+
+        $focused = false;
+        $revision = $widget->getRenderRevision();
+        $widget->beforeRender();
+        $this->assertNotSame($revision, $widget->getRenderRevision(), 'a focus change repaints');
+        $this->assertStringStartsWith('┍', AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(44, 28))[0]));
+    }
 }

@@ -7,12 +7,12 @@ namespace Porta\GitPlugin\Widget;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
-use Porta\Support\AnsiText;
-use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
 use Porta\Widget\Render\TabStripRenderer;
+use Porta\Widget\Render\TabStripTail;
+use Porta\Widget\Support\PaneFocusProbe;
 use Porta\Widget\Support\PanelWidth;
 use Porta\Widget\Support\StylesDefault;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -28,10 +28,17 @@ use Symfony\Component\Tui\Widget\AbstractWidget;
 final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
 {
     use MenuOverlayHostTrait;
+    use PaneFocusProbe;
     use PanelWidth;
     use StylesDefault;
 
+    /** The menu bar and the status bar: the terminal's rows the sidebar does not get. */
+    private const int CHROME_ROWS = 2;
+
     private GitViewMode $active = GitViewMode::Changes;
+
+    /** The sidebar focus the last render drew, so a focus change repaints the lid. */
+    private bool $drawnFocus = false;
 
     /** The tab under the mouse pointer (visual only), or null. */
     private ?GitViewMode $hoveredMode = null;
@@ -105,6 +112,14 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
         }
     }
 
+    #[\Override]
+    public function beforeRender(): void
+    {
+        if ($this->paneFocused() !== $this->drawnFocus) {
+            $this->invalidate(); // the active lid's weight follows the sidebar's focus
+        }
+    }
+
     public function render(RenderContext $context): array
     {
         $width = $this->panelColumns($context);
@@ -121,10 +136,14 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
             'closable' => false,
         ], $modes);
         $hover = \array_find($this->layout, fn (array $tab): bool => $tab['mode'] === $this->hoveredMode);
-        $strip = TabStripRenderer::render($tabs, $width, $this->styles, $hover['start'] ?? null);
+        // The core strips take their height from the terminal's; this one is
+        // a plugin's and sees only its sidebar, which runs between the menu
+        // bar and the status bar — the two rows added back.
+        $rows = TabStripRenderer::rowsFor($context->getRows() + self::CHROME_ROWS);
+        $strip = TabStripRenderer::render($tabs, $width, $this->styles, $hover['start'] ?? null, rows: $rows, paneFocused: $this->drawnFocus = $this->paneFocused());
         $this->layout = \array_map(static fn (array $zone): array => ['mode' => $modes[$zone['index']], 'start' => $zone['start'], 'width' => $zone['width']], $strip['hitMap']);
 
-        return $this->withMenuOverlay([$this->styles->of(Role::Toolbar)->apply(AnsiText::padRight($strip['line'], $width))], $width);
+        return $this->withMenuOverlay(TabStripTail::pad($strip, $width, $rows > 1, $this->styles), $width);
     }
 
     protected function overlayWidth(RenderContext $context): int

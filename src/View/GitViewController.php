@@ -156,6 +156,9 @@ final class GitViewController implements ContributedView
         $this->panes->changes->onFocusNext($next)->onExit($exit);
         $this->panes->history->onFocusNext($next)->onExit($exit);
         $this->panes->diffView->onFocusNext($next)->onExit($exit);
+        // The mode tabs head the sidebar: their lid is heavy while its lists
+        // or the commit box hold the keys.
+        $this->panes->tabs->setFocusProbe(fn (): bool => \in_array($this->host->focused(), [$this->panes->changes, $this->panes->history, $this->panes->commitBox], strict: true));
         $this->panes
             ->commitBox
             ->setStagedChangesProvider($this->hasStagedChanges(...))
