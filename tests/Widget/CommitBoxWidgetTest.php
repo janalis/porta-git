@@ -11,7 +11,6 @@ use Porta\I18n\Translator;
 use Porta\Tests\Support\RendersWidget;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
-use Porta\Widget\Render\FieldBox;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Style\CursorShape;
@@ -44,7 +43,7 @@ final class CommitBoxWidgetTest extends TestCase
 
     private function rendered(CommitBoxWidget $widget): string
     {
-        return $this->plain($widget->render(new RenderContext(44, 14))); // header, two boxes, the amend row, the button
+        return $this->plain($widget->render(new RenderContext(44, 16))); // header, two boxes, the amend row, the button
     }
 
     public function testMessageAssemblyAndEnabledState(): void
@@ -91,15 +90,18 @@ final class CommitBoxWidgetTest extends TestCase
         $this->type($widget, '!');
         $this->assertStringStartsWith('Click me!', $widget->message());
 
-        $widget->handleClick($widget->buttonRow() - 2); // the description box's bottom border
+        $widget->handleClick($widget->buttonRow() - 4); // the description box's bottom border, above the amend box
         $this->type($widget, '.');
         $this->assertSame("Click me!\n\ndesc.", $widget->message());
         $widget->handleInput("\x7f");
 
-        $widget->handleClick($widget->buttonRow() - 1); // the amend row: its label toggles it, like an HTML <label>
+        $widget->handleClick($widget->buttonRow() - 2); // the amend box's label row: it toggles it, like an HTML <label>
+        $this->assertTrue($widget->isAmend());
+        $widget->handleClick($widget->buttonRow() - 3); // the box's top border: all three rows are its target
+        $this->assertFalse($widget->isAmend());
+        $widget->handleClick($widget->buttonRow() - 1); // and its bottom
         $this->assertTrue($widget->isAmend());
         $widget->handleClick($widget->buttonRow() - 1);
-        $this->assertFalse($widget->isAmend());
 
         $widget->handleClick($widget->buttonRow() + 2); // the button's bottom border is still the button
         $this->assertSame("Click me!\n\ndesc", $committed);
@@ -250,7 +252,7 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertTrue($widget->commitEnabled(), 'amending only the message needs nothing staged');
 
         $screen = $this->rendered($widget);
-        $this->assertStringContainsString(FieldBox::checkbox(true).' Amend last commit  Alt+M', $screen, 'the amend state reads as a labelled checkbox, without colour');
+        $this->assertStringContainsString('│✓│ Amend last commit  Alt+M', $screen, 'the amend state reads as a labelled checkbox, without colour — a box, its label on the middle row');
         $this->assertStringContainsString('Amend last commit', $screen);
 
         $widget->handleInput("\x1b[13;5u");
@@ -376,14 +378,17 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertTrue($widget->hoverRow($widget->buttonRow()), 'the enabled button reacts under the pointer');
         $this->assertFalse($widget->hoverRow($widget->buttonRow()));
         $this->assertFalse($widget->hoverRow($widget->buttonRow() + 2), 'the button is three rows, and all three are the button');
-        $lines = $widget->render(new RenderContext(44, 14));
+        $lines = $widget->render(new RenderContext(44, 16));
         $this->assertStringContainsString("\x1b[4m", $lines[$widget->buttonRow() + 1], 'the hovered button underlines its caption');
 
         $this->assertTrue($widget->hoverRow(0), 'the summary field is not the button — the tint clears');
-        $this->assertStringNotContainsString("\x1b[4m", $widget->render(new RenderContext(44, 14))[$widget->buttonRow() + 1]);
+        $this->assertStringNotContainsString("\x1b[4m", $widget->render(new RenderContext(44, 16))[$widget->buttonRow() + 1]);
 
-        $this->assertTrue($widget->hoverRow($widget->buttonRow() - 1), 'the amend row reacts too');
-        $this->assertStringContainsString("\x1b[4m", $widget->render(new RenderContext(44, 14))[$widget->buttonRow() - 1], 'its label underlines');
+        $this->assertTrue($widget->hoverRow($widget->buttonRow() - 1), 'the amend box reacts too, from any of its rows');
+        $this->assertFalse($widget->hoverRow($widget->buttonRow() - 3), 'all three are one target');
+        $amend = $widget->render(new RenderContext(44, 16));
+        $this->assertStringContainsString("\x1b[4m", $amend[$widget->buttonRow() - 2], 'its label underlines');
+        $this->assertStringNotContainsString("\x1b[4m", $amend[$widget->buttonRow() - 3], 'and never its box');
     }
 
     /**
@@ -402,23 +407,23 @@ final class CommitBoxWidgetTest extends TestCase
     }
 
     /**
-     * The amend mark takes the accent at rest; under the pointer the whole
-     * row is Bright and underlined, and a tint's closing code there would
-     * cut that short after the mark.
+     * The amend mark keeps the accent under the pointer as at rest: hover
+     * underlines the label on the box's middle row and never touches the box,
+     * so there is no closing code to cut a tint short.
      */
-    public function testTheAmendMarkIsTintedExceptUnderThePointer(): void
+    public function testTheAmendMarkKeepsItsTintUnderThePointer(): void
     {
         $widget = $this->widget();
         $widget->handleInput("\x1bm"); // Alt+M: amend on
         $accent = Styles::dark()->of(Role::TabAccent)->apply('✓');
-        $amendRow = static fn (): string => \array_find($widget->render(new RenderContext(44, 14)), static fn (string $line): bool => \str_contains(
+        $amendRow = static fn (): string => \array_find($widget->render(new RenderContext(44, 16)), static fn (string $line): bool => \str_contains(
             AnsiUtils::stripAnsiCodes($line),
             'Amend last commit  ',
         )) ?? '';
 
         $this->assertStringContainsString($accent, $amendRow());
-        $widget->hoverRow($widget->buttonRow() - 1);
-        $this->assertStringNotContainsString($accent, $amendRow());
+        $widget->hoverRow($widget->buttonRow() - 2);
+        $this->assertStringContainsString($accent, $amendRow());
     }
 
     /** Shift+Tab walks the fields back — amend, description, summary — and stops at the summary. */

@@ -55,8 +55,8 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     /** The description box's first row: below the header and the summary box. */
     private const int DESCRIPTION_TOP = 1 + FieldBox::ROWS;
 
-    /** The amend checkbox's row: below the description box and its two border rows. */
-    private const int AMEND_ROW = self::DESCRIPTION_TOP + self::DESCRIPTION_ROWS + 2;
+    /** The amend checkbox's box, its first row: below the description box and its two border rows. */
+    private const int AMEND_TOP = self::DESCRIPTION_TOP + self::DESCRIPTION_ROWS + 2;
 
     /** The amend checkbox as a Tab stop, after the two fields. */
     private const int AMEND_FIELD = 2;
@@ -191,7 +191,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     public function hoverRow(int $relRow): bool
     {
         return $this->setHovered(match (true) {
-            self::AMEND_ROW === $relRow && $this->amendable => self::AMEND_ROW,
+            $this->onAmend($relRow) && $this->amendable => self::AMEND_TOP,
             $this->onButton($relRow) && $this->commitEnabled() => $this->buttonRow(),
             default => null,
         });
@@ -200,7 +200,13 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     /** The widget-relative first row of the three-row commit button, for mouse hit-testing. */
     public function buttonRow(): int
     {
-        return self::AMEND_ROW + 1;
+        return self::AMEND_TOP + FieldBox::ROWS;
+    }
+
+    /** Any row of the amend checkbox's box — its label rides the middle one, and all three are its target. */
+    private function onAmend(int $relRow): bool
+    {
+        return $relRow >= self::AMEND_TOP && $relRow < (self::AMEND_TOP + FieldBox::ROWS);
     }
 
     private function onButton(int $relRow): bool
@@ -297,7 +303,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
             return;
         }
-        if (self::AMEND_ROW === $relRow) {
+        if ($this->onAmend($relRow)) {
             if ($this->amendable) {
                 $this->activeField = self::AMEND_FIELD; // a clicked checkbox takes the focus, as in a browser
             }
@@ -353,23 +359,23 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         // A checkbox with its label, the way a form offers an option: the
         // state reads by glyph without colour, and the whole row is its hit
         // target. It used to be a checkbox glued to the header, reachable
-        // only by Alt+M; it is the form's third Tab stop now, heavy-railed
+        // only by Alt+M; it is the form's third Tab stop now, a heavy box
         // while Space would toggle it, and dashed on a branch with no commit.
         $amend = CommitMode::Amend === $this->amend;
         $state = $this->amendable ? FieldState::of($focused && self::AMEND_FIELD === $this->activeField) : FieldState::Disabled;
-        // The accent on the mark, except under the pointer: the hovered row is
-        // Bright throughout, and the tint's closing code would cut that short.
-        $hovered = self::AMEND_ROW === $this->hoveredIndex;
-        $label = ' '.FieldBox::checkbox($amend, $state, $hovered ? null : $this->styles).' '.$this->translator->trans('Amend last commit');
-        $lines[] = AnsiText::truncate(
-            match (true) {
-                !$this->amendable => $this->styles->of(Role::Faint)->apply($label.'  '.$this->translator->trans('No commit to amend')),
-                $hovered => $this->styles->of(Role::Bright)->withUnderline()->apply($label).$this->hint(),
-                default => $label.$this->hint(),
-            },
-            $width,
-            pad: true,
-        );
+        // A box of its own, three rows like the fields above it, its label on
+        // the middle row. The pointer underlines the label, never the box —
+        // hovering is not a state change — and the mark keeps its accent.
+        $hovered = self::AMEND_TOP === $this->hoveredIndex;
+        $text = $this->translator->trans('Amend last commit');
+        $caption = match (true) {
+            !$this->amendable => $this->styles->of(Role::Faint)->apply($text.'  '.$this->translator->trans('No commit to amend')),
+            $hovered => $this->styles->of(Role::Bright)->withUnderline()->apply($text).$this->hint(),
+            default => $text.$this->hint(),
+        };
+        foreach (FieldBox::checkboxBox($amend, $state, $this->styles) as $i => $boxRow) {
+            $lines[] = AnsiText::truncate(' '.$boxRow.(1 === $i ? ' '.$caption : ''), $width, pad: true);
+        }
 
         // The form's submit button, its key in its border: dashed while
         // there is nothing to commit, so "not now" reads without colour.
