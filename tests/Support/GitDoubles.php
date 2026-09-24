@@ -58,7 +58,7 @@ final class GitDoubles
      */
     public static function recordingFlash(array &$sink): Flash
     {
-        return new Flash(static function (string $message, ToastSeverity $severity, float $seconds) use (&$sink): void {
+        return new Flash(static function (string $message, ToastSeverity $severity, float $seconds, ?string $slot) use (&$sink): void {
             $sink[] = $message;
         });
     }

@@ -73,7 +73,7 @@ final readonly class GitStagingService
 
         $this->git->applyCached($patch, function (Outcome $ok) use ($onApplied): void {
             if (!$ok->isOk()) {
-                $this->notifier->flash($this->translator->trans('git apply refused the partial patch'));
+                $this->notifier->error($this->translator->trans('git apply refused the partial patch'));
             }
             $onApplied();
         });
@@ -89,7 +89,7 @@ final readonly class GitStagingService
         $abs = $this->paths->absolute($entry->path);
         $done = function (Outcome $ok) use ($onChanged): void {
             if (!$ok->isOk()) {
-                $this->notifier->flash($this->translator->trans('git refused the staging change'));
+                $this->notifier->error($this->translator->trans('git refused the staging change'));
             }
             $onChanged();
         };
@@ -109,7 +109,7 @@ final readonly class GitStagingService
     {
         $done = function (Outcome $ok) use ($onChanged): void {
             if (!$ok->isOk()) {
-                $this->notifier->flash($this->translator->trans('git refused the staging change'));
+                $this->notifier->error($this->translator->trans('git refused the staging change'));
             }
             $onChanged();
         };

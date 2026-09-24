@@ -105,7 +105,7 @@ final readonly class GitCommands
                             )),
                             // Drop never touches the worktree — no marks refresh.
                             'drop' => $this->git->stashDrop($ref, function (Outcome $ok, string $error) use ($ref): void {
-                                $this->notifier->flash($ok->isOk() ? $this->translator->trans('Dropped %stash%', ['%stash%' => $ref]) : $error, $ok->isOk() ? 3.0 : 6.0);
+                                $ok->isOk() ? $this->notifier->success($this->translator->trans('Dropped %stash%', ['%stash%' => $ref]), 3.0) : $this->notifier->error($error, 6.0);
                             }),
                             default => null,
                         };
@@ -278,7 +278,7 @@ final readonly class GitCommands
      */
     private function finishHistoryOp(Outcome $ok, string $error, string $success): void
     {
-        $this->notifier->flash($ok->isOk() ? $success : $error, $ok->isOk() ? 3.0 : 6.0);
+        $ok->isOk() ? $this->notifier->success($success, 3.0) : $this->notifier->error($error, 6.0);
         $this->refresher->refreshBranch();
         $this->dispatcher->dispatch(new WorkingTreeChanged());
     }
@@ -381,7 +381,7 @@ final readonly class GitCommands
                         // -d only: an unmerged branch fails with git's message,
                         // which itself names the -D escape hatch.
                         $this->git->deleteBranch($name, function (Outcome $ok, string $error) use ($name): void {
-                            $this->notifier->flash($ok->isOk() ? $this->translator->trans('Deleted branch %branch%', ['%branch%' => $name]) : $error, $ok->isOk() ? 3.0 : 6.0);
+                            $ok->isOk() ? $this->notifier->success($this->translator->trans('Deleted branch %branch%', ['%branch%' => $name]), 3.0) : $this->notifier->error($error, 6.0);
                         });
                     },
                 );
@@ -419,7 +419,7 @@ final readonly class GitCommands
 
     private function finishSwitch(Outcome $ok, string $error, string $success): void
     {
-        $this->notifier->flash($ok->isOk() ? $success : $error, $ok->isOk() ? 3.0 : 6.0);
+        $ok->isOk() ? $this->notifier->success($success, 3.0) : $this->notifier->error($error, 6.0);
         if ($ok->isOk()) {
             // HEAD moved and files may have changed on disk; the filesystem
             // poll reconciles open buffers, these refresh the chrome now.

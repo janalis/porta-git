@@ -25,6 +25,9 @@ use Psr\EventDispatcher\EventDispatcherInterface;
  */
 final readonly class GitRemoteCommands
 {
+    /** The one toast a remote operation owns: its progress, then its outcome, in place. */
+    private const string SLOT = 'git.remote';
+
     public function __construct(
         private GitRemote $remote,
         private Flash $notifier,
@@ -134,7 +137,8 @@ final readonly class GitRemoteCommands
             return;
         }
         $this->remote->cancelAll();
-        $this->notifier->flash($this->translator->trans('Git remote operation cancelled'));
+        // A cancelled operation never calls back, so this is its outcome.
+        $this->notifier->warn($this->translator->trans('Git remote operation cancelled'), slot: self::SLOT);
     }
 
     /** Route a git-view remote key to its operation. */
@@ -155,27 +159,33 @@ final readonly class GitRemoteCommands
     private function operate(GitRemoteOperation $operation, string $started, string $succeeded, \Closure $start, ?\Closure $onFailure = null): void
     {
         if (!$this->remote->isAvailable()) {
-            $this->notifier->flash($this->translator->trans('Not a git repository (or git missing)'));
+            $this->notifier->error($this->translator->trans('Not a git repository (or git missing)'));
 
             return;
         }
         if ($this->remote->isBusy()) {
-            $this->notifier->flash($this->translator->trans('A git remote operation is already running'));
+            $this->notifier->warn($this->translator->trans('A git remote operation is already running'));
 
             return;
         }
-        // Sticky until the completion flash replaces it.
-        $this->notifier->flash($started, 600.0);
+        // Sticky until the outcome replaces it in the same slot — the card
+        // turns into the result where it stands rather than lingering beside it.
+        $this->notifier->flash($started, 600.0, self::SLOT);
         $start(function (Outcome $ok, string $output) use ($operation, $succeeded, $onFailure): void {
             if (!$ok->isOk() && null !== $onFailure && $onFailure($output)) {
+                // The follow-up choice is the answer; the progress card goes.
+                $this->notifier->warn($this->translator->trans('%operation% needs a choice', ['%operation%' => \ucfirst($operation->value)]), 3.0, self::SLOT);
                 $this->dispatcher->dispatch(new GitRemoteCompleted($operation->value, false));
 
                 return;
             }
-            $this->notifier->flash(
-                $ok->isOk() ? $succeeded : $this->translator->trans('%operation% failed: %error%', ['%operation%' => \ucfirst($operation->value), '%error%' => Text::firstLine($output)]),
-                $ok->isOk() ? 3.0 : 6.0,
-            );
+            $ok->isOk()
+                ? $this->notifier->success($succeeded, 3.0, self::SLOT)
+                : $this->notifier->error(
+                    $this->translator->trans('%operation% failed: %error%', ['%operation%' => \ucfirst($operation->value), '%error%' => Text::firstLine($output)]),
+                    6.0,
+                    self::SLOT,
+                );
             $this->dispatcher->dispatch(new GitRemoteCompleted($operation->value, $ok->isOk()));
         });
     }

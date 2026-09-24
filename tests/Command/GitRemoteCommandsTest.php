@@ -180,6 +180,7 @@ final class GitRemoteCommandsTest extends TestCase
         $this->await(fn (): bool => [] !== $this->events);
         $this->assertFalse($this->events[0]->ok);
         $this->assertTrue(EditorState::pickerOpen($this->editor), 'the diverged pull opened the choice overlay');
+        $this->assertStringContainsString('Pull needs a choice', $this->statusRow($this->status), 'the progress message is answered, not left standing');
 
         // Pick "Rebase" (the first row).
         $this->editor->handleInput("\r");

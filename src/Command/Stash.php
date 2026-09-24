@@ -6,6 +6,7 @@ namespace Porta\GitPlugin\Command;
 
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\GitInfo;
+use Porta\Overlay\State\ToastSeverity;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Support\Outcome;
 
@@ -37,7 +38,7 @@ final readonly class Stash
             $ok = $outcome->isOk();
             // git's own line, which says "No local changes to save" better
             // than a guess would.
-            $this->api->flash($ok ? $line : $this->api->trans('Stash failed'), $ok ? 3.0 : 6.0);
+            $ok ? $this->api->flash($line, 3.0) : $this->api->notify($this->api->trans('Stash failed'), ToastSeverity::Error, 6.0);
             if ($ok) {
                 $this->api->emit(new WorkingTreeChanged());
             }
