@@ -17,6 +17,7 @@ use Porta\Tests\Support\PagesThroughRows;
 use Porta\Tests\Support\RendersWidget;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
+use Porta\Widget\Render\Rule;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -330,7 +331,7 @@ final class HistoryListWidgetTest extends TestCase
         $this->assertSame(['▎', '▎'], $first($widget), 'and a pane without focus holds none');
     }
 
-    public function testTheFilesSubHeaderUsesTheSectionHeaderConvention(): void
+    public function testTheFilesSubHeaderIsALegendSetIntoARule(): void
     {
         $widget = $this->widget();
         $lines = $widget->render(new RenderContext(44, 16));
@@ -339,8 +340,7 @@ final class HistoryListWidgetTest extends TestCase
                 continue;
             }
 
-            $this->assertStringContainsString("\x1b[48;5;235m", $line, 'in-list section headers sit on Toolbar');
-            $this->assertStringContainsString("\x1b[1m", $line, 'and are bold');
+            $this->assertSame(Rule::horizontal(44, Styles::dark(), 'Files (2)'), $line, 'a heading inside the pane is a rule legend, as the settings groups are');
 
             return;
         }

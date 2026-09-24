@@ -21,6 +21,7 @@ use Porta\Widget\HoverableList;
 use Porta\Widget\Render\HeaderRenderer;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
+use Porta\Widget\Render\Rule;
 use Porta\Widget\Render\SelectionBar;
 use Porta\Widget\Support\ArrowScrollTrait;
 use Porta\Widget\Support\FillsPaneTrait;
@@ -383,7 +384,9 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             $lines[] = null !== $bg ? $bg->apply($text) : $text;
         }
 
-        $lines[] = HeaderRenderer::render($this->translator->trans(' Files (%count%)', ['%count%' => \count($this->files)]), $width, $this->styles->merge(Role::Toolbar, Role::Dim)->withBold());
+        // A heading inside the pane, not the pane's title: a legend set into a
+        // rule, as the settings groups and the search picker's categories are.
+        $lines[] = Rule::horizontal($width, $this->styles, $this->translator->trans('Files (%count%)', ['%count%' => \count($this->files)]));
         $fileScroll = $this->fileList->follow(self::FILE_ROWS);
         for ($row = 0; $row < self::FILE_ROWS && \count($lines) < $rows; ++$row) {
             $file = $this->files[$fileScroll + $row] ?? null;

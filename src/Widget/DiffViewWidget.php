@@ -711,7 +711,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
      * A toolbar toggle's shading. An ON tag already carries the bright
      * selection background and has no room for a second one, so the pointer
      * underlines it instead — the same resolution CommitBoxWidget's button
-     * uses. An OFF tag takes the row-highlight tint.
+     * uses. An OFF tag is faint, as the find tags' is.
      */
     private function tagStyle(OptionTagState $state): Style
     {
@@ -719,7 +719,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             OptionTagState::On => $this->styles->of(Role::SelectedRow),
             OptionTagState::OnHovered => $this->styles->of(Role::SelectedRow)->withUnderline(),
             OptionTagState::Hovered => $this->styles->of(Role::RowHighlightBg),
-            OptionTagState::Off => $this->styles->merge(Role::TagOffBg, Role::Muted),
+            OptionTagState::Off => $this->styles->of(Role::Faint),
         };
     }
 
