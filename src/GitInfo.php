@@ -83,6 +83,17 @@ final readonly class GitInfo
     }
 
     /**
+     * The file's diff against HEAD with no context — one hunk per change, the
+     * same hunks {@see diff()} marks — raw, for showing and reverting one.
+     *
+     * @param callable(string): void $onDone receives the raw diff
+     */
+    public function headDiff(string $absPath, callable $onDone): void
+    {
+        $this->runner->run(['diff', '--no-color', '--unified=0', 'HEAD', '--', $absPath], $onDone);
+    }
+
+    /**
      * Every changed/untracked file in the working tree, for the changes list.
      *
      * @param callable(list<ChangeEntry>, string): void $onDone entries plus the raw
