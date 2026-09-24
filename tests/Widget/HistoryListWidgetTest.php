@@ -15,6 +15,8 @@ use Porta\I18n\Translator;
 use Porta\Tests\Support\AttachedStyles;
 use Porta\Tests\Support\PagesThroughRows;
 use Porta\Tests\Support\RendersWidget;
+use Porta\Ui\Role;
+use Porta\Ui\Theme\Styles;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -79,6 +81,12 @@ final class HistoryListWidgetTest extends TestCase
         // With 16 rows and 2 files, filler rows pad the files section.
         $this->assertGreaterThan(10, \substr_count($screen, needle: "\n"), 'padded to full height');
         $this->assertStringContainsString('aaa111 Newest work  Alice', $screen);
+        $styles = Styles::dark();
+        $this->assertStringContainsString(
+            $styles->of(Role::Modified)->apply('aaa111').' Newest work'.$styles->of(Role::Dim)->apply('  Alice'),
+            \implode("\n", $this->widget()->render(new RenderContext(44, 16))),
+            'the sha modified-coloured, the author dim',
+        );
         $this->assertStringContainsString('Files (2)', $screen);
         $this->assertStringContainsString('M src/a.php', $screen);
     }

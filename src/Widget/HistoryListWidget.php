@@ -14,6 +14,7 @@ use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
 use Porta\Ui\ListNavigation;
 use Porta\Ui\ListSelection;
+use Porta\Ui\Markup\MarkupParser;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\HoverableList;
@@ -376,12 +377,8 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             if (!$selected && ($scroll + $row) === $this->hoveredCommit) {
                 $bg = $this->styles->of(Role::RowHighlightBg);
             }
-            $text =
-                SelectionBar::of($selected, $this->focused && !$this->filesFocused)->value
-                .$this->styles->of(Role::Modified)->apply($commit->shortSha)
-                .' '
-                .$commit->subject
-                .$this->styles->of(Role::Dim)->apply('  '.$commit->author);
+            [$sha, $subject, $author] = \array_map(MarkupParser::escape(...), [$commit->shortSha, $commit->subject, $commit->author]);
+            $text = SelectionBar::of($selected, $this->focused && !$this->filesFocused)->value.$this->styles->format("<modified>{$sha}</> {$subject}<dim>  {$author}</>");
             $text = AnsiText::truncate($text, $width, pad: true);
             $lines[] = null !== $bg ? $bg->apply($text) : $text;
         }
