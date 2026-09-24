@@ -42,13 +42,16 @@ final readonly class ChangeView
 
                 return;
             }
-            $items = \array_map(
+            // The verb first, where the selection starts — the rows below
+            // are the change to read, not choices; a revert is one undo step.
+            $items = [['label' => $this->api->trans('Revert this change'), 'hint' => '', 'value' => 'revert']];
+            $lines = \array_map(
                 // What it removed is greyed and struck through, what it added
                 // is plain: the list reads as the change without colour.
                 static fn (DiffLine $line): array => ['label' => ('-' === $line->origin ? '− ' : '+ ').$line->text, 'hint' => '', 'value' => '', 'disabled' => '-' === $line->origin],
                 \array_values(\array_filter($hunk->lines, static fn (DiffLine $line): bool => '-' === $line->origin || '+' === $line->origin)),
             );
-            $items[] = ['label' => $this->api->trans('Revert this change'), 'hint' => '', 'value' => 'revert'];
+            $items = [...$items, ...$lines];
             $this->api->pick($this->api->trans('Change at line %line%', ['%line%' => $caret['line'] + 1]), $items, function (string $choice) use ($hunk): void {
                 if ('revert' === $choice) {
                     $this->revert($hunk);

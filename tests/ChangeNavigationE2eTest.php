@@ -82,11 +82,10 @@ final class ChangeNavigationE2eTest extends TestCase
                     $this->assertSame(4, $line());
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
                     $items = Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['items'];
-                    $this->assertSame(['− e', '+ E', 'Revert this change'], \array_column($items, 'label'));
-                    $this->assertSame([true, false], \array_slice(\array_column($items, 'disabled'), offset: 0, length: 2), 'what it removed is greyed');
+                    $this->assertSame(['Revert this change', '− e', '+ E'], \array_column($items, 'label'), 'the verb first, then the change to read');
+                    $this->assertSame([true, false], \array_column($items, 'disabled'), 'what it removed is greyed');
+                    $this->assertSame(0, Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['selected'], 'the selection starts on the verb');
 
-                    $editor->handleInput("\x1b[B");
-                    $editor->handleInput("\x1b[B");
                     $editor->handleInput("\r");
                     $this->assertSame("a\nB\nc\nd\ne\nf\n", $editor->getDocument()->getText(), 'reverted in the buffer');
                     $this->assertContains('Change reverted', Toasts::all($ide));
@@ -101,8 +100,6 @@ final class ChangeNavigationE2eTest extends TestCase
                     $editor->handleInput('x');
                     $commands->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
-                    $editor->handleInput("\x1b[B");
-                    $editor->handleInput("\x1b[B");
                     $editor->handleInput("\r");
                     $this->assertStringContainsString('xB', $editor->getDocument()->getText(), 'nothing replaced');
                     $this->assertContains('The buffer has changed since; save it and try again', Toasts::all($ide));
@@ -159,8 +156,7 @@ final class ChangeNavigationE2eTest extends TestCase
 
                     Services::resolve($ide, CommandRegistry::class)->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
-                    $this->assertSame(['− b', 'Revert this change'], \array_column(Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['items'], 'label'));
-                    $editor->handleInput("\x1b[B");
+                    $this->assertSame(['Revert this change', '− b'], \array_column(Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['items'], 'label'));
                     $editor->handleInput("\r");
                     $this->assertSame("a\nb\nc\n", $editor->getDocument()->getText());
                 },
