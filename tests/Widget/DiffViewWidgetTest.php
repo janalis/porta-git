@@ -6,6 +6,7 @@ namespace Porta\GitPlugin\Tests\Widget;
 
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Diff\DiffDocument;
+use Porta\GitPlugin\Tests\Support\CompactScreen;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\I18n\Translator;
@@ -32,7 +33,7 @@ final class DiffViewWidgetTest extends TestCase
 
     private function widget(?EventDispatcher $events = null): DiffViewWidget
     {
-        $widget = new DiffViewWidget(new Translator('en'), events: $events);
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $widget->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
 
         return $widget;
@@ -82,7 +83,7 @@ final class DiffViewWidgetTest extends TestCase
 
     public function testPlaceholderWithoutADocument(): void
     {
-        $widget = new DiffViewWidget(new Translator('en'));
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $widget->setDocument(null, null, 'Select a file');
 
         $lines = $this->plainLines($widget, 40, 5);
@@ -183,7 +184,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput(' ');
         $this->assertArrayHasKey(0, (array) $captured, 'cursor is back on hunk 0');
 
-        $empty = new DiffViewWidget(new Translator('en'), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $empty->setDocument(null, null);
         $empty->setFocused(true);
         $empty->handleInput("\x1b[B"); // no rows: consumed, no crash
@@ -222,7 +223,7 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame(1, $fired, 'read-only history diffs cannot change context');
 
         $widget->makeEditable();
-        $empty = new DiffViewWidget(new Translator('en'), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $empty->setDocument(null, null);
         $empty->setFocused(true);
         $empty->handleInput('c');
@@ -246,7 +247,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->scrollBy(50); // clamps at the bottom
         $this->assertStringContainsString('tail!', \implode("\n", $this->plainLines($widget, 80, 4)));
 
-        $empty = new DiffViewWidget(new Translator('en'));
+        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $empty->setDocument(null, null);
         $empty->scrollBy(1); // no rows: a safe no-op
         $this->assertFalse($empty->isSplit());
@@ -332,7 +333,7 @@ final class DiffViewWidgetTest extends TestCase
 
     public function testNoNewlineMarkerRendersDim(): void
     {
-        $widget = new DiffViewWidget(new Translator('en'));
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-old\n\\ No newline at end of file\n+new\n"), 'x.txt');
 
         $lines = $this->plainLines($widget, 60, 6);
@@ -415,6 +416,53 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame([true, false], $toggles);
     }
 
+    /**
+     * On a roomy screen the toggles are boxes, the title on their middle row:
+     * a toggle answers on each of its three rows, and every body row sits
+     * three down — the cursor, the page and the scroll all count the header.
+     */
+    public function testARoomyToolbarBoxesItsTogglesAndTheBodyStartsBelowThem(): void
+    {
+        $events = new EventDispatcher();
+        $widget = new DiffViewWidget(new Translator('en'), events: $events);
+        $widget->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
+        $widget->setFocused(true);
+        $lines = $this->plainLines($widget);
+
+        $this->assertStringEndsWith('╭─────────╮ ╭───────────╮ ', $lines[0]);
+        $this->assertMatchesRegularExpression('/^ src\/demo\.php +│ S split │ │ W hide-ws │ $/u', $lines[1]);
+        $this->assertStringContainsString('@@ -3,3 +3,4 @@', $lines[3], 'the body starts below the three-row header');
+
+        $widget->handleClick(0, 60); // the top border of S split
+        $this->assertTrue($widget->isSplit());
+        $widget->handleClick(2, 60); // and its bottom border
+        $this->assertFalse($widget->isSplit());
+        $this->assertTrue($widget->hoverHeader(2, 60), 'hover answers on the bottom row too');
+
+        $captured = null;
+        GitWidgetEvents::wire($events, onStageSelection: static function (array $selected) use (&$captured): void {
+            $captured = $selected;
+        });
+        $widget->handleClick(5, 10); // row 5 = the deletion (hunk 0 line 1), three header rows down
+        $widget->handleInput(' ');
+        $this->assertSame([0 => [1 => true]], $captured);
+    }
+
+    /** A roomy pane too narrow for the boxes takes the one-row tags, and one too narrow for those the title alone. */
+    public function testANarrowRoomyToolbarFallsBackToTagsThenToTheTitle(): void
+    {
+        $widget = new DiffViewWidget(new Translator('en'));
+        $widget->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
+
+        $tags = $this->plainLines($widget, 25, 8);
+        $this->assertStringEndsWith(' S split   W hide-ws  ', $tags[0], 'boxed, the toggles need 26 columns: the tags take 22');
+        $this->assertStringContainsString('@@ -3,3', $tags[1], 'a one-row header');
+
+        $title = $this->plainLines($widget, 10, 8);
+        $this->assertSame(' src/demo…', $title[0]);
+        $this->assertStringContainsString('@@', $title[1]);
+    }
+
     public function testBodyClickMovesTheCursor(): void
     {
         $events = new EventDispatcher();
@@ -433,7 +481,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput(' ');
         $this->assertSame([1 => [1 => true]], $captured, 'clamped to the final +tail! row');
 
-        $empty = new DiffViewWidget(new Translator('en'), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $empty->setDocument(null, null);
         $empty->handleClick(2, 2); // no rows: a safe no-op
         $this->assertFalse($empty->isSplit());
@@ -510,7 +558,7 @@ final class DiffViewWidgetTest extends TestCase
     public function testHorizontalScrollSlidesTextUnderPinnedGutters(): void
     {
         $long = \str_repeat('x', times: 30).'NEEDLE'.\str_repeat('y', times: 30);
-        $widget = new DiffViewWidget(new Translator('en'));
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-old\n+{$long}\n"), 'x.txt');
         $widget->setFocused(true);
 
@@ -542,7 +590,7 @@ final class DiffViewWidgetTest extends TestCase
     {
         $long = \str_repeat('a', times: 25).'LEFT'.\str_repeat('b', times: 20);
         $longer = \str_repeat('c', times: 25).'RIGHT'.\str_repeat('d', times: 20);
-        $widget = new DiffViewWidget(new Translator('en'));
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-{$long}\n+{$longer}\n"), 'x.txt');
         $widget->useSplitView();
         $widget->setFocused(true);
@@ -566,7 +614,7 @@ final class DiffViewWidgetTest extends TestCase
     {
         // Paired lines sharing prefix/suffix get an intraline range; scroll so
         // the emphasized middle is inside the window and check its bg code.
-        $widget = new DiffViewWidget(new Translator('en'));
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-".\str_repeat('p', times: 30)."OLD tail\n+".\str_repeat('p', times: 30)."NEW tail\n"), 'x.txt');
         $widget->setFocused(true);
         for ($i = 0; $i < 3; ++$i) {
@@ -609,7 +657,7 @@ final class DiffViewWidgetTest extends TestCase
     public function testCopySkipsNoNewlineMarkersAndWorksSplitAndReadOnly(): void
     {
         $events = new EventDispatcher();
-        $widget = new DiffViewWidget(new Translator('en'), events: $events);
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-old\n\\ No newline at end of file\n+new\n"), 'x.txt');
         $widget->setFocused(true);
         $widget->makeReadOnly(); // history diffs can select + copy...
@@ -631,7 +679,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput("\x03");
         $this->assertSame(["old\nnew\n"], $copies, 'both sides, marker line skipped, still read-only');
 
-        $empty = new DiffViewWidget(new Translator('en'), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $empty->setDocument(null, null);
         GitWidgetEvents::wire($events, onCopy: static function () use (&$copies): void {
             $copies[] = 'never';
@@ -682,7 +730,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput("\x03");
         $this->assertSame("extra = 3;\ntail", $copies[3], 'hunk header skipped mid-selection');
 
-        $empty = new DiffViewWidget(new Translator('en'), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $empty->setDocument(null, null);
         $empty->dragSelectTo(3, 5); // no rows / no press: a safe no-op
         $this->assertFalse($empty->isSplit());
@@ -691,7 +739,7 @@ final class DiffViewWidgetTest extends TestCase
     public function testSplitDragBindsToItsHalf(): void
     {
         $events = new EventDispatcher();
-        $widget = new DiffViewWidget(new Translator('en'), events: $events);
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $widget->setDocument(DiffDocument::parse("@@ -1,2 +1,2 @@\n-oldA\n-oldB\n+newA\n+newB\n"), 'x.txt');
         $widget->useSplitView();
         $widget->setFocused(true);
@@ -735,7 +783,7 @@ final class DiffViewWidgetTest extends TestCase
         // The right split half holds syntax-highlighted additions whose SGR
         // (and truncateToWidth's pad-boundary \x1b[0m) reset the background
         // mid-span; the selection must re-apply its bg after every reset.
-        $widget = new DiffViewWidget(new Translator('en'));
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-\$a = 1;\n+\$a = 22;\n"), 'src/demo.php');
         $widget->useSplitView();
         $widget->setFocused(false);

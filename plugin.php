@@ -351,7 +351,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
     ): GitViewController {
         $panes = new GitPanes(
             new ChangesListWidget($s->translator, styles: $s->styles, density: $s->density, events: $events),
-            new DiffViewWidget($s->translator, $s->styles, $api->syntaxTheme(), $events),
+            new DiffViewWidget($s->translator, $s->styles, $api->syntaxTheme(), $s->density, $events),
             new CommitBoxWidget($s->translator, styles: $s->styles, cursorStyle: $s->cursorStyle, density: $s->density),
             new HistoryListWidget($s->translator, styles: $s->styles, events: $events),
             new GitTabsWidget($s->translator, styles: $s->styles, density: $s->density, events: $events),

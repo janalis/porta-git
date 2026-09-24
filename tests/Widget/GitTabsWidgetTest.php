@@ -6,6 +6,7 @@ namespace Porta\GitPlugin\Tests\Widget;
 
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Event\GitViewModeRequested;
+use Porta\GitPlugin\Tests\Support\CompactScreen;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\I18n\Translator;
@@ -21,7 +22,7 @@ final class GitTabsWidgetTest extends TestCase
 
     public function testRendersBothTabsWithTheActiveOneHighlighted(): void
     {
-        $widget = new GitTabsWidget(new Translator('en'), density: self::compact());
+        $widget = new GitTabsWidget(new Translator('en'), density: CompactScreen::density());
         $lines = $widget->render(new RenderContext(44, 1));
 
         $this->assertCount(1, $lines);
@@ -44,7 +45,7 @@ final class GitTabsWidgetTest extends TestCase
     {
         $selected = [];
         $events = new EventDispatcher();
-        $widget = new GitTabsWidget(new Translator('en'), density: self::compact(), events: $events);
+        $widget = new GitTabsWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
         $events->addListener(GitViewModeRequested::class, static function (GitViewModeRequested $event) use (&$selected): void {
             $selected[] = $event->mode;
         });
@@ -73,7 +74,7 @@ final class GitTabsWidgetTest extends TestCase
 
     public function testSetActiveIsIdempotentAndOverlayComposites(): void
     {
-        $widget = new GitTabsWidget(new Translator('en'), density: self::compact());
+        $widget = new GitTabsWidget(new Translator('en'), density: CompactScreen::density());
         $widget->setActive(GitViewMode::Changes); // already active: no-op
 
         $widget->setMenuOverlay([['row' => 0, 'col' => 0, 'width' => 8, 'segment' => "\x1b[7mDROPDOWN\x1b[0m"]]);
@@ -83,7 +84,7 @@ final class GitTabsWidgetTest extends TestCase
 
     public function testHoverTintsTheInactiveTabOnly(): void
     {
-        $widget = new GitTabsWidget(new Translator('en'), density: self::compact());
+        $widget = new GitTabsWidget(new Translator('en'), density: CompactScreen::density());
         $widget->render(new RenderContext(44, 1)); // the pointer lands on what was drawn
 
         $this->assertTrue($widget->hoverMode(GitViewMode::History), 'hovering the inactive tab changes the tint');
@@ -124,7 +125,7 @@ final class GitTabsWidgetTest extends TestCase
         $events->addListener(GitViewModeRequested::class, static function (GitViewModeRequested $event) use (&$requested): void {
             $requested[] = $event->mode;
         });
-        $widget = new GitTabsWidget(new Translator('en'), density: self::compact(), events: $events);
+        $widget = new GitTabsWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
 
         $line = AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(14, 1))[0]);
         $this->assertStringNotContainsString('History', $line, 'too narrow for the second tab');
@@ -165,13 +166,5 @@ final class GitTabsWidgetTest extends TestCase
         $widget->beforeRender();
         $this->assertNotSame($revision, $widget->getRenderRevision(), 'a focus change repaints');
         $this->assertStringStartsWith('┍', AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(44, 5))[0]));
-    }
-
-    private static function compact(): ScreenDensity
-    {
-        $density = new ScreenDensity();
-        $density->observe(24);
-
-        return $density;
     }
 }

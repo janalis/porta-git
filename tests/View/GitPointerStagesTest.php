@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\TestCase;
+use Porta\GitPlugin\Tests\Support\CompactScreen;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\View\GitMouseRouter;
 use Porta\GitPlugin\Widget\ChangesListWidget;
@@ -45,7 +46,7 @@ final class GitPointerStagesTest extends TestCase
             new HitTester(new Renderer(new StyleSheet())),
             GitDoubles::host($tui),
             new ChangesListWidget($translator),
-            new DiffViewWidget($translator),
+            new DiffViewWidget($translator, density: CompactScreen::density()),
             new CommitBoxWidget($translator),
             new HistoryListWidget($translator),
             new GitTabsWidget($translator),

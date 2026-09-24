@@ -20,9 +20,11 @@ use Porta\Support\IntMath;
 use Porta\Ui\ClickZones;
 use Porta\Ui\LtrPane;
 use Porta\Ui\Role;
+use Porta\Ui\ScreenDensity;
 use Porta\Ui\Theme\Styles;
 use Porta\Ui\ThemeRefreshable;
 use Porta\Widget\PaneNavigationCallbacks;
+use Porta\Widget\Render\FieldBox;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
 use Porta\Widget\Support\FillsPaneTrait;
@@ -32,7 +34,6 @@ use Porta\Widget\Support\StylesDefault;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Input\Key;
 use Symfony\Component\Tui\Render\RenderContext;
-use Symfony\Component\Tui\Style\Style;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 use Symfony\Component\Tui\Widget\FocusableInterface;
 use Symfony\Component\Tui\Widget\FocusableTrait;
@@ -78,6 +79,11 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     /** Widest line text in the shown document, to clamp the h-scroll. */
     private int $maxLineWidth = 0;
     private int $lastRows = 12;
+
+    /** The toolbar's height in the last render: boxed toggles, their one-row tags, or the title alone. */
+    private int $headerRows = 1;
+
+    private readonly ScreenDensity $density;
     private bool $readOnly = false;
     /** Cursor row (index into $rows); staging operates at/around it. */
     private int $cursor = 0;
@@ -101,9 +107,11 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         private readonly Translator $translator,
         ?Styles $styles = null,
         ?TerminalTheme $syntaxTheme = null,
+        ?ScreenDensity $density = null,
         private readonly ?EventDispatcherInterface $events = null,
     ) {
         $this->initStyles($styles);
+        $this->density = $density ?? new ScreenDensity();
         $this->buttonZones = new ClickZones();
         $theme = $syntaxTheme ?? new DarkTerminalTheme();
         // Diff hunks are non-contiguous lines from different files: always the
@@ -255,9 +263,15 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         $this->invalidate();
     }
 
+    /** A page of diff rows, one kept in view: what the last render showed below the toolbar. */
+    private function page(): int
+    {
+        return \max(1, $this->lastRows - $this->headerRows - 1);
+    }
+
     public function scrollBy(int $lines): void
     {
-        $max = \max(0, \count($this->rows) - \max(1, $this->lastRows - 1));
+        $max = \max(0, \count($this->rows) - \max(1, $this->lastRows - $this->headerRows));
         $this->scroll = IntMath::clamp($this->scroll + $lines, 0, $max);
         $this->invalidate();
     }
@@ -302,12 +316,12 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             return;
         }
         if ($kb->matches($data, 'page_up')) {
-            $this->moveCursor(-\max(1, $this->lastRows - 2));
+            $this->moveCursor(-$this->page());
 
             return;
         }
         if ($kb->matches($data, 'page_down')) {
-            $this->moveCursor(\max(1, $this->lastRows - 2));
+            $this->moveCursor($this->page());
 
             return;
         }
@@ -365,7 +379,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
      */
     public function handleClick(int $relRow, int $relCol): void
     {
-        if (0 === $relRow) {
+        if ($relRow < $this->headerRows) {
             $name = $this->buttonZones->at($relCol);
             if (null !== $name) {
                 $this->fireButton($name);
@@ -375,7 +389,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         }
         if ([] !== $this->rows) {
             $this->anchor = null; // a fresh click starts a new selection
-            $this->cursor = IntMath::clamp($this->scroll + $relRow - 1, 0, \count($this->rows) - 1);
+            $this->cursor = IntMath::clamp($this->scroll + $relRow - $this->headerRows, 0, \count($this->rows) - 1);
             // Seed a (zero-width) char selection at the press point; a drag
             // extends it, a plain click leaves it degenerate (row-copy rules).
             $side = $this->sideAt($relCol);
@@ -396,7 +410,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         if ([] === $this->rows || null === $sel) {
             return;
         }
-        $row = IntMath::clamp($this->scroll + $relRow - 1, 0, \count($this->rows) - 1);
+        $row = IntMath::clamp($this->scroll + $relRow - $this->headerRows, 0, \count($this->rows) - 1);
         $this->charSel = new DiffCharSelection($sel->fromRow, $sel->fromCol, $row, $this->pointCol($relCol, $sel->side), $sel->side);
         $this->cursor = $row;
         $this->invalidate();
@@ -439,8 +453,8 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             return;
         }
         $this->cursor = IntMath::clamp($this->cursor + $delta, 0, \count($this->rows) - 1);
-        // Keep the cursor inside the visible window (header takes one row).
-        $visible = \max(1, $this->lastRows - 1);
+        // Keep the cursor inside the visible window, below the header.
+        $visible = \max(1, $this->lastRows - $this->headerRows);
         if ($this->cursor < $this->scroll) {
             $this->scroll = $this->cursor;
         }
@@ -635,7 +649,8 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             .($this->path ?? $this->translator->trans('Diff'))
             .($this->scroll > 0 ? '  '.$this->translator->trans('[scrolled +%count%]', ['%count%' => $this->scroll]) : '')
             .($this->hScroll > 0 ? '  '.$this->translator->trans('[→%count%]', ['%count%' => $this->hScroll]) : '');
-        $lines = [$this->renderToolbar($title, $width)];
+        $lines = $this->renderToolbar($title, $width);
+        $this->headerRows = \count($lines);
 
         if (null === $this->document || [] === $this->rows) {
             $message = $this->styles->of(Role::Dim)->apply(' '.$this->translator->trans($this->placeholder));
@@ -648,7 +663,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         }
 
         $renderer = new DiffViewRenderer($this->document, $this->highlighted, $this->hScroll, $this->cursor, $this->anchor, $this->focused, $this->normalizedCharSel(), $this->styles);
-        foreach (\array_slice($this->rows, $this->scroll, $rows - 1) as $i => $row) {
+        foreach (\array_slice($this->rows, $this->scroll, \max(0, $rows - $this->headerRows)) as $i => $row) {
             $lines[] = $renderer->row($this->scroll + $i, $row, $width);
         }
         while (\count($lines) < $rows) {
@@ -659,77 +674,70 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     }
 
     /**
-     * The title row doubles as a toolbar: path + scroll hint on the left,
-     * right-aligned clickable display toggles (spans recorded for the mouse).
+     * The title doubles as a toolbar: path + scroll hint on the left,
+     * right-aligned display toggles (spans recorded for the mouse) — boxed
+     * like the find bar's where the screen is roomy, the title then on their
+     * middle row, one-row tags where it is not.
+     *
+     * @return non-empty-list<string>
      */
-    private function renderToolbar(string $title, int $width): string
+    private function renderToolbar(string $title, int $width): array
     {
         $this->buttonZones->clear();
         // The key-hint dialect: a bare key is written as its own name, like
         // the Esc/Tab hints elsewhere — never invented shorthand.
         $tags = [
-            ['name' => 'split', 'label' => $this->translator->trans(' S split '), 'on' => $this->split],
-            ['name' => 'whitespace', 'label' => $this->translator->trans(' W hide-ws '), 'on' => $this->whitespaceHidden],
+            ['name' => 'split', 'caption' => \trim($this->translator->trans(' S split ')), 'on' => $this->split],
+            ['name' => 'whitespace', 'caption' => \trim($this->translator->trans(' W hide-ws ')), 'on' => $this->whitespaceHidden],
         ];
+        $bar = $this->styles->of(Role::HeaderBar)->withBold();
 
-        $rendered = '';
-        $tagsWidth = 0;
-        foreach ($tags as $tag) {
-            $tagsWidth += \mb_strwidth($tag['label']) + 1;
+        $rows = FieldBox::rowsFor($this->density->current());
+        $col = $width - $this->tagsWidth($tags, $rows);
+        if ($col < 0 && FieldBox::ROWS === $rows) {
+            $rows = 1;
+            $col = $width - $this->tagsWidth($tags, $rows);
         }
-        $col = $width - $tagsWidth;
         if ($col < 0) {
             // Too narrow to seat the toggles. The title alone, and no click
             // zones recorded: a tag drawn past the edge is neither visible nor
             // clickable, and drawing it at all made this row a fixed
             // twenty-two columns however narrow the pane was — the same clamp
             // with no floor the row gutter had, and the same crash.
-            return $this->styles
-                ->of(Role::HeaderBar)
-                ->withBold()
-                ->apply(AnsiText::truncate($title, $width, pad: true));
+            return [$bar->apply(AnsiText::truncate($title, $width, pad: true))];
         }
-        $left = AnsiText::truncate($title, $col, pad: true);
+        $lines = \array_fill(0, $rows, value: AnsiText::blank($col));
+        $lines[\intdiv($rows, num2: 2)] = AnsiText::truncate($title, $col, pad: true);
         foreach ($tags as $tag) {
-            $tagWidth = \mb_strwidth($tag['label']);
+            $toggle = FieldBox::toggle($tag['caption'], OptionTagState::of($tag['on'], $tag['name'] === $this->hoveredButton), $rows, $this->styles);
+            $tagWidth = FieldBox::toggleWidth($tag['caption'], $rows);
             $this->buttonZones->add($tag['name'], $col, $col + $tagWidth);
-            // On, the tag's padding becomes brackets — the find bar's option
-            // chips, in the same width — so the state reads without the
-            // colour it used to rest on alone.
-            $text = $tag['on'] ? '['.\trim($tag['label']).']' : $tag['label'];
-            $rendered .= $this->tagStyle(OptionTagState::of($tag['on'], $tag['name'] === $this->hoveredButton))->apply($text).' ';
+            foreach ($toggle as $i => $line) {
+                $lines[$i] .= $line.' ';
+            }
             $col += $tagWidth + 1;
         }
 
-        return $this->styles
-            ->of(Role::HeaderBar)
-            ->withBold()
-            ->apply($left.$rendered);
+        return \array_map($bar->apply(...), $lines);
     }
 
     /**
-     * A toolbar toggle's shading. An ON tag already carries the bright
-     * selection background and has no room for a second one, so the pointer
-     * underlines it instead — the same resolution CommitBoxWidget's button
-     * uses. An OFF tag is faint, as the find tags' is.
+     * The toggles' columns at $rows, a gap after each.
+     *
+     * @param list<array{name: string, caption: string, on: bool}> $tags
      */
-    private function tagStyle(OptionTagState $state): Style
+    private function tagsWidth(array $tags, int $rows): int
     {
-        return match ($state) {
-            OptionTagState::On => $this->styles->of(Role::SelectedRow),
-            OptionTagState::OnHovered => $this->styles->of(Role::SelectedRow)->withUnderline(),
-            OptionTagState::Hovered => $this->styles->of(Role::RowHighlightBg),
-            OptionTagState::Off => $this->styles->of(Role::Faint),
-        };
+        return \array_sum(\array_map(static fn (array $tag): int => FieldBox::toggleWidth($tag['caption'], $rows) + 1, $tags));
     }
 
     /**
      * Tint the toolbar toggle under the pointer (widget-relative cell);
-     * returns whether it changed. Only row 0 carries toggles.
+     * returns whether it changed. A toggle answers on every header row.
      */
     public function hoverHeader(int $relRow, int $relCol): bool
     {
-        $hovered = 0 === $relRow ? $this->buttonZones->at($relCol) : null;
+        $hovered = $relRow >= 0 && $relRow < $this->headerRows ? $this->buttonZones->at($relCol) : null;
         if ($hovered === $this->hoveredButton) {
             return false;
         }

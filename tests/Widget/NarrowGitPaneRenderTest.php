@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\Tests\Support\CompactScreen;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
@@ -89,16 +90,16 @@ final class NarrowGitPaneRenderTest extends TestCase
         // Three states, because they are three different assemblers: the
         // placeholder path draws only the toolbar, and split builds each row
         // from two halves rather than one gutter.
-        $unified = new DiffViewWidget(new Translator('en'));
+        $unified = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $unified->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
         yield 'diff (unified)' => [$unified];
 
-        $split = new DiffViewWidget(new Translator('en'));
+        $split = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $split->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
         $split->useSplitView();
         yield 'diff (split)' => [$split];
 
-        $empty = new DiffViewWidget(new Translator('en'));
+        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
         $empty->setDocument(null, null);
         yield 'diff (no selection)' => [$empty];
     }
