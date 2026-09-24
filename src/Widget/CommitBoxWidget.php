@@ -58,6 +58,17 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     /** The amend checkbox's box, its first row: below the description box and its two border rows. */
     private const int AMEND_TOP = self::DESCRIPTION_TOP + self::DESCRIPTION_ROWS + 2;
 
+    /**
+     * The sidebar rows below which the amend checkbox takes its one-row form:
+     * Find in Files' 30 terminal rows, less the menu and status bars the
+     * sidebar runs between. Boxed on a short terminal, it left the changes
+     * list above it two entries at 20 rows.
+     */
+    private const int BOXED_MIN_ROWS = 28;
+
+    /** The amend checkbox's height in the last render: a box, or one row on a short sidebar. */
+    private int $amendRows = FieldBox::ROWS;
+
     /** The amend checkbox as a Tab stop, after the two fields. */
     private const int AMEND_FIELD = 2;
 
@@ -200,13 +211,13 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     /** The widget-relative first row of the three-row commit button, for mouse hit-testing. */
     public function buttonRow(): int
     {
-        return self::AMEND_TOP + FieldBox::ROWS;
+        return self::AMEND_TOP + $this->amendRows;
     }
 
-    /** Any row of the amend checkbox's box — its label rides the middle one, and all three are its target. */
+    /** Any row of the amend checkbox — its label rides the box's middle row, and every row is its target. */
     private function onAmend(int $relRow): bool
     {
-        return $relRow >= self::AMEND_TOP && $relRow < (self::AMEND_TOP + FieldBox::ROWS);
+        return $relRow >= self::AMEND_TOP && $relRow < (self::AMEND_TOP + $this->amendRows);
     }
 
     private function onButton(int $relRow): bool
@@ -373,8 +384,11 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             $hovered => $this->styles->of(Role::Bright)->withUnderline()->apply($text).$this->hint(),
             default => $text.$this->hint(),
         };
-        foreach (FieldBox::checkboxBox($amend, $state, $this->styles) as $i => $boxRow) {
-            $lines[] = AnsiText::truncate(' '.$boxRow.(1 === $i ? ' '.$caption : ''), $width, pad: true);
+        $this->amendRows = $context->getRows() >= self::BOXED_MIN_ROWS ? FieldBox::ROWS : 1;
+        $box = FieldBox::ROWS === $this->amendRows ? FieldBox::checkboxBox($amend, $state, $this->styles) : [FieldBox::checkbox($amend, $state, $this->styles)];
+        $labelRow = \intdiv(\count($box), num2: 2);
+        foreach ($box as $i => $boxRow) {
+            $lines[] = AnsiText::truncate(' '.$boxRow.($labelRow === $i ? ' '.$caption : ''), $width, pad: true);
         }
 
         // The form's submit button, its key in its border: dashed while

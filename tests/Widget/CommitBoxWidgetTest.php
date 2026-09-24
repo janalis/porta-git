@@ -43,7 +43,7 @@ final class CommitBoxWidgetTest extends TestCase
 
     private function rendered(CommitBoxWidget $widget): string
     {
-        return $this->plain($widget->render(new RenderContext(44, 16))); // header, two boxes, the amend row, the button
+        return $this->plain($widget->render(new RenderContext(44, 30))); // a full-height sidebar: header, two boxes, the amend box, the button
     }
 
     public function testMessageAssemblyAndEnabledState(): void
@@ -378,15 +378,15 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertTrue($widget->hoverRow($widget->buttonRow()), 'the enabled button reacts under the pointer');
         $this->assertFalse($widget->hoverRow($widget->buttonRow()));
         $this->assertFalse($widget->hoverRow($widget->buttonRow() + 2), 'the button is three rows, and all three are the button');
-        $lines = $widget->render(new RenderContext(44, 16));
+        $lines = $widget->render(new RenderContext(44, 30));
         $this->assertStringContainsString("\x1b[4m", $lines[$widget->buttonRow() + 1], 'the hovered button underlines its caption');
 
         $this->assertTrue($widget->hoverRow(0), 'the summary field is not the button — the tint clears');
-        $this->assertStringNotContainsString("\x1b[4m", $widget->render(new RenderContext(44, 16))[$widget->buttonRow() + 1]);
+        $this->assertStringNotContainsString("\x1b[4m", $widget->render(new RenderContext(44, 30))[$widget->buttonRow() + 1]);
 
         $this->assertTrue($widget->hoverRow($widget->buttonRow() - 1), 'the amend box reacts too, from any of its rows');
         $this->assertFalse($widget->hoverRow($widget->buttonRow() - 3), 'all three are one target');
-        $amend = $widget->render(new RenderContext(44, 16));
+        $amend = $widget->render(new RenderContext(44, 30));
         $this->assertStringContainsString("\x1b[4m", $amend[$widget->buttonRow() - 2], 'its label underlines');
         $this->assertStringNotContainsString("\x1b[4m", $amend[$widget->buttonRow() - 3], 'and never its box');
     }
@@ -416,7 +416,7 @@ final class CommitBoxWidgetTest extends TestCase
         $widget = $this->widget();
         $widget->handleInput("\x1bm"); // Alt+M: amend on
         $accent = Styles::dark()->of(Role::TabAccent)->apply('✓');
-        $amendRow = static fn (): string => \array_find($widget->render(new RenderContext(44, 16)), static fn (string $line): bool => \str_contains(
+        $amendRow = static fn (): string => \array_find($widget->render(new RenderContext(44, 30)), static fn (string $line): bool => \str_contains(
             AnsiUtils::stripAnsiCodes($line),
             'Amend last commit  ',
         )) ?? '';
@@ -440,5 +440,25 @@ final class CommitBoxWidgetTest extends TestCase
         $this->type($widget, 's');
 
         $this->assertSame("s\n\nd", $widget->message());
+    }
+
+    /**
+     * On a short sidebar the amend checkbox takes its one-row form — Find in
+     * Files' rule, 30 terminal rows — so the changes list above keeps its
+     * entries; every hit and hover follows the height drawn.
+     */
+    public function testAShortSidebarDrawsTheAmendCheckboxOnOneRow(): void
+    {
+        $widget = $this->widget();
+        $screen = $this->plain($widget->render(new RenderContext(44, 20)));
+
+        $this->assertStringContainsString('[ ] Amend last commit  Alt+M', $screen);
+        $this->assertStringNotContainsString('╭─╮', $screen);
+        $widget->handleClick($widget->buttonRow() - 1); // the one amend row
+        $this->assertTrue($widget->isAmend());
+        $this->assertCount(1, \array_filter(\explode("\n", $screen), static fn (string $l): bool => \str_contains($l, 'Amend last commit  ')));
+
+        $tall = $this->plain($widget->render(new RenderContext(44, 28)));
+        $this->assertStringContainsString('┃✓┃ Amend last commit', $tall, 'from 28 sidebar rows, a box — heavy: the click gave it the keys');
     }
 }

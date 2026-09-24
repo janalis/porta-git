@@ -1301,7 +1301,7 @@ final class GitViewControllerTest extends TestCase
     {
         $controller = $this->controller();
         $this->project->git('update-ref', '-d', 'HEAD'); // the branch unborn, as after `git init`
-        $commitBox = fn (): string => \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->commitBox->render(new RenderContext(44, 12))));
+        $commitBox = fn (): string => \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->commitBox->render(new RenderContext(44, 30))));
 
         $controller->open();
         $this->await(static fn (): bool => \str_contains($commitBox(), 'No commit to amend'), what: 'the unborn branch disables amend');
