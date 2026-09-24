@@ -10,7 +10,7 @@ use Porta\GitPlugin\Blame\BlameAnnotations;
 use Porta\GitPlugin\Blame\BlameClient;
 use Porta\GitPlugin\Blame\BlameLine;
 use Porta\GitPlugin\ChangeMarks;
-use Porta\GitPlugin\ChangeNavigation;
+use Porta\GitPlugin\ChangeView;
 use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\Command\GitRemoteCommands;
 use Porta\GitPlugin\Command\IndexCommands;
@@ -461,10 +461,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         $api->onFileSaved(static fn (string $path) => $annotations->refreshIfEnabled());
 
         $marks = new ChangeMarks($git, $api, static fn (): bool => $settings->gutterMarks);
-        $navigation = new ChangeNavigation($marks, $git, $api);
-        $api->adoptCommand('git_next_change', $navigation->next(...));
-        $api->adoptCommand('git_prev_change', $navigation->previous(...));
-        $api->adoptCommand('git_show_change', $navigation->show(...));
+        $api->adoptCommand('git_show_change', new ChangeView($git, $api)->show(...));
         // The file tree's whole-repository marks. Only on things that move the
         // working tree — a save, and the three facts below (commit, remote,
         // stage/discard). Never on a buffer switch: nothing changed on disk.

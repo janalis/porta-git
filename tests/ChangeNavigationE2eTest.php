@@ -6,7 +6,6 @@ namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
-use Porta\GitPlugin\ChangeNavigation;
 use Porta\Ide;
 use Porta\Input\GutterClickRouter;
 use Porta\Tests\Support\ClearsPortaLsp;
@@ -23,9 +22,9 @@ use Porta\Widget\CodeEditorWidget;
 use Symfony\Component\Tui\Tui;
 
 /**
- * A file's changes against HEAD walked and read from the editor: next and
- * previous change from the gutter's marks, one change shown with what it
- * removed and added, and reverted in the buffer.
+ * A file's changes against HEAD walked and read from the editor: core's next
+ * and previous change over the marks this plugin paints — the join — and the
+ * plugin's own view of one change, reverted in the buffer.
  */
 final class ChangeNavigationE2eTest extends TestCase
 {
@@ -34,12 +33,6 @@ final class ChangeNavigationE2eTest extends TestCase
     use PreservesPath;
     use RunsIde;
     use UsesBundledPlugins;
-
-    public function testChangeStartsAreTheFirstLineOfEachRun(): void
-    {
-        $this->assertSame([1, 4, 9], ChangeNavigation::changeStarts([5 => 'added', 1 => 'modified', 4 => 'modified', 2 => 'modified', 9 => 'deleted']));
-        $this->assertSame([], ChangeNavigation::changeStarts([]));
-    }
 
     public function testTheChangesAreWalkedShownAndReverted(): void
     {
@@ -60,16 +53,29 @@ final class ChangeNavigationE2eTest extends TestCase
                     $commands = Services::resolve($ide, CommandRegistry::class);
                     $line = static fn (): int => $editor->getDocument()->cursorLine;
 
-                    $commands->run('git_next_change');
+                    $commands->run('next_change');
                     $this->assertSame(1, $line());
-                    $commands->run('git_next_change');
+                    $commands->run('next_change');
                     $this->assertSame(4, $line());
-                    $commands->run('git_next_change');
+                    $commands->run('next_change');
                     $this->assertSame(1, $line(), 'wrapping past the end');
-                    $commands->run('git_prev_change');
+                    $commands->run('prev_change');
                     $this->assertSame(4, $line(), 'and back past the start');
-                    $commands->run('git_prev_change');
+                    $commands->run('prev_change');
                     $this->assertSame(1, $line());
+
+                    // Two lines typed above the changes: the marks move down
+                    // with them, and so does the walk.
+                    $editor->getDocument()->setCursor(0, 0);
+                    $editor->handleInput("\r");
+                    $editor->handleInput("\r");
+                    $commands->run('next_change');
+                    // The typed lines are changes themselves and join the
+                    // first run; the next one is the second change, at 6.
+                    $this->assertSame(6, $line(), 'the second change, two lines further down than on disk');
+                    $editor->runAction('undo');
+                    $editor->runAction('undo');
+                    $this->await(static fn (): bool => "a\nB\nc\nd\nE\nf\n" === $editor->getDocument()->getText(), what: 'the typing undone');
 
                     // A click on the change mark: the caret goes there and the change shows.
                     Services::resolve($ide, GutterClickRouter::class)->click(0, 4);
@@ -123,7 +129,7 @@ final class ChangeNavigationE2eTest extends TestCase
             $project->path('a.txt'),
             [
                 400 => function (Tui $tui, $terminal, Ide $ide): void {
-                    Services::resolve($ide, CommandRegistry::class)->run('git_next_change');
+                    Services::resolve($ide, CommandRegistry::class)->run('next_change');
                     $this->assertContains('No changes in this file', Toasts::all($ide));
                 },
             ],
@@ -164,7 +170,7 @@ final class ChangeNavigationE2eTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    /** With no file open there is nothing to walk or show, and nothing breaks. */
+    /** With no file open there is no change to show, and nothing breaks. */
     public function testWithNoFileOpenTheVerbsDoNothing(): void
     {
         $this->skipWithoutGit();
@@ -178,7 +184,6 @@ final class ChangeNavigationE2eTest extends TestCase
             [
                 400 => function (Tui $tui, $terminal, Ide $ide): void {
                     $commands = Services::resolve($ide, CommandRegistry::class);
-                    $commands->run('git_next_change');
                     $commands->run('git_show_change');
                     $this->assertSame([], Toasts::all($ide), 'no file, no answer to give');
                 },

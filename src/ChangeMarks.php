@@ -33,9 +33,6 @@ final class ChangeMarks
      */
     private array $inFlight = [];
 
-    /** @var array<string, array<int, string>> the last marks published per path, for change navigation */
-    private array $last = [];
-
     /**
      * @param bool|(\Closure(): bool) $enabled the `gutterMarks` setting; a CLOSURE is read per refresh, so
      *                                         turning it off stops the diffs without a restart
@@ -45,17 +42,6 @@ final class ChangeMarks
         private readonly PluginApi $api,
         private readonly bool|\Closure $enabled = true,
     ) {}
-
-    /**
-     * The marks last published for $path — what the gutter shows, and so what
-     * the change navigation walks.
-     *
-     * @return array<int, string> 0-based line => 'added'|'modified'|'deleted'
-     */
-    public function marksFor(string $path): array
-    {
-        return $this->last[$path] ?? [];
-    }
 
     /** Whether the gutter stripe is wanted right now. */
     private function enabled(): bool
@@ -79,7 +65,6 @@ final class ChangeMarks
         $this->git->diff($path, function (array $marks) use ($path): void {
             $rerun = $this->inFlight[$path] ?? false;
             unset($this->inFlight[$path]);
-            $this->last[$path] = $marks;
             $this->api->setChangeMarks($path, $marks);
             if ($rerun) {
                 $this->refresh($path);
