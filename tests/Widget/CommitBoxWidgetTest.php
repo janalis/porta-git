@@ -10,6 +10,7 @@ use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\RendersWidget;
 use Porta\Ui\Role;
+use Porta\Ui\ScreenDensity;
 use Porta\Ui\Theme\Styles;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -443,22 +444,32 @@ final class CommitBoxWidgetTest extends TestCase
     }
 
     /**
-     * On a short sidebar the amend checkbox takes its one-row form — Find in
-     * Files' rule, 30 terminal rows — so the changes list above keeps its
-     * entries; every hit and hover follows the height drawn.
+     * On a compact screen the whole form takes its one-row controls — the
+     * summary, the amend checkbox and the button — so the changes list above
+     * keeps its entries; every hit and hover follows the height drawn.
      */
-    public function testAShortSidebarDrawsTheAmendCheckboxOnOneRow(): void
+    public function testACompactScreenDrawsTheFormOnOneRowEach(): void
     {
-        $widget = $this->widget();
-        $screen = $this->plain($widget->render(new RenderContext(44, 20)));
+        $density = new ScreenDensity();
+        $density->observe(24);
+        $widget = new CommitBoxWidget(new Translator('en'), density: $density);
+        $widget->setFocused(true);
+        $widget->setStagedChangesProvider(fn (): bool => $this->staged);
+        $lines = \explode("\n", $this->plain($widget->render(new RenderContext(44, 20))));
 
-        $this->assertStringContainsString('[ ] Amend last commit  Alt+M', $screen);
-        $this->assertStringNotContainsString('╭───╮', $screen);
-        $widget->handleClick($widget->buttonRow() - 1); // the one amend row
+        $this->assertStringContainsString('Summary (required) ┃', $lines[1], 'the summary is one row');
+        $this->assertStringContainsString('[ ] Amend last commit  Alt+M', $lines[6], 'under the four-row description');
+        $this->assertStringContainsString('Commit to branch', $lines[7]);
+        $this->assertCount(8, $lines);
+        $this->assertSame(7, $widget->buttonRow());
+        $widget->handleClick(6); // the one amend row
         $this->assertTrue($widget->isAmend());
-        $this->assertCount(1, \array_filter(\explode("\n", $screen), static fn (string $l): bool => \str_contains($l, 'Amend last commit  ')));
+        $widget->handleClick(2); // the description's top border
+        $this->assertStringContainsString('┏ Description', $this->plain($widget->render(new RenderContext(44, 20))), 'a click below the summary types in the description');
 
-        $tall = $this->plain($widget->render(new RenderContext(44, 28)));
-        $this->assertStringContainsString('┃ ✓ ┃ Amend last commit', $tall, 'from 28 sidebar rows, a box — heavy: the click gave it the keys');
+        $density->observe(30);
+        $tall = $this->plain($widget->render(new RenderContext(44, 20)));
+        $this->assertStringContainsString('│ ✓ │ Amend last commit', $tall, 'on a roomy screen, a box');
+        $this->assertSame(11, $widget->buttonRow());
     }
 }

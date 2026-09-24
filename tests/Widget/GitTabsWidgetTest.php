@@ -10,6 +10,7 @@ use Porta\GitPlugin\View\GitViewMode;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\RendersWidget;
+use Porta\Ui\ScreenDensity;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -20,7 +21,7 @@ final class GitTabsWidgetTest extends TestCase
 
     public function testRendersBothTabsWithTheActiveOneHighlighted(): void
     {
-        $widget = new GitTabsWidget(new Translator('en'));
+        $widget = new GitTabsWidget(new Translator('en'), density: self::compact());
         $lines = $widget->render(new RenderContext(44, 1));
 
         $this->assertCount(1, $lines);
@@ -43,7 +44,7 @@ final class GitTabsWidgetTest extends TestCase
     {
         $selected = [];
         $events = new EventDispatcher();
-        $widget = new GitTabsWidget(new Translator('en'), events: $events);
+        $widget = new GitTabsWidget(new Translator('en'), density: self::compact(), events: $events);
         $events->addListener(GitViewModeRequested::class, static function (GitViewModeRequested $event) use (&$selected): void {
             $selected[] = $event->mode;
         });
@@ -72,7 +73,7 @@ final class GitTabsWidgetTest extends TestCase
 
     public function testSetActiveIsIdempotentAndOverlayComposites(): void
     {
-        $widget = new GitTabsWidget(new Translator('en'));
+        $widget = new GitTabsWidget(new Translator('en'), density: self::compact());
         $widget->setActive(GitViewMode::Changes); // already active: no-op
 
         $widget->setMenuOverlay([['row' => 0, 'col' => 0, 'width' => 8, 'segment' => "\x1b[7mDROPDOWN\x1b[0m"]]);
@@ -82,7 +83,7 @@ final class GitTabsWidgetTest extends TestCase
 
     public function testHoverTintsTheInactiveTabOnly(): void
     {
-        $widget = new GitTabsWidget(new Translator('en'));
+        $widget = new GitTabsWidget(new Translator('en'), density: self::compact());
         $widget->render(new RenderContext(44, 1)); // the pointer lands on what was drawn
 
         $this->assertTrue($widget->hoverMode(GitViewMode::History), 'hovering the inactive tab changes the tint');
@@ -123,7 +124,7 @@ final class GitTabsWidgetTest extends TestCase
         $events->addListener(GitViewModeRequested::class, static function (GitViewModeRequested $event) use (&$requested): void {
             $requested[] = $event->mode;
         });
-        $widget = new GitTabsWidget(new Translator('en'), events: $events);
+        $widget = new GitTabsWidget(new Translator('en'), density: self::compact(), events: $events);
 
         $line = AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(14, 1))[0]);
         $this->assertStringNotContainsString('History', $line, 'too narrow for the second tab');
@@ -135,30 +136,42 @@ final class GitTabsWidgetTest extends TestCase
     }
 
     /**
-     * The sidebar's height plus the menu and status bars is the terminal's:
-     * folder tabs from 30 rows, compact below — and the active mode's lid is
-     * heavy all round while the sidebar has the keys.
+     * Folder tabs on a roomy screen, one row on a compact one — the
+     * screen's density core hands the view, never the sidebar's height —
+     * and the active mode's lid is heavy all round while the sidebar has the
+     * keys.
      */
-    public function testTheModeTabsAreFolderTabsOnATallSidebar(): void
+    public function testTheModeTabsAreFolderTabsOnARoomyScreen(): void
     {
-        $widget = new GitTabsWidget(new Translator('en'));
+        $density = new ScreenDensity();
+        $widget = new GitTabsWidget(new Translator('en'), density: $density);
         $focused = true;
         $widget->setFocusProbe(static function () use (&$focused): bool {
             return $focused;
         });
 
-        $tall = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(44, 28)));
-        $short = $widget->render(new RenderContext(44, 27));
+        $tall = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(44, 5)));
+        $density->observe(29);
+        $short = $widget->render(new RenderContext(44, 5));
 
         $this->assertCount(2, $tall);
         $this->assertStringStartsWith('┏━━━━━━━━━┓╭─────────╮', $tall[0]);
         $this->assertStringStartsWith('┃ Changes ┃│ History │─', $tall[1]);
-        $this->assertCount(1, $short);
+        $this->assertCount(1, $short, 'the sidebar is as tall as before: the screen is not');
 
+        $density->observe(30);
         $focused = false;
         $revision = $widget->getRenderRevision();
         $widget->beforeRender();
         $this->assertNotSame($revision, $widget->getRenderRevision(), 'a focus change repaints');
-        $this->assertStringStartsWith('┍', AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(44, 28))[0]));
+        $this->assertStringStartsWith('┍', AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(44, 5))[0]));
+    }
+
+    private static function compact(): ScreenDensity
+    {
+        $density = new ScreenDensity();
+        $density->observe(24);
+
+        return $density;
     }
 }

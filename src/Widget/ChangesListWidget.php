@@ -18,6 +18,7 @@ use Porta\Ui\Glyphs;
 use Porta\Ui\ListNavigation;
 use Porta\Ui\ListSelection;
 use Porta\Ui\Role;
+use Porta\Ui\ScreenDensity;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\HoverableList;
 use Porta\Widget\Render\FieldBox;
@@ -73,6 +74,8 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     /** @var list<ChangeEntry> */
     private array $entries = [];
     private readonly ListSelection $list;
+
+    private readonly ScreenDensity $density;
     /** Entries the pane last had room for from its scroll — the page size for PgUp/PgDn. */
     private int $lastPage = 1;
     /** Index of the entry an inline discard confirmation is armed for, or null. */
@@ -97,11 +100,13 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         private readonly Translator $translator,
         int $width = 44,
         ?Styles $styles = null,
+        ?ScreenDensity $density = null,
         ?EventDispatcherInterface $events = null,
     ) {
         $this->events = $events;
         $this->width = $width;
         $this->initStyles($styles);
+        $this->density = $density ?? new ScreenDensity();
         $this->list = new ListSelection();
         $this->addStyleClass('list'); // the theme's .list::selected(:focus) rules style the selection
     }
@@ -376,7 +381,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         // its two buttons.
         $heights = [];
         foreach (\array_keys($this->entries) as $index) {
-            $heights[] = $index === $this->confirmDiscard ? 1 + FieldBox::ROWS : 1;
+            $heights[] = $index === $this->confirmDiscard ? 1 + FieldBox::rowsFor($this->density->current()) : 1;
         }
         $scroll = $this->list->followHeights($heights, $rows - 1);
         $this->lastPage = $this->list->countFitting($heights, $scroll, $rows - 1);
@@ -450,10 +455,11 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         $keep = $this->translator->trans('Keep');
         $discardWidth = FieldBox::controlWidth($discard);
         $keepWidth = FieldBox::controlWidth($keep);
-        $discardRows = FieldBox::button($discard, FieldState::Danger, false, $discardWidth, FieldBox::ROWS, $this->styles);
-        $keepRows = FieldBox::button($keep, FieldState::Idle, false, $keepWidth, FieldBox::ROWS, $this->styles);
+        $rows = FieldBox::rowsFor($this->density->current());
+        $discardRows = FieldBox::button($discard, FieldState::Danger, false, $discardWidth, $rows, $this->styles);
+        $keepRows = FieldBox::button($keep, FieldState::Idle, false, $keepWidth, $rows, $this->styles);
         $this->confirmButtons = [
-            'rows' => [$top + 1, $top + 1 + FieldBox::ROWS],
+            'rows' => [$top + 1, $top + 1 + $rows],
             'discard' => [1, 1 + $discardWidth],
             'keep' => [2 + $discardWidth, 2 + $discardWidth + $keepWidth],
         ];

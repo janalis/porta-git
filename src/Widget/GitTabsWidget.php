@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\Widget;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
+use Porta\Ui\ScreenDensity;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
@@ -32,9 +33,6 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
     use PanelWidth;
     use StylesDefault;
 
-    /** The menu bar and the status bar: the terminal's rows the sidebar does not get. */
-    private const int CHROME_ROWS = 2;
-
     private GitViewMode $active = GitViewMode::Changes;
 
     /** The sidebar focus the last render drew, so a focus change repaints the lid. */
@@ -45,14 +43,18 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
     /** @var list<array{mode: GitViewMode, start: int, width: int}> the tabs the last render DREW, for hit-testing — a tab the pane cut off has no zone */
     private array $layout = [];
 
+    private readonly ScreenDensity $density;
+
     public function __construct(
         private readonly Translator $translator,
         int $width = 44,
         ?Styles $styles = null,
+        ?ScreenDensity $density = null,
         private readonly ?EventDispatcherInterface $events = null,
     ) {
         $this->width = $width;
         $this->initStyles($styles);
+        $this->density = $density ?? new ScreenDensity();
     }
 
     public function minWidth(): int
@@ -136,10 +138,10 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
             'closable' => false,
         ], $modes);
         $hover = \array_find($this->layout, fn (array $tab): bool => $tab['mode'] === $this->hoveredMode);
-        // The core strips take their height from the terminal's; this one is
-        // a plugin's and sees only its sidebar, which runs between the menu
-        // bar and the status bar — the two rows added back.
-        $rows = TabStripRenderer::rowsFor($context->getRows() + self::CHROME_ROWS);
+        // The core strips have their height pushed; this one is a plugin's,
+        // and its sidebar's height says nothing of the terminal's — it reads
+        // the screen's density core hands every view.
+        $rows = TabStripRenderer::rowsFor($this->density->current());
         $strip = TabStripRenderer::render($tabs, $width, $this->styles, $hover['start'] ?? null, rows: $rows, paneFocused: $this->drawnFocus = $this->paneFocused());
         $this->layout = \array_map(static fn (array $zone): array => ['mode' => $modes[$zone['index']], 'start' => $zone['start'], 'width' => $zone['width']], $strip['hitMap']);
 

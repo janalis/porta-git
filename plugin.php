@@ -350,11 +350,11 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         GitRemoteCommands $remote,
     ): GitViewController {
         $panes = new GitPanes(
-            new ChangesListWidget($s->translator, styles: $s->styles, events: $events),
+            new ChangesListWidget($s->translator, styles: $s->styles, density: $s->density, events: $events),
             new DiffViewWidget($s->translator, $s->styles, $api->syntaxTheme(), $events),
-            new CommitBoxWidget($s->translator, styles: $s->styles, cursorStyle: $s->cursorStyle),
+            new CommitBoxWidget($s->translator, styles: $s->styles, cursorStyle: $s->cursorStyle, density: $s->density),
             new HistoryListWidget($s->translator, styles: $s->styles, events: $events),
-            new GitTabsWidget($s->translator, styles: $s->styles, events: $events),
+            new GitTabsWidget($s->translator, styles: $s->styles, density: $s->density, events: $events),
         );
         // The ids and flex styles the container used to apply from #[AsWidget].
         // The ids are how the renderer and every rect-reading test name these

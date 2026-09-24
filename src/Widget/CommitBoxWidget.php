@@ -11,6 +11,7 @@ use Porta\Ui\CaretVisibility;
 use Porta\Ui\CursorStyle;
 use Porta\Ui\MultilineInput;
 use Porta\Ui\Role;
+use Porta\Ui\ScreenDensity;
 use Porta\Ui\TextField;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\HoverableList;
@@ -52,22 +53,16 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     /** The description box's text rows; the box adds its two border rows. */
     private const int DESCRIPTION_ROWS = 2;
 
-    /** The description box's first row: below the header and the summary box. */
-    private const int DESCRIPTION_TOP = 1 + FieldBox::ROWS;
-
-    /** The amend checkbox's box, its first row: below the description box and its two border rows. */
-    private const int AMEND_TOP = self::DESCRIPTION_TOP + self::DESCRIPTION_ROWS + 2;
-
     /**
-     * The sidebar rows below which the amend checkbox takes its one-row form:
-     * Find in Files' 30 terminal rows, less the menu and status bars the
-     * sidebar runs between. Boxed on a short terminal, it left the changes
-     * list above it two entries at 20 rows.
+     * The summary, amend checkbox and button's height in the last render: a
+     * box each, or one row on a compact screen ({@see FieldBox::rowsFor()}).
+     * Boxed on a short terminal, the form left the changes list above it two
+     * entries at 20 rows. The description stays framed: it is several rows
+     * whatever the screen.
      */
-    private const int BOXED_MIN_ROWS = 28;
+    private int $controlRows = FieldBox::ROWS;
 
-    /** The amend checkbox's height in the last render: a box, or one row on a short sidebar. */
-    private int $amendRows = FieldBox::ROWS;
+    private readonly ScreenDensity $density;
 
     /** The amend checkbox as a Tab stop, after the two fields. */
     private const int AMEND_FIELD = 2;
@@ -92,9 +87,11 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         int $width = 44,
         ?Styles $styles = null,
         ?CursorStyle $cursorStyle = null,
+        ?ScreenDensity $density = null,
     ) {
         $this->width = $width;
         $this->initStyles($styles);
+        $this->density = $density ?? new ScreenDensity();
         $this->summary = new TextField(style: $cursorStyle);
         $this->description = new MultilineInput($cursorStyle);
     }
@@ -202,27 +199,39 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     public function hoverRow(int $relRow): bool
     {
         return $this->setHovered(match (true) {
-            $this->onAmend($relRow) && $this->amendable => self::AMEND_TOP,
+            $this->onAmend($relRow) && $this->amendable => $this->amendTop(),
             $this->onButton($relRow) && $this->commitEnabled() => $this->buttonRow(),
             default => null,
         });
     }
 
-    /** The widget-relative first row of the three-row commit button, for mouse hit-testing. */
+    /** The widget-relative first row of the commit button, for mouse hit-testing. */
     public function buttonRow(): int
     {
-        return self::AMEND_TOP + $this->amendRows;
+        return $this->amendTop() + $this->controlRows;
+    }
+
+    /** The description box's first row: below the header and the summary. */
+    private function descriptionTop(): int
+    {
+        return 1 + $this->controlRows;
+    }
+
+    /** The amend checkbox's first row: below the description box and its two border rows. */
+    private function amendTop(): int
+    {
+        return $this->descriptionTop() + self::DESCRIPTION_ROWS + 2;
     }
 
     /** Any row of the amend checkbox — its label rides the box's middle row, and every row is its target. */
     private function onAmend(int $relRow): bool
     {
-        return $relRow >= self::AMEND_TOP && $relRow < (self::AMEND_TOP + $this->amendRows);
+        return $relRow >= $this->amendTop() && $relRow < ($this->amendTop() + $this->controlRows);
     }
 
     private function onButton(int $relRow): bool
     {
-        return $relRow >= $this->buttonRow() && $relRow < ($this->buttonRow() + FieldBox::ROWS);
+        return $relRow >= $this->buttonRow() && $relRow < ($this->buttonRow() + $this->controlRows);
     }
 
     public function handleInput(string $data): void
@@ -322,7 +331,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
             return;
         }
-        $this->activeField = $relRow >= self::DESCRIPTION_TOP ? 1 : 0;
+        $this->activeField = $relRow >= $this->descriptionTop() ? 1 : 0;
         $this->invalidate();
     }
 
@@ -342,6 +351,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     {
         $width = $this->panelColumns($context);
         $focused = $this->focused;
+        $this->controlRows = FieldBox::rowsFor($this->density->current());
 
         $lines = [HeaderRenderer::title(' '.$this->translator->trans('Commit'), $width, $this->styles, suffix: 'Esc')];
 
@@ -349,12 +359,13 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         // what each box is for no longer vanishes the moment it takes focus.
         // The border shape says which one is taking the keys.
         $typingSummary = $focused && 0 === $this->activeField;
-        \array_push($lines, ...FieldBox::render(
+        \array_push($lines, ...FieldBox::field(
             new FieldSpec($this->translator->trans('Summary (required)')),
             $this->summary,
             FieldState::of($typingSummary),
             $typingSummary ? CaretVisibility::Shown : CaretVisibility::Hidden,
             $width,
+            $this->controlRows,
             $this->styles,
         ));
 
@@ -377,15 +388,14 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         // A box of its own, three rows like the fields above it, its label on
         // the middle row. The pointer underlines the label, never the box —
         // hovering is not a state change — and the mark keeps its accent.
-        $hovered = self::AMEND_TOP === $this->hoveredIndex;
+        $hovered = $this->amendTop() === $this->hoveredIndex;
         $text = $this->translator->trans('Amend last commit');
         $caption = match (true) {
             !$this->amendable => $this->styles->of(Role::Faint)->apply($text.'  '.$this->translator->trans('No commit to amend')),
             $hovered => $this->styles->of(Role::Bright)->withUnderline()->apply($text).$this->hint(),
             default => $text.$this->hint(),
         };
-        $this->amendRows = $context->getRows() >= self::BOXED_MIN_ROWS ? FieldBox::ROWS : 1;
-        $box = FieldBox::ROWS === $this->amendRows ? FieldBox::checkboxBox($amend, $state, $this->styles) : [FieldBox::checkbox($amend, $state, $this->styles)];
+        $box = FieldBox::ROWS === $this->controlRows ? FieldBox::checkboxBox($amend, $state, $this->styles) : [FieldBox::checkbox($amend, $state, $this->styles)];
         $labelRow = \intdiv(\count($box), num2: 2);
         foreach ($box as $i => $boxRow) {
             $lines[] = AnsiText::truncate(' '.$boxRow.($labelRow === $i ? ' '.$caption : ''), $width, pad: true);
@@ -398,7 +408,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             $this->commitEnabled() ? FieldState::Idle : FieldState::Disabled,
             $this->hoveredIndex === $this->buttonRow(),
             $width,
-            FieldBox::ROWS,
+            $this->controlRows,
             $this->styles,
             trailing: 'Ctrl+Enter',
         ));
