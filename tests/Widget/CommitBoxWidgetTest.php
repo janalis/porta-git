@@ -118,7 +118,7 @@ final class CommitBoxWidgetTest extends TestCase
         $widget->handleInput("\t"); // summary -> description
         $widget->handleInput("\t"); // description -> the amend checkbox
         $this->assertSame(0, $focusNext);
-        $this->assertStringContainsString('┃ ┃ Amend last commit', $this->rendered($widget), 'the checkbox has the keys: heavy rails');
+        $this->assertStringContainsString('┃   ┃ Amend last commit', $this->rendered($widget), 'the checkbox has the keys: heavy rails');
         $widget->handleInput("\t"); // amend -> next pane
         $this->assertSame(1, $focusNext);
     }
@@ -153,7 +153,7 @@ final class CommitBoxWidgetTest extends TestCase
         $widget->setAmendable(false);
 
         $screen = $this->rendered($widget);
-        $this->assertStringContainsString('┆ ┆ Amend last commit  No commit to amend', $screen);
+        $this->assertStringContainsString('┆   ┆ Amend last commit  No commit to amend', $screen);
 
         $widget->handleInput("\t");
         $widget->handleInput("\t");
@@ -252,7 +252,7 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertTrue($widget->commitEnabled(), 'amending only the message needs nothing staged');
 
         $screen = $this->rendered($widget);
-        $this->assertStringContainsString('│✓│ Amend last commit  Alt+M', $screen, 'the amend state reads as a labelled checkbox, without colour — a box, its label on the middle row');
+        $this->assertStringContainsString('│ ✓ │ Amend last commit  Alt+M', $screen, 'the amend state reads as a labelled checkbox, without colour — a box, its label on the middle row');
         $this->assertStringContainsString('Amend last commit', $screen);
 
         $widget->handleInput("\x1b[13;5u");
@@ -453,12 +453,12 @@ final class CommitBoxWidgetTest extends TestCase
         $screen = $this->plain($widget->render(new RenderContext(44, 20)));
 
         $this->assertStringContainsString('[ ] Amend last commit  Alt+M', $screen);
-        $this->assertStringNotContainsString('╭─╮', $screen);
+        $this->assertStringNotContainsString('╭───╮', $screen);
         $widget->handleClick($widget->buttonRow() - 1); // the one amend row
         $this->assertTrue($widget->isAmend());
         $this->assertCount(1, \array_filter(\explode("\n", $screen), static fn (string $l): bool => \str_contains($l, 'Amend last commit  ')));
 
         $tall = $this->plain($widget->render(new RenderContext(44, 28)));
-        $this->assertStringContainsString('┃✓┃ Amend last commit', $tall, 'from 28 sidebar rows, a box — heavy: the click gave it the keys');
+        $this->assertStringContainsString('┃ ✓ ┃ Amend last commit', $tall, 'from 28 sidebar rows, a box — heavy: the click gave it the keys');
     }
 }

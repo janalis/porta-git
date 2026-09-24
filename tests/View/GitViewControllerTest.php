@@ -1305,12 +1305,12 @@ final class GitViewControllerTest extends TestCase
 
         $controller->open();
         $this->await(static fn (): bool => \str_contains($commitBox(), 'No commit to amend'), what: 'the unborn branch disables amend');
-        $this->assertStringContainsString('┆ ┆ Amend last commit', $commitBox(), 'dashed');
+        $this->assertStringContainsString('┆   ┆ Amend last commit', $commitBox(), 'dashed');
 
         $this->project->commitAll('first');
         $controller->refresh();
         $this->await(static fn (): bool => !\str_contains($commitBox(), 'No commit to amend'), what: 'a first commit enables it');
-        $this->assertStringContainsString('│ │ Amend last commit', $commitBox());
+        $this->assertStringContainsString('│   │ Amend last commit', $commitBox());
     }
 
     public function testFocusCycleWalksTheThreePanes(): void
