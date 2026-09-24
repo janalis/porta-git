@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\TestCase;
-use Porta\GitPlugin\Tests\Support\CompactScreen;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\View\GitMouseRouter;
 use Porta\GitPlugin\Widget\ChangesListWidget;
@@ -17,6 +16,7 @@ use Porta\I18n\Translator;
 use Porta\Input\HitTester;
 use Porta\Input\MouseEvent;
 use Porta\Layout\ViewRegions;
+use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\TestTui;
 use Porta\Ui\Theme\Styles;
 use Porta\Workbench\View\WheelAxis;

@@ -6,10 +6,10 @@ namespace Porta\GitPlugin\Tests\Widget;
 
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Diff\DiffDocument;
-use Porta\GitPlugin\Tests\Support\CompactScreen;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\I18n\Translator;
+use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\Probe;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;

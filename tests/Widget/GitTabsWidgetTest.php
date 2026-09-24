@@ -6,10 +6,10 @@ namespace Porta\GitPlugin\Tests\Widget;
 
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Event\GitViewModeRequested;
-use Porta\GitPlugin\Tests\Support\CompactScreen;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\I18n\Translator;
+use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\RendersWidget;
 use Porta\Ui\ScreenDensity;
 use Symfony\Component\EventDispatcher\EventDispatcher;

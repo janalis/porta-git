@@ -9,7 +9,6 @@ use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\LogEntry;
-use Porta\GitPlugin\Tests\Support\CompactScreen;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
@@ -17,6 +16,7 @@ use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\AttachedStyles;
+use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\RendersExactWidth;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 
