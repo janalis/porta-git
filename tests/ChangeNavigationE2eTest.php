@@ -131,4 +131,60 @@ final class ChangeNavigationE2eTest extends TestCase
 
         $this->addToAssertionCount(1);
     }
+
+    /** A pure deletion is marked on the line above it, and reverting puts the deleted line back under it. */
+    public function testADeletionIsShownAndPutBack(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.txt' => "a\nb\nc\n"]);
+        $project->initGit();
+        $project->commitAll('init');
+        $project->write('a.txt', "a\nc\n");
+
+        $this->runIde(
+            $project,
+            $project->path('a.txt'),
+            [
+                400 => function (Tui $tui, $terminal, Ide $ide): void {
+                    $editor = $tui->getById('editor');
+                    $this->assertInstanceOf(CodeEditorWidget::class, $editor, 'the editor is the code editor');
+                    $this->await(static fn (): bool => [] !== $editor->decorations->vcsMarks, what: 'the deletion to be marked');
+                    $this->assertSame([0], \array_keys($editor->decorations->vcsMarks), 'on the line above it');
+
+                    Services::resolve($ide, CommandRegistry::class)->run('git_show_change');
+                    $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
+                    $this->assertSame(['− b', 'Revert this change'], \array_column(Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['items'], 'label'));
+                    $editor->handleInput("\x1b[B");
+                    $editor->handleInput("\r");
+                    $this->assertSame("a\nb\nc\n", $editor->getDocument()->getText());
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    /** With no file open there is nothing to walk or show, and nothing breaks. */
+    public function testWithNoFileOpenTheVerbsDoNothing(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.txt' => "a\n"]);
+        $project->initGit();
+        $project->commitAll('init');
+
+        $this->runIde(
+            $project,
+            null,
+            [
+                400 => function (Tui $tui, $terminal, Ide $ide): void {
+                    $commands = Services::resolve($ide, CommandRegistry::class);
+                    $commands->run('git_next_change');
+                    $commands->run('git_show_change');
+                    $this->assertSame([], Toasts::all($ide), 'no file, no answer to give');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
 }
