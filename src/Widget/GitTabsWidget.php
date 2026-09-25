@@ -145,7 +145,7 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
         $strip = TabStripRenderer::render($tabs, $width, $this->styles, $hover['start'] ?? null, rows: $rows, paneFocused: $this->drawnFocus = $this->paneFocused());
         $this->layout = \array_map(static fn (array $zone): array => ['mode' => $modes[$zone['index']], 'start' => $zone['start'], 'width' => $zone['width']], $strip['hitMap']);
 
-        return $this->withMenuOverlay(TabStripTail::pad($strip, $width, $rows > 1, $this->styles), $width);
+        return $this->withMenuOverlay(TabStripTail::pad($strip, $width, $this->styles), $width);
     }
 
     protected function overlayWidth(RenderContext $context): int

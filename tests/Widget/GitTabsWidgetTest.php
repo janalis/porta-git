@@ -155,9 +155,10 @@ final class GitTabsWidgetTest extends TestCase
         $density->observe(29);
         $short = $widget->render(new RenderContext(44, 5));
 
-        $this->assertCount(2, $tall);
-        $this->assertStringStartsWith('┏━━━━━━━━━┓╭─────────╮', $tall[0]);
-        $this->assertStringStartsWith('┃ Changes ┃│ History │─', $tall[1]);
+        $this->assertCount(3, $tall);
+        $this->assertStringStartsWith('┏━━━━━━━━━┓╭─────────╮ ', $tall[0]);
+        $this->assertStringStartsWith('┃ Changes ┃│ History │ ', $tall[1]);
+        $this->assertSame('┚         ┖┴─────────┴'.\str_repeat('─', times: 22), $tall[2], 'standing on a baseline that opens under the shown mode');
         $this->assertCount(1, $short, 'the sidebar is as tall as before: the screen is not');
 
         $density->observe(30);

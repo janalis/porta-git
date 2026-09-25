@@ -68,6 +68,7 @@ use Porta\Widget\FileTreeWidget;
 use Porta\Widget\MenuBarWidget;
 use Porta\Widget\ResultsPanelWidget;
 use Porta\Widget\StatusBarWidget;
+use Porta\Widget\TabBarWidget;
 use Porta\Widget\TerminalPanelWidget;
 use Porta\Workbench\EditorArea;
 use Porta\Workbench\Menu\Menu;
@@ -207,6 +208,7 @@ final class GitViewControllerTest extends TestCase
             $renderer,
             new FileTreeWidget($this->project->dir),
             TestBottomDock::create($this->tui, new TerminalPanelWidget(), new ResultsPanelWidget(), new DebugPanelWidget()),
+            new TabBarWidget(),
             // The controller declares its own sidebar when it mints the region,
             // so the layout gets it from there rather than being handed one.
             $regions,
