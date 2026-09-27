@@ -50,6 +50,7 @@ final readonly class GitBranchSegment
             Glyphs::STATUS_BRANCH." {$branch}",
             StatusTone::Accent,
             $this->branchItems(...),
+            $this->translator->trans('Git branch %branch% — click to switch, create or delete a branch', ['%branch%' => $branch]),
         );
     }
 

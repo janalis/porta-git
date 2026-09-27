@@ -82,6 +82,7 @@ final class GitBranchSegmentTest extends TestCase
         $this->assertStringContainsString('trunk', $cell->text);
         $this->assertSame(StatusTone::Accent, $cell->tone, 'picked out from the prefix, because it is clickable');
         $this->assertNotNull($cell->menu, 'and it carries what a right-click offers');
+        $this->assertSame('Git branch trunk — click to switch, create or delete a branch', $cell->tooltip);
         $this->assertSame(
             ['Switch Branch…', 'New Branch…', 'Delete Branch…'],
             \array_map(static fn (object $item): string => $item->label, ($cell->menu)()),

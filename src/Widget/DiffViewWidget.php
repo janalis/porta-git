@@ -23,6 +23,8 @@ use Porta\Ui\Role;
 use Porta\Ui\ScreenDensity;
 use Porta\Ui\Theme\Styles;
 use Porta\Ui\ThemeRefreshable;
+use Porta\Ui\Tooltip;
+use Porta\Ui\TooltipProvider;
 use Porta\Widget\PaneNavigationCallbacks;
 use Porta\Widget\Render\FieldBox;
 use Porta\Widget\Render\MenuOverlayHost;
@@ -48,7 +50,7 @@ use Tempest\Highlight\TerminalTheme;
  * pre-image no longer matches the file's highlight state). The title row is
  * a toolbar with clickable display toggles. Scrollable; read-only for history.
  */
-final class DiffViewWidget extends AbstractWidget implements FocusableInterface, LtrPane, MenuOverlayHost, ThemeRefreshable, VerticallyExpandableInterface
+final class DiffViewWidget extends AbstractWidget implements FocusableInterface, LtrPane, MenuOverlayHost, ThemeRefreshable, TooltipProvider, VerticallyExpandableInterface
 {
     use FillsPaneTrait;
     use FocusableTrait;
@@ -745,6 +747,24 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         $this->invalidate();
 
         return true;
+    }
+
+    /**
+     * A toolbar toggle says what it does — `hide-ws` is shorthand — and whether
+     * it is on. It answers on every header row, as the hover does.
+     */
+    #[\Override]
+    public function tooltipAt(int $row, int $col): ?Tooltip
+    {
+        $name = $row >= 0 && $row < $this->headerRows ? $this->buttonZones->at($col) : null;
+        $span = null === $name ? null : $this->buttonZones->span($name);
+        if (null === $name || null === $span) {
+            return null;
+        }
+        [$what, $on] = 'split' === $name ? [$this->translator->trans('Side-by-side diff'), $this->split] : [$this->translator->trans('Hide whitespace-only changes'), $this->whitespaceHidden];
+        $state = $on ? $this->translator->trans('on') : $this->translator->trans('off');
+
+        return new Tooltip('git:diff:'.$name, $what.' · '.$state, 0, $span[0], $span[1], $this->headerRows);
     }
 
     /** The pointer left the diff pane: drop the toolbar tint. Returns whether it changed. */

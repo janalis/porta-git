@@ -14,6 +14,8 @@ use Porta\Ui\Role;
 use Porta\Ui\ScreenDensity;
 use Porta\Ui\TextField;
 use Porta\Ui\Theme\Styles;
+use Porta\Ui\Tooltip;
+use Porta\Ui\TooltipProvider;
 use Porta\Widget\HoverableList;
 use Porta\Widget\PaneNavigationCallbacks;
 use Porta\Widget\Render\FieldBox;
@@ -39,7 +41,7 @@ use Symfony\Component\Tui\Widget\KeybindingsTrait;
  * Commit is enabled when the summary is non-empty and anything is staged
  * (via the injected predicate); Ctrl+Enter or a button click commits.
  */
-final class CommitBoxWidget extends AbstractWidget implements FocusableInterface, MenuOverlayHost, HoverableList
+final class CommitBoxWidget extends AbstractWidget implements FocusableInterface, MenuOverlayHost, HoverableList, TooltipProvider
 {
     use FocusableTrait;
     use HoverTrait;
@@ -61,6 +63,9 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
      * whatever the screen.
      */
     private int $controlRows = FieldBox::ROWS;
+
+    /** The width the last render drew at — the button's, and so its tooltip's. */
+    private int $drawnWidth = 0;
 
     private readonly ScreenDensity $density;
 
@@ -211,6 +216,21 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         return $this->amendTop() + $this->controlRows;
     }
 
+    /**
+     * A dashed Commit button says why it will not commit — the shape says
+     * "not now", only words say what is missing. An enabled one needs no card.
+     */
+    #[\Override]
+    public function tooltipAt(int $row, int $col): ?Tooltip
+    {
+        if (!$this->onButton($row) || $this->commitEnabled()) {
+            return null;
+        }
+        $why = '' === $this->summary->value() ? $this->translator->trans('Write a summary first') : $this->translator->trans('Stage a change first');
+
+        return new Tooltip('git:commit', $why, $this->buttonRow(), 0, $this->drawnWidth, $this->controlRows);
+    }
+
     /** The description box's first row: below the header and the summary. */
     private function descriptionTop(): int
     {
@@ -350,6 +370,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     public function render(RenderContext $context): array
     {
         $width = $this->panelColumns($context);
+        $this->drawnWidth = $width;
         $focused = $this->focused;
         $this->controlRows = FieldBox::rowsFor($this->density->current());
 

@@ -17,6 +17,8 @@ use Porta\Ui\ListSelection;
 use Porta\Ui\Markup\MarkupParser;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
+use Porta\Ui\Tooltip;
+use Porta\Ui\TooltipProvider;
 use Porta\Widget\HoverableList;
 use Porta\Widget\Render\HeaderRenderer;
 use Porta\Widget\Render\MenuOverlayHost;
@@ -30,6 +32,7 @@ use Porta\Widget\Support\PanelWidth;
 use Porta\Widget\Support\StylesDefault;
 use Porta\Widget\Support\WheelScrollable;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Input\Key;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Widget\AbstractWidget;
@@ -44,7 +47,7 @@ use Symfony\Component\Tui\Widget\VerticallyExpandableInterface;
  * file drives the read-only diff pane. Selection changes fire onSelectCommit
  * / onSelectFile so the controller can load `git show` data.
  */
-final class HistoryListWidget extends AbstractWidget implements FocusableInterface, HoverableList, MenuOverlayHost, VerticallyExpandableInterface, WheelScrollable
+final class HistoryListWidget extends AbstractWidget implements FocusableInterface, HoverableList, MenuOverlayHost, TooltipProvider, VerticallyExpandableInterface, WheelScrollable
 {
     use ArrowScrollTrait;
     use FillsPaneTrait;
@@ -69,6 +72,18 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
     private ?int $hoveredCommit = null;
     private ?int $hoveredFile = null;
     private int $lastRows = 12;
+
+    /**
+     * What each drawn row could not fit, from the last render, keyed by
+     * widget-relative row: a commit's full sha, subject, author and date; a
+     * file's path cut short.
+     *
+     * @var array<int, array{key: string, text: string}>
+     */
+    private array $tips = [];
+
+    /** The width the last render drew at — a row tooltip's span. */
+    private int $drawnWidth = 0;
 
     /** Whether an older page exists past the loaded commits. */
     private bool $hasMore = false;
@@ -359,6 +374,8 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             // "label: message" specially whenever %count% is a parameter.
             : $this->translator->trans(' History — %path% (%count%)', ['%path%' => $this->filterLabel, '%count%' => \count($this->commits)]);
         $lines = [HeaderRenderer::title($header, $width, $this->styles)];
+        $this->tips = [];
+        $this->drawnWidth = $width;
 
         $commitRows = $this->commitRowCount();
         $scroll = $this->commitList->follow($commitRows);
@@ -379,6 +396,9 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
                 $bg = $this->styles->of(Role::RowHighlightBg);
             }
             [$sha, $subject, $author] = \array_map(MarkupParser::escape(...), [$commit->shortSha, $commit->subject, $commit->author]);
+            // A row carries the short sha and whatever of the subject and the
+            // author fit; the card carries all of it, and when.
+            $this->tips[\count($lines)] = ['key' => 'commit:'.$commit->sha, 'text' => $commit->sha."\n".$commit->subject."\n".$commit->author.' · '.\date('Y-m-d H:i', $commit->timestamp)];
             $text = SelectionBar::of($selected, $this->focused && !$this->filesFocused)->value.$this->styles->format("<modified>{$sha}</> {$subject}<dim>  {$author}</>");
             $text = AnsiText::truncate($text, $width, pad: true);
             $lines[] = null !== $bg ? $bg->apply($text) : $text;
@@ -402,7 +422,11 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             if (!$selected && ($fileScroll + $row) === $this->hoveredFile) {
                 $bg = $this->styles->of(Role::RowHighlightBg);
             }
-            $text = AnsiText::truncate(SelectionBar::of($selected, $this->focused && $this->filesFocused)->value.$file['status'].' '.$file['path'], $width, pad: true);
+            $whole = SelectionBar::of($selected, $this->focused && $this->filesFocused)->value.$file['status'].' '.$file['path'];
+            if (AnsiUtils::visibleWidth($whole) > $width) {
+                $this->tips[\count($lines)] = ['key' => 'file:'.$file['path'], 'text' => $file['path']];
+            }
+            $text = AnsiText::truncate($whole, $width, pad: true);
             $lines[] = null !== $bg ? $bg->apply($text) : $text;
         }
 
@@ -410,6 +434,15 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         // (the file loop is height-capped), so no tail padding is needed.
 
         return $lines;
+    }
+
+    /** A commit row says itself in full; a file row whose path was cut says the path. */
+    #[\Override]
+    public function tooltipAt(int $row, int $col): ?Tooltip
+    {
+        $tip = $this->tips[$row] ?? null;
+
+        return null === $tip ? null : new Tooltip('git:history:'.$tip['key'], $tip['text'], $row, 0, $this->drawnWidth);
     }
 
     /** @return array<string, string[]> */

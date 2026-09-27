@@ -19,7 +19,10 @@ use Porta\Ui\ListNavigation;
 use Porta\Ui\ListSelection;
 use Porta\Ui\Role;
 use Porta\Ui\ScreenDensity;
+use Porta\Ui\ShortcutFormatter;
 use Porta\Ui\Theme\Styles;
+use Porta\Ui\Tooltip;
+use Porta\Ui\TooltipProvider;
 use Porta\Widget\HoverableList;
 use Porta\Widget\Render\FieldBox;
 use Porta\Widget\Render\FieldState;
@@ -49,7 +52,7 @@ use Symfony\Component\Tui\Widget\VerticallyExpandableInterface;
  * staged state. Space toggles staging, `d` arms an inline discard
  * confirmation, Enter/selection drives the diff pane via onSelect.
  */
-final class ChangesListWidget extends AbstractWidget implements FocusableInterface, HoverableList, MenuOverlayHost, VerticallyExpandableInterface, WheelScrollable
+final class ChangesListWidget extends AbstractWidget implements FocusableInterface, HoverableList, MenuOverlayHost, TooltipProvider, VerticallyExpandableInterface, WheelScrollable
 {
     use ArrowScrollTrait;
     use FillsPaneTrait;
@@ -310,6 +313,9 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
      */
     private ?int $hoveredBox = null;
 
+    /** The width the last render drew its rows at — where a cut path's tooltip ends. */
+    private int $drawnWidth = 0;
+
     /** The pointer at a widget-relative cell, or off the list (null row): lights the box under it. Returns whether that changed. */
     public function hoverBoxAt(?int $relRow, int $relCol): bool
     {
@@ -331,6 +337,33 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     private function litBox(string $box, int $index): string
     {
         return $index === $this->hoveredBox ? new Style(underline: true)->apply($box) : $box;
+    }
+
+    /**
+     * The header's box says what it does to every change; a row's box, its
+     * status letter and its cut path say theirs ({@see ChangeTooltip}). An
+     * armed discard's block is its own question and says nothing more.
+     */
+    #[\Override]
+    public function tooltipAt(int $row, int $col): ?Tooltip
+    {
+        $box = $col >= 1 && $col <= FieldBox::CHECKBOX_WIDTH;
+        if (0 === $row && $box && [] !== $this->entries) {
+            return new Tooltip(
+                'git:box:all',
+                true === $this->allStaged() ? $this->translator->trans('Unstage everything') : $this->translator->trans('Stage everything'),
+                0,
+                1,
+                1 + FieldBox::CHECKBOX_WIDTH,
+            );
+        }
+        $index = $this->rowIndexAt($row);
+        if (null === $index || $index === $this->confirmDiscard) {
+            return null;
+        }
+        $key = ShortcutFormatter::format($this->getKeybindings()->getBindings('toggle_stage')[0] ?? '');
+
+        return ChangeTooltip::of($this->entries[$index], $row, $col, $this->drawnWidth, $key, $this->translator);
     }
 
     private function rowIndexAt(int $relRow): ?int
@@ -365,6 +398,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     {
         $width = $this->panelColumns($context);
         $rows = \max(1, $context->getRows() > 0 ? $context->getRows() : 12);
+        $this->drawnWidth = $width;
 
         $count = \count($this->entries);
         $title = $this->translator->trans(' %count% changed file| %count% changed files', ['%count%' => $count]);
