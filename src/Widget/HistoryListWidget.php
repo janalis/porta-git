@@ -369,10 +369,10 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         $this->lastRows = $rows;
 
         $header = null === $this->filterLabel
-            ? $this->translator->trans(' History (%count%)', ['%count%' => \count($this->commits)])
+            ? $this->translator->trans('History (%count%)', ['%count%' => \count($this->commits)])
             // An em dash, not a colon: symfony's legacy plural handling treats
             // "label: message" specially whenever %count% is a parameter.
-            : $this->translator->trans(' History — %path% (%count%)', ['%path%' => $this->filterLabel, '%count%' => \count($this->commits)]);
+            : $this->translator->trans('History — %path% (%count%)', ['%path%' => $this->filterLabel, '%count%' => \count($this->commits)]);
         $lines = [HeaderRenderer::title($header, $width, $this->styles)];
         $this->tips = [];
         $this->drawnWidth = $width;

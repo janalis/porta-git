@@ -401,13 +401,13 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         $this->drawnWidth = $width;
 
         $count = \count($this->entries);
-        $title = $this->translator->trans(' %count% changed file| %count% changed files', ['%count%' => $count]);
+        $title = $this->translator->trans('%count% changed file|%count% changed files', ['%count%' => $count]);
         // A select-all box heads the list, as a browser's table of checkboxes
         // has one: checked when every change is staged, clear when none is,
         // and the partial mark for a mix. Untinted: the header's style runs
         // across it, and a tint's closing code would drop it for the title.
-        $box = [] === $this->entries ? '' : ' '.$this->litBox(FieldBox::checkbox($this->allStaged()), -1).' ';
-        $lines = [HeaderRenderer::title($box.\ltrim($title), $width, $this->styles)];
+        $box = [] === $this->entries ? '' : $this->litBox(FieldBox::checkbox($this->allStaged()), -1).' ';
+        $lines = [HeaderRenderer::title($box.$title, $width, $this->styles)];
         $this->rowOwner = [null];
         $this->confirmButtons = null;
 

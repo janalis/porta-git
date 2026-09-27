@@ -374,7 +374,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         $focused = $this->focused;
         $this->controlRows = FieldBox::rowsFor($this->density->current());
 
-        $lines = [HeaderRenderer::title(' '.$this->translator->trans('Commit'), $width, $this->styles, suffix: 'Esc')];
+        $lines = [HeaderRenderer::title($this->translator->trans('Commit'), $width, $this->styles, suffix: 'Esc')];
 
         // Two boxed fields whose legends name them — always on screen, so
         // what each box is for no longer vanishes the moment it takes focus.
