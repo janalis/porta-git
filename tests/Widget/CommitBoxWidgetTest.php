@@ -472,4 +472,15 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertStringContainsString('│ ✓ │ Amend last commit', $tall, 'on a roomy screen, a box');
         $this->assertSame(11, $widget->buttonRow());
     }
+
+    /** The summary takes the field's own keys: ← to fix a typo, and a paste. */
+    public function testTheSummaryMovesItsCaretAndTakesAPaste(): void
+    {
+        $widget = $this->widget();
+        $this->type($widget, 'Fx');
+        $widget->handleInput("\x1b[D");
+        $widget->handleInput("\x1b[200~i\x1b[201~");
+
+        $this->assertSame('Fix', $widget->message());
+    }
 }
