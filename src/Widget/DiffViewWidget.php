@@ -644,7 +644,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
                 $lines[] = AnsiText::blank($width);
             }
 
-            return $this->withMenuOverlay($lines, $width);
+            return $lines;
         }
 
         $renderer = new DiffViewRenderer($this->document, $this->highlighted, $this->hScroll, $this->cursor, $this->anchor, $this->focused, $this->normalizedCharSel(), $this->styles);
@@ -655,7 +655,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             $lines[] = AnsiText::blank($width);
         }
 
-        return $this->withMenuOverlay($lines, $width);
+        return $lines;
     }
 
     /**

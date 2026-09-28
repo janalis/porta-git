@@ -9,12 +9,15 @@ use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\I18n\Translator;
+use Porta\Tests\Support\RendersWidget;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 
 final class GitTabsWidgetTest extends TestCase
 {
+    use RendersWidget;
+
     public function testRendersBothTabsWithTheActiveOneHighlighted(): void
     {
         $widget = new GitTabsWidget(new Translator('en'));
@@ -73,7 +76,7 @@ final class GitTabsWidgetTest extends TestCase
         $widget->setActive(GitViewMode::Changes); // already active: no-op
 
         $widget->setMenuOverlay([['row' => 0, 'col' => 0, 'width' => 8, 'segment' => "\x1b[7mDROPDOWN\x1b[0m"]]);
-        $line = $widget->render(new RenderContext(44, 1))[0];
+        $line = $this->painted($widget, new RenderContext(44, 1))[0];
         $this->assertStringContainsString('DROPDOWN', $line, 'a dropdown span composites over the strip');
     }
 
@@ -90,5 +93,20 @@ final class GitTabsWidgetTest extends TestCase
         $this->assertStringNotContainsString("\x1b[48;5;240m", $widget->render(new RenderContext(44, 1))[0], 'but the active style wins');
 
         $this->assertTrue($widget->hoverMode(null), 'leaving the strip clears');
+    }
+
+    /**
+     * A side panel draws at its own width however wide the layout is, and a
+     * dropdown over it composites at that width too — at the layout's, the row
+     * padded out past the panel and starved the pane beside it.
+     */
+    public function testAnOverlayCompositesAtThePanelWidthNotTheLayouts(): void
+    {
+        $widget = new GitTabsWidget(new Translator('en'));
+        $widget->setMenuOverlay([['row' => 0, 'col' => 0, 'width' => 200, 'segment' => \str_repeat('M', times: 200)]]);
+
+        $row = $this->painted($widget, new RenderContext(300, 5))[0];
+        $this->assertSame($widget->width(), AnsiUtils::visibleWidth($row));
+        $this->assertStringContainsString('MMM', $row);
     }
 }

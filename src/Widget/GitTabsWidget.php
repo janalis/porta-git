@@ -108,7 +108,7 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
 
     public function render(RenderContext $context): array
     {
-        $width = \min($this->width, $context->getColumns());
+        $width = $this->panelColumns($context);
 
         $this->layout = [];
         $line = ' ';
@@ -125,6 +125,11 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
             $line .= ' ';
         }
 
-        return $this->withMenuOverlay([$this->styles->of(Role::Toolbar)->apply(AnsiText::truncate($line, $width, pad: true))], $width);
+        return [$this->styles->of(Role::Toolbar)->apply(AnsiText::truncate($line, $width, pad: true))];
+    }
+
+    protected function overlayWidth(RenderContext $context): int
+    {
+        return $this->panelColumns($context);
     }
 }

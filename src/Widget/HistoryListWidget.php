@@ -346,7 +346,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
 
     public function render(RenderContext $context): array
     {
-        $width = \min($this->width, $context->getColumns());
+        $width = $this->panelColumns($context);
         $rows = \max(4, $context->getRows() > 0 ? $context->getRows() : 12);
         $this->lastRows = $rows;
 
@@ -403,7 +403,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         // commitRowCount + the two headers + FILE_ROWS always fill $rows exactly
         // (the file loop is height-capped), so no tail padding is needed.
 
-        return $this->withMenuOverlay($lines, $width);
+        return $lines;
     }
 
     /** @return array<string, string[]> */
@@ -422,5 +422,10 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             'focus_next_pane' => [Key::TAB],
             'exit_view' => [Key::ESCAPE],
         ];
+    }
+
+    protected function overlayWidth(RenderContext $context): int
+    {
+        return $this->panelColumns($context);
     }
 }

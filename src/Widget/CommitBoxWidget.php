@@ -241,7 +241,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
     public function render(RenderContext $context): array
     {
-        $width = \min($this->width, $context->getColumns());
+        $width = $this->panelColumns($context);
         $focused = $this->focused;
 
         $lines = [];
@@ -278,7 +278,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         })->apply(AnsiText::truncate($label, $width, pad: true));
         $lines[] = $button;
 
-        return $this->withMenuOverlay($lines, $width);
+        return $lines;
     }
 
     /** @return array<string, string[]> */
@@ -291,5 +291,10 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             'delete_char_backward' => [Key::BACKSPACE],
             'exit_view' => [Key::ESCAPE],
         ];
+    }
+
+    protected function overlayWidth(RenderContext $context): int
+    {
+        return $this->panelColumns($context);
     }
 }

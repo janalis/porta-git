@@ -255,7 +255,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
 
     public function render(RenderContext $context): array
     {
-        $width = \min($this->width, $context->getColumns());
+        $width = $this->panelColumns($context);
         $rows = \max(1, $context->getRows() > 0 ? $context->getRows() : 12);
         $this->lastRows = $rows;
 
@@ -286,7 +286,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
             $lines[] = $this->shadeRow($text, $this->list->isSelected($index), $index === $this->hoveredIndex);
         }
 
-        return $this->withMenuOverlay($lines, $width);
+        return $lines;
     }
 
     /** @return array<string, string[]> */
@@ -306,5 +306,10 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
             'focus_next_pane' => [Key::TAB],
             'exit_view' => [Key::ESCAPE],
         ];
+    }
+
+    protected function overlayWidth(RenderContext $context): int
+    {
+        return $this->panelColumns($context);
     }
 }

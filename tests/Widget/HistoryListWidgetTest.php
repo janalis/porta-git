@@ -315,4 +315,19 @@ final class HistoryListWidgetTest extends TestCase
         }
         $this->fail('the Files sub-header row was not rendered');
     }
+
+    /**
+     * A side panel draws at its own width however wide the layout is, and a
+     * dropdown over it composites at that width too — at the layout's, the row
+     * padded out past the panel and starved the pane beside it.
+     */
+    public function testAnOverlayCompositesAtThePanelWidthNotTheLayouts(): void
+    {
+        $widget = new HistoryListWidget(new Translator('en'));
+        $widget->setMenuOverlay([['row' => 0, 'col' => 0, 'width' => 200, 'segment' => \str_repeat('M', times: 200)]]);
+
+        $row = $this->painted($widget, new RenderContext(300, 5))[0];
+        $this->assertSame($widget->width(), AnsiUtils::visibleWidth($row));
+        $this->assertStringContainsString('MMM', $row);
+    }
 }
