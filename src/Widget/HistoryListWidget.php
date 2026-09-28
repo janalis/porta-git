@@ -28,8 +28,8 @@ use Porta\Widget\Render\SelectionBar;
 use Porta\Widget\Support\ArrowScrollTrait;
 use Porta\Widget\Support\FillsPaneTrait;
 use Porta\Widget\Support\InputHook;
+use Porta\Widget\Support\PanelRowStyle;
 use Porta\Widget\Support\PanelWidth;
-use Porta\Widget\Support\StylesDefault;
 use Porta\Widget\Support\WheelScrollable;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
@@ -56,8 +56,8 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
     use InputHook;
     use KeybindingsTrait;
     use MenuOverlayHostTrait;
+    use PanelRowStyle;
     use PanelWidth;
-    use StylesDefault;
 
     private const int FILE_ROWS = 8;
 
@@ -386,22 +386,12 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
                 continue;
             }
             $selected = $this->commitList->isSelected($scroll + $row);
-            $bg = null;
-            if ($selected) {
-                // The focused sub-list resolves the theme's .list::selected:focus
-                // rule; the parked one shows the shared unfocused shade.
-                $bg = $this->focused && !$this->filesFocused ? $this->resolveElement('selected') : $this->styles->of(Role::SelectedRowUnfocused);
-            }
-            if (!$selected && ($scroll + $row) === $this->hoveredCommit) {
-                $bg = $this->styles->of(Role::RowHighlightBg);
-            }
             [$sha, $subject, $author] = \array_map(MarkupParser::escape(...), [$commit->shortSha, $commit->subject, $commit->author]);
             // A row carries the short sha and whatever of the subject and the
             // author fit; the card carries all of it, and when.
             $this->tips[\count($lines)] = ['key' => 'commit:'.$commit->sha, 'text' => $commit->sha."\n".$commit->subject."\n".$commit->author.' · '.\date('Y-m-d H:i', $commit->timestamp)];
             $text = SelectionBar::of($selected, $this->focused && !$this->filesFocused)->value.$this->styles->format("<modified>{$sha}</> {$subject}<dim>  {$author}</>");
-            $text = AnsiText::truncate($text, $width, pad: true);
-            $lines[] = null !== $bg ? $bg->apply($text) : $text;
+            $lines[] = $this->shadeSubRow(AnsiText::truncate($text, $width, pad: true), $selected, !$this->filesFocused, ($scroll + $row) === $this->hoveredCommit);
         }
 
         // A heading inside the pane, not the pane's title: a legend set into a
@@ -415,25 +405,34 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
                 continue;
             }
             $selected = $this->fileList->isSelected($fileScroll + $row);
-            $bg = null;
-            if ($selected) {
-                $bg = $this->focused && $this->filesFocused ? $this->resolveElement('selected') : $this->styles->of(Role::SelectedRowUnfocused);
-            }
-            if (!$selected && ($fileScroll + $row) === $this->hoveredFile) {
-                $bg = $this->styles->of(Role::RowHighlightBg);
-            }
             $whole = SelectionBar::of($selected, $this->focused && $this->filesFocused)->value.$file['status'].' '.$file['path'];
             if (AnsiUtils::visibleWidth($whole) > $width) {
                 $this->tips[\count($lines)] = ['key' => 'file:'.$file['path'], 'text' => $file['path']];
             }
-            $text = AnsiText::truncate($whole, $width, pad: true);
-            $lines[] = null !== $bg ? $bg->apply($text) : $text;
+            $lines[] = $this->shadeSubRow(AnsiText::truncate($whole, $width, pad: true), $selected, $this->filesFocused, ($fileScroll + $row) === $this->hoveredFile);
         }
 
         // commitRowCount + the two headers + FILE_ROWS always fill $rows exactly
         // (the file loop is height-capped), so no tail padding is needed.
 
         return $lines;
+    }
+
+    /**
+     * {@see PanelRowStyle::shadeRow()} for one of the two sub-lists: the one
+     * holding the keys ($active) resolves the theme's selection rule like any
+     * panel's; the parked one shows the unfocused shade even while the pane
+     * is focused. Either way the selection's foreground carries across the
+     * sha's and the author's tints.
+     */
+    // @mago-expect lint:no-boolean-flag-parameter -- which sub-list holds the keys is the state being drawn, not a second responsibility.
+    private function shadeSubRow(string $text, bool $selected, bool $active, bool $hovered): string
+    {
+        if ($selected && !$active) {
+            return self::withForeground($this->styles->of(Role::SelectedRowUnfocused), $text);
+        }
+
+        return $this->shadeRow($text, $selected, $hovered);
     }
 
     /** A commit row says itself in full; a file row whose path was cut says the path. */

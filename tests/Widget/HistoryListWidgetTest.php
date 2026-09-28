@@ -92,6 +92,25 @@ final class HistoryListWidgetTest extends TestCase
         $this->assertStringContainsString('M src/a.php', $screen);
     }
 
+    /**
+     * A selected row keeps the selection's foreground past the sha's tint,
+     * whose close is a default-colour reset: without re-arming it the subject
+     * drew in the terminal's default instead of bright-on-blue. The parked
+     * sub-list's selection (the files, while the commits hold the keys) wears
+     * the unfocused shade.
+     */
+    public function testASelectedCommitKeepsItsForegroundPastTheSha(): void
+    {
+        $widget = $this->widget();
+        AttachedStyles::attach($widget);
+        $lines = $widget->render(new RenderContext(44, 16));
+
+        $this->assertStringContainsString("\x1b[39m\x1b[38;5;231m Newest work", $lines[1]);
+        $parked = \implode("\n", \array_filter($lines, static fn (string $line): bool => \str_contains($line, 'src/a.php')));
+        $this->assertStringContainsString("\x1b[48;5;237m", $parked, 'the files sub-list is parked: its selection is the unfocused shade');
+        $this->assertStringNotContainsString("\x1b[48;5;31m", $parked);
+    }
+
     public function testCommitNavigationFiresAndEnterSwitchesToFiles(): void
     {
         $bus = new EventDispatcher();
