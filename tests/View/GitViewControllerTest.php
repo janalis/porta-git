@@ -313,9 +313,16 @@ final class GitViewControllerTest extends TestCase
     }
 
     /** @return list<string> porcelain rows of the test repo */
+    /**
+     * The index as git sees it. --no-optional-locks, as every reader the plugin
+     * runs: this is polled by awaits WHILE the plugin mutates the index, and a
+     * plain `git status` takes index.lock to refresh stat data — under load it
+     * held the lock at the moment the plugin's `git reset` needed it, and the
+     * unstage failed ("git refused the staging change") one run in ~80.
+     */
     private function porcelain(): array
     {
-        \exec('git -C '.\escapeshellarg($this->project->dir).' status --porcelain 2>/dev/null', $lines);
+        \exec('git --no-optional-locks -C '.\escapeshellarg($this->project->dir).' status --porcelain 2>/dev/null', $lines);
 
         return $lines;
     }

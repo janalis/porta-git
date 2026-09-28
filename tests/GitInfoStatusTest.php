@@ -209,7 +209,7 @@ final class GitInfoStatusTest extends TestCase
         $this->assertTrue($unstaged);
         // Not $project->git(): its trim() would strip the leading porcelain
         // status column (' M' — worktree-modified), which is load-bearing here.
-        \exec('git -C '.\escapeshellarg($project->dir).' status --porcelain 2>/dev/null', $lines);
+        \exec('git --no-optional-locks -C '.\escapeshellarg($project->dir).' status --porcelain 2>/dev/null', $lines);
         $this->assertSame(' M a.txt', $lines[0], 'the edit moved back to the worktree side');
 
         $discarded = null;
@@ -235,7 +235,7 @@ final class GitInfoStatusTest extends TestCase
         $project->write('new.txt', "fresh\n");
         $porcelain = static function () use ($project): array {
             $lines = [];
-            \exec('git -C '.\escapeshellarg($project->dir).' status --porcelain 2>/dev/null', $lines);
+            \exec('git --no-optional-locks -C '.\escapeshellarg($project->dir).' status --porcelain 2>/dev/null', $lines);
 
             return $lines;
         };
