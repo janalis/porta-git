@@ -17,6 +17,7 @@ use Porta\Tests\Support\RecordingDiagnosticsSink;
 use Porta\Tests\Support\RecordingFileOpener;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\TestDockTools;
+use Porta\Tests\Support\TestLspQuery;
 use Porta\Tests\Support\TestTui;
 use Porta\Tree\FileStatuses;
 use Porta\Widget\CodeEditorWidget;
@@ -80,6 +81,7 @@ final readonly class GitPluginHarness
             new CodeEditorWidget(),
             new FakePluginLifecycle(),
             new FileTreeWidget(\sys_get_temp_dir()),
+            TestLspQuery::create(),
         ));
         $api = new PluginApi('git', $manager, $project->dir, $settings);
         $manager->commit($api);
