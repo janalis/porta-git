@@ -12,8 +12,6 @@ use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\Input\HitTester;
 use Porta\Input\MouseEvent;
 use Porta\Input\MouseRouter;
-use Porta\Layout\ViewRegion;
-use Porta\Widget\SeparatorWidget;
 use Porta\Workbench\View\ViewHost;
 use Porta\Workbench\View\ViewPointer;
 use Porta\Workbench\View\WheelAxis;
@@ -32,8 +30,6 @@ final class GitMouseRouter implements ViewPointer
     /** A press on a diff body row arms a row-range drag (rows join as the pointer moves). */
     private bool $diffSelecting = false;
 
-    private readonly SeparatorWidget $separator;
-
     public function __construct(
         private readonly HitTester $hit,
         private readonly ViewHost $host,
@@ -42,12 +38,7 @@ final class GitMouseRouter implements ViewPointer
         private readonly CommitBoxWidget $commitBox,
         private readonly HistoryListWidget $history,
         private readonly GitTabsWidget $tabs,
-        ViewRegion $region,
-    ) {
-        // Held for the divider hover tint only — the RECTS are core's now: it
-        // mints this region, so it hit-tests its own widgets for resize arming.
-        $this->separator = $region->separator();
-    }
+    ) {} // the region's divider is core's to tint and to drag, as for every view
 
     /** Clear the diff-drag arming on a fresh press (mirrors the other drag resets). */
     public function cancelDrag(): void
@@ -175,9 +166,7 @@ final class GitMouseRouter implements ViewPointer
         $diffRel = $this->hit->hit($this->diff, $mouse->row, $mouse->col);
         $diffChanged = null !== $diffRel ? $this->diff->hoverHeader($diffRel['row'], $diffRel['col']) : $this->diff->clearHeaderHover();
 
-        $sepChanged = $this->hit->hoverDivider($mouse->row, $mouse->col, $this->separator);
-
-        if ($changed || $boxChanged || $tabsChanged || $diffChanged || $sepChanged) {
+        if ($changed || $boxChanged || $tabsChanged || $diffChanged) {
             $this->host->invalidate();
         }
     }

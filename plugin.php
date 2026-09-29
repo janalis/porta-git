@@ -390,7 +390,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             $panes,
             $s->region,
             $s->host,
-            new GitMouseRouter($s->hit, $s->host, $panes->changes, $panes->diffView, $panes->commitBox, $panes->history, $panes->tabs, $s->region),
+            new GitMouseRouter($s->hit, $s->host, $panes->changes, $panes->diffView, $panes->commitBox, $panes->history, $panes->tabs),
             new GitContextMenus($s->hit, $s->host, $panes->changes, $panes->history, $commands, $s->translator),
             $flash,
             $s->translator,

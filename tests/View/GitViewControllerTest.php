@@ -254,7 +254,6 @@ final class GitViewControllerTest extends TestCase
                 $this->commitBox,
                 $this->history,
                 $this->tabs,
-                $region,
             ),
             new GitContextMenus(
                 new HitTester($renderer),

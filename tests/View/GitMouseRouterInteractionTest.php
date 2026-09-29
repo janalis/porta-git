@@ -66,7 +66,6 @@ final class GitMouseRouterInteractionTest extends TestCase
             $commitBox,
             $history,
             $tabs,
-            $region,
         );
     }
 

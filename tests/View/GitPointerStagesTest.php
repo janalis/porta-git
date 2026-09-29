@@ -15,10 +15,8 @@ use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Input\HitTester;
 use Porta\Input\MouseEvent;
-use Porta\Layout\ViewRegions;
 use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\TestTui;
-use Porta\Ui\Theme\Styles;
 use Porta\Workbench\View\WheelAxis;
 use Porta\Workbench\View\WheelGesture;
 use Symfony\Component\Tui\Render\Renderer;
@@ -50,7 +48,6 @@ final class GitPointerStagesTest extends TestCase
             new CommitBoxWidget($translator),
             new HistoryListWidget($translator),
             new GitTabsWidget($translator),
-            new ViewRegions(Styles::dark())->mint('git'),
         );
     }
 
