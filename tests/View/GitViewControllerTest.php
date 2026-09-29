@@ -1386,6 +1386,48 @@ final class GitViewControllerTest extends TestCase
         $this->assertFalse($controller->isOpen());
     }
 
+    public function testAComparisonFromTheHistoryTabShowsTheTwoFilesAndEndsTheRunWhenClosed(): void
+    {
+        $controller = $this->controller();
+        $controller->open();
+        $this->changes->setFocused(true);
+        $this->changes->handleInput('2'); // the History tab: a comparison must still land on Changes
+        $this->await(fn (): bool => $this->history === $controller->focusTarget());
+        $controller->close();
+        $left = $this->project->write('.porta/left.txt', "one\ntwo\n");
+        $right = $this->project->write('.porta/right.txt', "one\nthree\n");
+        $ended = 0;
+
+        $controller->openComparison($left, $right, static function () use (&$ended): void {
+            ++$ended;
+        });
+        $this->await(fn (): bool => \str_contains($this->diffText(), 'three'), what: 'the comparison in the diff pane');
+        $this->assertSame($this->changes, $controller->focusTarget());
+
+        // A status refresh would put the working tree back in the pane.
+        $controller->refresh();
+        $this->pump(0.3);
+        $this->assertStringContainsString('three', $this->diffText(), 'a comparison is not the working tree');
+
+        $controller->close();
+        $this->assertSame(1, $ended, 'closing it ends the difftool run');
+        $controller->close();
+        $this->assertSame(1, $ended, 'and only once');
+    }
+
+    public function testAComparisonClosedBeforeGitAnswersPaintsNothing(): void
+    {
+        $controller = $this->controller();
+        $left = $this->project->write('.porta/left.txt', "one\n");
+        $right = $this->project->write('.porta/right.txt', "two\n");
+
+        $controller->openComparison($left, $right, static function (): void {});
+        $controller->close();
+        $this->pump(0.4);
+
+        $this->assertStringNotContainsString('two', $this->diffText(), 'an answer for a closed comparison is dropped');
+    }
+
     private function diffText(): string
     {
         return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->diffView->render(new RenderContext(80, 20))));

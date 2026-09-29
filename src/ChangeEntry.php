@@ -24,6 +24,15 @@ final readonly class ChangeEntry
         return '?' === $this->indexStatus && '?' === $this->worktreeStatus;
     }
 
+    /**
+     * A merge left this file conflicted: any `U`, or both sides added (`AA`)
+     * or both deleted (`DD`) — git's seven unmerged porcelain codes.
+     */
+    public function isUnmerged(): bool
+    {
+        return 'U' === $this->indexStatus || 'U' === $this->worktreeStatus || $this->indexStatus === $this->worktreeStatus && \in_array($this->indexStatus, ['A', 'D'], strict: true);
+    }
+
     /** The checkbox state: fully staged, partially staged, or not staged. */
     public function stagedState(): StagedState
     {

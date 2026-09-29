@@ -77,7 +77,7 @@ final readonly class GitInfo
      */
     public function diff(string $absPath, callable $onDone): void
     {
-        $this->runner->run(['diff', '--no-color', '--unified=0', 'HEAD', '--', $absPath], static function (string $out) use ($onDone): void {
+        $this->runner->run(['diff', '--no-color', '--no-ext-diff', '--unified=0', 'HEAD', '--', $absPath], static function (string $out) use ($onDone): void {
             $onDone(HunkParser::parse($out));
         });
     }
@@ -90,7 +90,7 @@ final readonly class GitInfo
      */
     public function headDiff(string $absPath, callable $onDone): void
     {
-        $this->runner->run(['diff', '--no-color', '--unified=0', 'HEAD', '--', $absPath], $onDone);
+        $this->runner->run(['diff', '--no-color', '--no-ext-diff', '--unified=0', 'HEAD', '--', $absPath], $onDone);
     }
 
     /**
@@ -114,7 +114,30 @@ final readonly class GitInfo
      */
     public function cachedFileDiff(string $absPath, callable $onDone, ?int $context = null, WhitespaceMode $whitespace = WhitespaceMode::Shown): void
     {
-        $this->runner->run(['diff', '--no-color', '--cached', ...(null === $context ? [] : ['-U'.$context]), ...(WhitespaceMode::Hidden === $whitespace ? ['-w'] : []), '--', $absPath], $onDone);
+        $this->runner->run([
+            'diff',
+            '--no-color',
+            '--no-ext-diff',
+            '--cached',
+            ...(null === $context ? [] : ['-U'.$context]),
+            ...(WhitespaceMode::Hidden === $whitespace ? ['-w'] : []),
+            '--',
+            $absPath,
+        ], $onDone);
+    }
+
+    /**
+     * A conflicted file against OUR side (`git diff --ours`): the markers and
+     * their side as additions. A plain `git diff` of an unmerged path is a
+     * combined `diff --cc`, which the diff pane does not read — it showed
+     * "No changes" for the one file a merge is about.
+     *
+     * @param callable(string): void $onDone receives the raw diff
+     * @param int|null               $context surrounding lines per hunk (null = git's default)
+     */
+    public function conflictFileDiff(string $absPath, callable $onDone, ?int $context = null): void
+    {
+        $this->runner->run(['diff', '--no-color', '--no-ext-diff', '--ours', ...(null === $context ? [] : ['-U'.$context]), '--', $absPath], $onDone);
     }
 
     /**
@@ -126,7 +149,7 @@ final readonly class GitInfo
      */
     public function worktreeFileDiff(string $absPath, callable $onDone, ?int $context = null, WhitespaceMode $whitespace = WhitespaceMode::Shown): void
     {
-        $this->runner->run(['diff', '--no-color', ...(null === $context ? [] : ['-U'.$context]), ...(WhitespaceMode::Hidden === $whitespace ? ['-w'] : []), '--', $absPath], $onDone);
+        $this->runner->run(['diff', '--no-color', '--no-ext-diff', ...(null === $context ? [] : ['-U'.$context]), ...(WhitespaceMode::Hidden === $whitespace ? ['-w'] : []), '--', $absPath], $onDone);
     }
 
     /**
@@ -137,7 +160,7 @@ final readonly class GitInfo
      */
     public function untrackedFileDiff(string $absPath, callable $onDone): void
     {
-        $this->runner->runStatus(['diff', '--no-color', '--no-index', '--', '/dev/null', $absPath], static fn (int $code, string $out) => $onDone($out));
+        $this->runner->runStatus(['diff', '--no-color', '--no-ext-diff', '--no-index', '--', '/dev/null', $absPath], static fn (int $code, string $out) => $onDone($out));
     }
 
     /**
@@ -152,7 +175,10 @@ final readonly class GitInfo
      */
     public function compareFiles(string $left, string $right, callable $onDone, ?int $context = null): void
     {
-        $this->runner->runStatus(['diff', '--no-color', '--no-index', ...(null === $context ? [] : ['-U'.$context]), '--', $left, $right], static fn (int $code, string $out) => $onDone($out));
+        $this->runner->runStatus(['diff', '--no-color', '--no-ext-diff', '--no-index', ...(null === $context ? [] : ['-U'.$context]), '--', $left, $right], static fn (
+            int $code,
+            string $out,
+        ) => $onDone($out));
     }
 
     /**
@@ -457,7 +483,7 @@ final readonly class GitInfo
      */
     public function commitFileDiff(string $sha, string $relPath, callable $onDone, WhitespaceMode $whitespace = WhitespaceMode::Shown): void
     {
-        $this->runner->run(['show', '--no-color', '--format=', ...(WhitespaceMode::Hidden === $whitespace ? ['-w'] : []), $sha, '--', $relPath], $onDone);
+        $this->runner->run(['show', '--no-color', '--no-ext-diff', '--format=', ...(WhitespaceMode::Hidden === $whitespace ? ['-w'] : []), $sha, '--', $relPath], $onDone);
     }
 
     public function cancelAll(): void

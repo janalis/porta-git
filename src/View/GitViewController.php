@@ -116,6 +116,17 @@ final class GitViewController implements ContributedView
 
     private readonly ViewRegion $region;
 
+    /**
+     * Set while the view shows a comparison git difftool asked for: called when
+     * it closes, which ends the tool session. Null in the view's own use.
+     *
+     * @var (\Closure(): void)|null
+     */
+    private ?\Closure $onComparisonClosed = null;
+
+    /** The repo-relative path to select when the next status lands — a mergetool launch. */
+    private ?string $selectOnLoad = null;
+
     public function __construct(
         private readonly GitInfo $git,
         private readonly ProjectPaths $paths,
@@ -226,13 +237,63 @@ final class GitViewController implements ContributedView
         $this->host->focus($this->panes->changes);
         $this->lastStatusRaw = "\0unset";
         $this->contextStep = 0;
+        $this->applyPrefs();
+        $this->refresh();
+        $this->armPoll();
+        $this->host->invalidate();
+    }
+
+    /**
+     * Open on $absPath's row once the status lands — git mergetool's `$MERGED`,
+     * the conflicted file, with its diff in the pane.
+     */
+    public function openOn(string $absPath): void
+    {
+        $this->selectOnLoad = $this->paths->relative($absPath);
+        $this->open();
+    }
+
+    /**
+     * Show two ARBITRARY files side by side (git difftool's `$LOCAL`/`$REMOTE`,
+     * usually temp blobs outside any repository): the diff pane, read-only,
+     * fed by `git diff --no-index`, which needs a git binary and no repository.
+     * The status poll never runs — nothing here is the working tree — and
+     * closing the view calls $onClosed, which ends the tool session.
+     *
+     * @param \Closure(): void $onClosed
+     */
+    public function openComparison(string $left, string $right, \Closure $onClosed): void
+    {
+        $this->onComparisonClosed = $onClosed;
+        $this->open = true;
+        $this->host->show($this->region);
+        if (GitViewMode::Changes !== $this->mode) {
+            $this->switchMode(GitViewMode::Changes);
+        }
+        $this->panes->changes->setEntries([]);
+        $this->applyPrefs();
+        $this->panes->diffView->makeReadOnly();
+        $this->host->focus($this->panes->diffView);
+        $relative = $this->paths->relative($right);
+        $title = \str_starts_with($relative, '/') ? \basename($right) : $relative;
+        $this->git->compareFiles($left, $right, function (string $raw) use ($title): void {
+            if (null === $this->onComparisonClosed) {
+                return; // closed before git answered
+            }
+            $document = DiffDocument::parse($raw);
+            $this->panes->diffView->setDocument($document->isEmpty() ? null : $document, $title, $this->translator->trans('The two files are identical'));
+            $this->host->invalidate();
+        });
+        $this->host->invalidate();
+    }
+
+    /** The persisted diff-pane toggles: split or unified, whitespace shown or hidden. */
+    private function applyPrefs(): void
+    {
         $prefs = $this->prefs->read();
         DiffLayout::Split === $prefs['layout'] ? $this->panes->diffView->useSplitView() : $this->panes->diffView->useUnifiedView();
         $this->hideWhitespace = $prefs['hideWhitespace'];
         $this->hideWhitespace ? $this->panes->diffView->hideWhitespace() : $this->panes->diffView->showWhitespace();
-        $this->refresh();
-        $this->armPoll();
-        $this->host->invalidate();
     }
 
     /**
@@ -266,11 +327,20 @@ final class GitViewController implements ContributedView
             $this->poll = null;
         }
         $this->host->restore();
+        $ended = $this->onComparisonClosed;
+        if (null !== $ended) {
+            $this->onComparisonClosed = null;
+            $this->panes->diffView->makeEditable();
+            $ended();
+        }
     }
 
     /** Re-read `git status`; {@see RefreshMode::Quiet} skips the repaint when nothing changed. */
     public function refresh(RefreshMode $mode = RefreshMode::Eager): void
     {
+        if (null !== $this->onComparisonClosed) {
+            return; // a comparison is not the working tree; its pane is not the status's to overwrite
+        }
         if (RefreshMode::Quiet === $mode && $this->statusInFlight) {
             return; // this tick's answer is already on its way
         }
@@ -294,6 +364,10 @@ final class GitViewController implements ContributedView
             $this->lastStatusRaw = $raw;
             $this->entries = $entries;
             $this->panes->changes->setEntries($entries);
+            if (null !== $this->selectOnLoad) {
+                $this->panes->changes->selectPath($this->selectOnLoad);
+                $this->selectOnLoad = null;
+            }
             $this->panes->commitBox->invalidate(); // the button's enabled state may flip
 
             if (GitViewMode::History === $this->mode) {
@@ -336,6 +410,12 @@ final class GitViewController implements ContributedView
         if ($entry->isUntracked()) {
             $this->shownSide = DiffSide::Untracked;
             $this->git->untrackedFileDiff($abs, $show);
+
+            return;
+        }
+        if ($entry->isUnmerged()) {
+            $this->shownSide = DiffSide::Worktree;
+            $this->git->conflictFileDiff($abs, $show, self::CONTEXT_STEPS[$this->contextStep]);
 
             return;
         }

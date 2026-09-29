@@ -144,6 +144,25 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         $this->invalidate();
     }
 
+    /**
+     * Select $path's row, quietly — no selection event: the caller loads what
+     * the row shows itself. False when no row has that path.
+     */
+    public function selectPath(string $path): bool
+    {
+        foreach ($this->entries as $i => $entry) {
+            if ($entry->path !== $path) {
+                continue;
+            }
+            $this->list->select($i);
+            $this->invalidate();
+
+            return true;
+        }
+
+        return false;
+    }
+
     public function selectedEntry(): ?ChangeEntry
     {
         return $this->entries[$this->list->selected()] ?? null;

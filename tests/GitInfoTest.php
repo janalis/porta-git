@@ -347,4 +347,31 @@ final class GitInfoTest extends TestCase
         $project->git('add', $file);
         $project->git('commit', '-q', '-m', 'init');
     }
+
+    public function testADiffIgnoresTheExternalDriverGitHandsADifftool(): void
+    {
+        // Git runs a difftool from inside `git diff`, with GIT_EXTERNAL_DIFF
+        // naming its helper — inherited by every git Porta spawns. Without
+        // --no-ext-diff the helper got the diff and the comparison read as
+        // "identical". `true` prints nothing, as the helper would here.
+        $this->skipWithoutGit();
+        $project = new TempProject(['left.txt' => "one\n", 'right.txt' => "two\n"]);
+        $project->initGit(); // git runs a difftool from its work tree
+        $git = new GitInfo($project->dir, new GitSettings(['path' => (string) $this->whichGit()]));
+        $previous = \getenv('GIT_EXTERNAL_DIFF');
+        \putenv('GIT_EXTERNAL_DIFF=true');
+        try {
+            $out = null;
+            $git->compareFiles($project->path('left.txt'), $project->path('right.txt'), static function (string $raw) use (&$out): void {
+                $out = $raw;
+            });
+            $this->await(static function () use (&$out): bool {
+                return null !== $out;
+            }, what: 'the comparison');
+        } finally {
+            \putenv(false === $previous ? 'GIT_EXTERNAL_DIFF' : 'GIT_EXTERNAL_DIFF='.$previous);
+        }
+
+        $this->assertStringContainsString("-one\n+two", (string) $out);
+    }
 }

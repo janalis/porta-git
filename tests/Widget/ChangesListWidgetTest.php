@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\Tests\Widget;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitRemoteOperation;
+use Porta\GitPlugin\Event\GitChangeSelected;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitStageAllRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
@@ -494,5 +495,23 @@ final class ChangesListWidgetTest extends TestCase
         $widget->hoverBoxAt(2, 2);
         $widget->setEntries($this->entries());
         $this->assertStringNotContainsString("\x1b[4m", $drawn()[2], 'rows moved under the pointer: no stale box');
+    }
+
+    public function testSelectingAPathQuietlyMovesTheSelectionToItsRow(): void
+    {
+        $selected = 0;
+        $events = new EventDispatcher();
+        $events->addListener(GitChangeSelected::class, static function () use (&$selected): void {
+            ++$selected;
+        });
+        $widget = new ChangesListWidget(new Translator('en'), events: $events);
+        $widget->setEntries([new ChangeEntry('a.php', ' ', 'M'), new ChangeEntry('b.php', 'U', 'U')]);
+
+        $this->assertTrue($widget->selectPath('b.php'));
+        $this->assertSame('b.php', $widget->selectedEntry()?->path);
+        $this->assertSame(0, $selected, 'the caller loads the row itself');
+
+        $this->assertFalse($widget->selectPath('c.php'));
+        $this->assertSame('b.php', $widget->selectedEntry()?->path, 'no row, no move');
     }
 }

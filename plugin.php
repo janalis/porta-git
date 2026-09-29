@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use Porta\Event\DiffToolLaunched;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
+use Porta\Event\MergeToolLaunched;
 use Porta\Event\PluginObservable;
+use Porta\Event\QuitRequested;
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\Blame\BlameAnnotations;
 use Porta\GitPlugin\Blame\BlameClient;
@@ -315,6 +318,21 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
                 $slot->view?->{$method}($fact);
             });
         }
+        // Porta launched as git's difftool or mergetool: this view is the answer.
+        // A difftool comparison ends the session when it closes — git is waiting
+        // on the process before it moves to the next file. A merge opens the
+        // conflicted file in the editor UNDER the view, so Esc lands on its
+        // markers; core decides the exit code from what is left in the file.
+        $api->on(DiffToolLaunched::class, static function (PluginObservable $launch) use ($api, $slot): void {
+            \assert($launch instanceof DiffToolLaunched, description: 'registered for this class only');
+            $slot->view?->openComparison($launch->left, $launch->right, static fn () => $api->emit(new QuitRequested()));
+        });
+        $api->on(MergeToolLaunched::class, static function (PluginObservable $launch) use ($api, $slot): void {
+            \assert($launch instanceof MergeToolLaunched, description: 'registered for this class only');
+            $api->openFile($launch->merged);
+            $slot->view?->openOn($launch->merged);
+            $api->flash($api->trans('Esc to edit the file · F7 next conflict · Alt+M resolve · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails'), 8.0);
+        });
         $api->registerView('git', fn (ViewServices $services): GitViewController => $slot->view = $this->buildView($api, $services, $git, $settings, $events, $flash, $commands, $remote));
 
         $api->onReady($refresher->refreshBranch(...));
