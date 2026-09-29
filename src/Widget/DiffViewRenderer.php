@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\Widget;
 use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Diff\DiffLine;
 use Porta\GitPlugin\Diff\DiffRowKind;
+use Porta\Support\AnsiSlice;
 use Porta\Support\AnsiText;
 use Porta\Ui\Glyphs;
 use Porta\Ui\Role;
@@ -14,7 +15,6 @@ use Porta\Ui\Sgr;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\Render\EditorRowAssembler;
 use Porta\Widget\Render\LineDecorator;
-use Symfony\Component\Tui\Ansi\AnsiUtils;
 
 /**
  * Renders one diff body row for {@see \Porta\GitPlugin\Widget\DiffViewWidget}. Built
@@ -225,7 +225,7 @@ final readonly class DiffViewRenderer
             return AnsiText::truncate($text, $inner, pad: true);
         }
 
-        $slice = AnsiUtils::sliceByColumn($text, $this->hScroll, $inner);
+        $slice = AnsiSlice::byColumn($text, $this->hScroll, $inner);
 
         // A LEADING mark: the cut is at the head, so the row reads as scrolled.
         return Glyphs::ELLIPSIS.AnsiText::truncate($slice, \max(1, $inner - 1), pad: true);
