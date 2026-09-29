@@ -22,7 +22,9 @@ use Porta\GitPlugin\GitBranchSegment;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitMenu;
 use Porta\GitPlugin\GitRefresher;
+use Porta\GitPlugin\GitTools;
 use Porta\GitPlugin\Process\GitProcesses;
+use Porta\GitPlugin\Process\GitProcessRunner;
 use Porta\GitPlugin\Process\GitRemote;
 use Porta\GitPlugin\Setting\DiffPrefs;
 use Porta\GitPlugin\Setting\GitSettings;
@@ -192,6 +194,9 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             // `git init` in a running IDE needs a restart to light the chrome.
             return;
         }
+        // For agents, through whatever serves registered tools; on the general
+        // lane, so shutdown and the completion barrier reach these too.
+        new GitTools($api, new GitProcessRunner($root, $gitPath, $processes->general))->register();
 
         // Deferred on purpose: PluginApi refuses every IDE action during
         // activate(), so each of these is a closure the callers invoke later.
