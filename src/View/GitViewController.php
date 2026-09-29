@@ -14,6 +14,7 @@ use Porta\GitPlugin\Command\HistoryReload;
 use Porta\GitPlugin\Command\RefreshMode;
 use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Diff\DiffSide;
+use Porta\GitPlugin\Diff\DirectoryComparison;
 use Porta\GitPlugin\Diff\WhitespaceMode;
 use Porta\GitPlugin\Event\GitChangeDiscardRequested;
 use Porta\GitPlugin\Event\GitChangeSelected;
@@ -123,6 +124,14 @@ final class GitViewController implements ContributedView
      * @var (\Closure(): void)|null
      */
     private ?\Closure $onComparisonClosed = null;
+
+    /**
+     * The two directories of a `git difftool --dir-diff` comparison, whose
+     * changed files fill the changes list; null for a two-file one.
+     *
+     * @var array{string, string}|null
+     */
+    private ?array $comparedDirs = null;
 
     /** The repo-relative path to select when the next status lands — a mergetool launch. */
     private ?string $selectOnLoad = null;
@@ -270,21 +279,52 @@ final class GitViewController implements ContributedView
         if (GitViewMode::Changes !== $this->mode) {
             $this->switchMode(GitViewMode::Changes);
         }
+        // Nothing the repository's status said stays: the commit button reads
+        // $entries and line staging needs a shown repository diff, so both are
+        // off for the whole comparison.
+        $this->entries = [];
+        $this->shownEntry = null;
+        $this->shownDocument = null;
         $this->panes->changes->setEntries([]);
         $this->applyPrefs();
         $this->panes->diffView->makeReadOnly();
+        if (\is_dir($left) && \is_dir($right)) {
+            // --dir-diff: the files that differ fill the changes list, and the
+            // selected one is compared — through its symlink, to its content.
+            $this->comparedDirs = [$left, $right];
+            $this->panes->changes->setEntries(DirectoryComparison::changes($left, $right));
+            $this->host->focus($this->panes->changes);
+            $first = $this->panes->changes->selectedEntry();
+            null === $first ? $this->panes->diffView->setDocument(null, null, 'No changes') : $this->compareEntry($first);
+            $this->host->invalidate();
+
+            return;
+        }
         $this->host->focus($this->panes->diffView);
         $relative = $this->paths->relative($right);
-        $title = \str_starts_with($relative, '/') ? \basename($right) : $relative;
+        $this->showComparison($left, $right, \str_starts_with($relative, '/') ? \basename($right) : $relative);
+        $this->host->invalidate();
+    }
+
+    /** One file of a directory comparison, its two sides resolved to real files. */
+    private function compareEntry(ChangeEntry $entry): void
+    {
+        \assert(null !== $this->comparedDirs, description: 'only a directory comparison lists its files');
+        [$left, $right] = $this->comparedDirs;
+        $this->showComparison(DirectoryComparison::side($left, $entry->path), DirectoryComparison::side($right, $entry->path), $entry->path);
+    }
+
+    /** `git diff --no-index` of two files into the diff pane, titled $title. */
+    private function showComparison(string $left, string $right, string $title): void
+    {
         $this->git->compareFiles($left, $right, function (string $raw) use ($title): void {
             if (null === $this->onComparisonClosed) {
                 return; // closed before git answered
             }
             $document = DiffDocument::parse($raw);
-            $this->panes->diffView->setDocument($document->isEmpty() ? null : $document, $title, $this->translator->trans('The two files are identical'));
+            $this->panes->diffView->setDocument($document->isEmpty() ? null : $document, $title, 'The two files are identical');
             $this->host->invalidate();
         });
-        $this->host->invalidate();
     }
 
     /** The persisted diff-pane toggles: split or unified, whitespace shown or hidden. */
@@ -330,6 +370,7 @@ final class GitViewController implements ContributedView
         $ended = $this->onComparisonClosed;
         if (null !== $ended) {
             $this->onComparisonClosed = null;
+            $this->comparedDirs = null;
             $this->panes->diffView->makeEditable();
             $ended();
         }
@@ -647,21 +688,41 @@ final class GitViewController implements ContributedView
      */
     public function onChangeSelected(GitChangeSelected $event): void
     {
-        $this->loadDiff($event->entry);
+        null !== $this->comparedDirs ? $this->compareEntry($event->entry) : $this->loadDiff($event->entry);
+    }
+
+    /**
+     * A comparison lists files git handed over, not the repository's changes:
+     * staging or discarding one of its rows would act on the real index and
+     * working tree behind it. (Committing and line staging are off already —
+     * see {@see openComparison()}.)
+     */
+    private function comparing(): bool
+    {
+        return null !== $this->onComparisonClosed;
     }
 
     public function onChangeStageToggled(GitChangeStageToggleRequested $event): void
     {
+        if ($this->comparing()) {
+            return;
+        }
         $this->toggleStage($event->entry);
     }
 
     public function onStageAllRequested(GitStageAllRequested $event): void
     {
+        if ($this->comparing()) {
+            return;
+        }
         $this->staging->stageAll($event->stage, $this->refresh(...));
     }
 
     public function onChangeDiscarded(GitChangeDiscardRequested $event): void
     {
+        if ($this->comparing()) {
+            return;
+        }
         $this->discard($event->entry);
     }
 

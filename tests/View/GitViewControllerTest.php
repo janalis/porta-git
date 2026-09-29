@@ -1415,6 +1415,39 @@ final class GitViewControllerTest extends TestCase
         $this->assertSame(1, $ended, 'and only once');
     }
 
+    public function testADirectoryComparisonListsItsFilesAndTouchesNothingInTheRepository(): void
+    {
+        // `git difftool --dir-diff`: two trees of changed files. The changes
+        // list shows THEM, so its stage/discard/commit keys must not reach the
+        // index behind it.
+        $controller = $this->controller();
+        // A real, UNSTAGED working-tree change to a file the comparison lists:
+        // any of the row keys reaching the repository would stage or discard it.
+        $this->project->write('a.txt', "one\nchanged\n");
+        $this->project->write('.porta/l/a.txt', "one\ntwo\n");
+        $this->project->write('.porta/l/b.txt', "b\n");
+        $this->project->write('.porta/r/a.txt', "one\nTHREE\n");
+        $this->project->write('.porta/r/c.txt', "c\n");
+
+        $controller->openComparison($this->project->path('.porta/l'), $this->project->path('.porta/r'), static function (): void {});
+
+        $this->await(fn (): bool => \str_contains($this->diffText(), 'THREE'), what: 'the first changed file compared');
+        $list = \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->changes->render(new RenderContext(44, 10))));
+        $this->assertMatchesRegularExpression('/a\.txt.*\n.*b\.txt.*\n.*c\.txt/', $list);
+
+        $this->changes->setFocused(true);
+        $this->changes->handleInput(' '); // stage a.txt
+        $this->changes->handleInput('a'); // stage everything
+        $this->changes->handleInput('d');
+        $this->changes->handleInput('y'); // discard a.txt, confirmed
+        $this->pump(0.3);
+        $this->assertSame('M a.txt', $this->project->git('status', '--porcelain'), 'the index and the working tree are untouched');
+        $this->assertSame("one\nchanged\n", (string) \file_get_contents($this->project->path('a.txt')));
+
+        $this->changes->handleInput("\x1b[B"); // b.txt: deleted on the right
+        $this->await(fn (): bool => \str_contains($this->diffText(), '-b'), what: 'the deleted file against nothing');
+    }
+
     public function testAComparisonClosedBeforeGitAnswersPaintsNothing(): void
     {
         $controller = $this->controller();
