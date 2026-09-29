@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\Support;
 
 use Porta\Editor\BufferManager;
+use Porta\Editor\BufferSaver;
 use Porta\I18n\Translator;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Plugin\Runtime\PluginManager;
@@ -18,6 +19,7 @@ use Porta\Tests\Support\RecordingFileOpener;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\TestDockTools;
 use Porta\Tests\Support\TestLspQuery;
+use Porta\Tests\Support\TestRunController;
 use Porta\Tests\Support\TestTui;
 use Porta\Tree\FileStatuses;
 use Porta\Widget\CodeEditorWidget;
@@ -82,6 +84,8 @@ final readonly class GitPluginHarness
             new FakePluginLifecycle(),
             new FileTreeWidget(\sys_get_temp_dir()),
             TestLspQuery::create(),
+            new BufferSaver(new BufferManager(), new EventDispatcher()),
+            TestRunController::create(),
         ));
         $api = new PluginApi('git', $manager, $project->dir, $settings);
         $manager->commit($api);
