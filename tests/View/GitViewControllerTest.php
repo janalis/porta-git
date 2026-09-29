@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Tests\View;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\Config\LayoutStore;
 use Porta\Editor\BufferManager;
@@ -1412,6 +1413,65 @@ final class GitViewControllerTest extends TestCase
         $this->assertSame(1, $ended, 'closing it ends the difftool run');
         $controller->close();
         $this->assertSame(1, $ended, 'and only once');
+    }
+
+    /** @return iterable<string, array{string, string}> the git verb made slow, and what the view does before the comparison */
+    public static function answersStillOnTheirWay(): iterable
+    {
+        yield 'a status, the view closed first' => ['status', 'close'];
+        yield 'a status, straight from the open view' => ['status', 'stay'];
+        yield 'a file\'s diff, straight from the open view' => ['diff', 'stay'];
+    }
+
+    /**
+     * The race behind a comparison that "turned into" the working tree: an
+     * answer the view asked for BEFORE the comparison — its `git status`, or
+     * the diff of the file that status selected — landed after it and was
+     * painted over it. A slow verb makes the order certain instead of
+     * load-dependent.
+     */
+    #[DataProvider('answersStillOnTheirWay')]
+    public function testAnAnswerStillOnItsWayWhenAComparisonOpensDoesNotOverwriteIt(string $slow, string $view): void
+    {
+        $git = (string) $this->whichGit();
+        $wrapper = \sys_get_temp_dir().'/porta-slow-git-'.\bin2hex(\random_bytes(4));
+        $marker = $wrapper.'.done';
+        // Slow for the repository's own verb only: the comparison is a
+        // `diff --no-index`, and must stay fast to land first.
+        $script = <<<SH
+            #!/bin/sh
+            case " \$* " in *" --no-index "*) exec '{$git}' "\$@" ;; esac
+            for a in "\$@"; do [ "\$a" = {$slow} ] && { sleep 1; touch '{$marker}'; break; }; done
+            exec '{$git}' "\$@"
+            SH;
+        \file_put_contents($wrapper, $script."\n");
+        \chmod($wrapper, permissions: 0o755);
+        try {
+            $controller = $this->controller(gitPath: static fn (): string => $wrapper);
+            if ('diff' === $slow) {
+                $this->project->write('a.txt', "one\nchanged\n");
+            }
+            $controller->open();
+            if ('diff' === $slow) {
+                // The status answers; the diff of the file it selects is what is on its way.
+                $this->await(fn (): bool => null !== $this->changes->selectedEntry(), what: 'the status, selecting a.txt');
+            }
+            if ('close' === $view) {
+                $controller->close();
+            }
+            $left = $this->project->write('.porta/left.txt', "one\ntwo\n");
+            $right = $this->project->write('.porta/right.txt', "one\nthree\n");
+            $controller->openComparison($left, $right, static function (): void {});
+            $this->await(fn (): bool => \str_contains($this->diffText(), 'three'), what: 'the comparison in the diff pane');
+
+            $this->await(static fn (): bool => \is_file($marker), what: 'the slow '.$slow.' to finish');
+            $this->pump(0.3); // its answer lands on the loop: proving it changed NOTHING
+
+            $this->assertStringContainsString('three', $this->diffText(), 'the stale answer did not paint the working tree over the comparison');
+            $controller->close();
+        } finally {
+            \array_map(\unlink(...), \array_filter([$wrapper, $marker], \is_file(...)));
+        }
     }
 
     public function testADirectoryComparisonListsItsFilesAndTouchesNothingInTheRepository(): void

@@ -273,6 +273,7 @@ final class GitViewController implements ContributedView
      */
     public function openComparison(string $left, string $right, \Closure $onClosed): void
     {
+        $this->forgetInFlight();
         $this->onComparisonClosed = $onClosed;
         $this->open = true;
         $this->host->show($this->region);
@@ -374,6 +375,23 @@ final class GitViewController implements ContributedView
             $this->panes->diffView->makeEditable();
             $ended();
         }
+    }
+
+    /**
+     * Make every status and diff still on its way stale, before a comparison
+     * takes the pane.
+     *
+     * Their callbacks drop an answer for a CLOSED view, but a comparison opens
+     * the view again — so a slow `git status` from when the view opened, or a
+     * file's diff it went on to load, landed on an open view with a current
+     * generation and painted the working tree over the comparison. Moving the
+     * generations on is what says "not for this view any more". A plain
+     * reopen needs none of it: its own status supersedes the old one.
+     */
+    private function forgetInFlight(): void
+    {
+        ++$this->statusGeneration;
+        ++$this->diffGeneration;
     }
 
     /** Re-read `git status`; {@see RefreshMode::Quiet} skips the repaint when nothing changed. */
