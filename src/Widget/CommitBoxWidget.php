@@ -319,14 +319,14 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
                 return;
             }
-            if ($this->summary->editKey($data) || $this->summary->insert($data)) {
+            if ($this->summary->editKey($data, $kb) || $this->summary->insert($data)) {
                 $this->invalidate();
             }
 
             return;
         }
 
-        if ($this->description->handleKey($data)) {
+        if ($this->description->handleKey($data, $kb)) {
             $this->invalidate();
         }
     }
