@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\Config\CommandRegistry;
 use Porta\Container\ToolLaunch;
 use Porta\Event\ChangeProposed;
 use Porta\Ide;
@@ -74,11 +75,15 @@ final class GitToolLaunchE2eTest extends TestCase
 
         $this->runIde($project, null, [
             100 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project, $proposal): void {
+                $views = Services::resolve($ide, ViewRegistry::class);
+                Services::resolve($ide, CommandRegistry::class)->run('ide_welcome');
+                $this->assertTrue($views->isOpen('welcome'), 'a modal is up when the proposal comes');
                 Services::resolve($ide, EventDispatcherInterface::class)->dispatch(new ChangeProposed($project->path('a.php'), $proposal->path('a.php')));
                 $this->awaitPainted($tui, $terminal, "echo 'as it is';");
                 $this->awaitPainted($tui, $terminal, "echo 'as proposed';");
-                $view = Services::resolve($ide, ViewRegistry::class)->find('git');
+                $view = $views->find('git');
                 $this->assertTrue($view?->isOpen(), 'side by side in the git view');
+                $this->assertFalse($views->isOpen('welcome'), 'which the modal yields to, rather than keeping the keys underneath');
 
                 $tui->handleInput("\x1b");
                 $this->await(static fn (): bool => false === $view?->isOpen(), what: 'Esc to close it');

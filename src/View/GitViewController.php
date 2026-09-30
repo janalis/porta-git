@@ -239,7 +239,7 @@ final class GitViewController implements ContributedView
         $this->open = true;
         // The (global, full-width) menu bar stays put; just drop any open
         // dropdown so its tracked hit region cannot go stale across the swap.
-        $this->host->show($this->region);
+        $this->host->show($this->region, $this->viewId());
         if (GitViewMode::Changes !== $this->mode) {
             $this->switchMode(GitViewMode::Changes); // the view always opens on Changes
         }
@@ -276,7 +276,7 @@ final class GitViewController implements ContributedView
         $this->forgetInFlight();
         $this->onComparisonClosed = $onClosed;
         $this->open = true;
-        $this->host->show($this->region);
+        $this->host->show($this->region, $this->viewId());
         if (GitViewMode::Changes !== $this->mode) {
             $this->switchMode(GitViewMode::Changes);
         }
