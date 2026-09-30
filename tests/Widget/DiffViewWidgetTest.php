@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Tests\Widget;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
@@ -734,6 +735,78 @@ final class DiffViewWidgetTest extends TestCase
         $empty->setDocument(null, null);
         $empty->dragSelectTo(3, 5); // no rows / no press: a safe no-op
         $this->assertFalse($empty->isSplit());
+    }
+
+    /** @return iterable<string, array{string}> what precedes an intraline change */
+    public static function prefixes(): iterable
+    {
+        yield 'a tab' => ["\t"];
+        yield 'a decomposed accent' => ["cafe\u{0301} "];
+        yield 'a ZWJ family' => ["\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467} "];
+    }
+
+    #[DataProvider('prefixes')]
+    public function testTheEmphasisLandsOnTheChangeWhateverPrecedesIt(string $prefix): void
+    {
+        // A raw tab reached the terminal, which jumps to every eighth column
+        // while the vendor had counted three; and the emphasis was placed by
+        // mb_strwidth(), so it landed columns off the changed word.
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-{$prefix}xx OLD tail\n+{$prefix}xx NEW tail\n"), 'x.txt');
+
+        $rows = $widget->render(new RenderContext(60, 6));
+
+        foreach ($rows as $n => $row) {
+            $this->assertStringNotContainsString("\t", $row, "row {$n} sends no raw tab");
+            $this->assertSame(60, AnsiUtils::visibleWidth($row), "row {$n} is the pane's width");
+        }
+        $this->assertSame(1, \preg_match('/\x1b\[48;5;22m(.*?)\x1b\[49m/s', $rows[3], $emphasis));
+        $this->assertSame('NEW', AnsiUtils::stripAnsiCodes($emphasis[1]));
+    }
+
+    public function testADragAcrossATabCopiesTheRawTab(): void
+    {
+        $events = new EventDispatcher();
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-\tif (x) {\n+\tif (y) {\n"), 'x.txt');
+        $widget->setFocused(true);
+        $this->plainLines($widget);
+        $copies = [];
+        GitWidgetEvents::wire($events, onCopy: static function (string $text) use (&$copies): void {
+            $copies[] = $text;
+        });
+
+        // Text starts at widget col 12; the tab is painted four columns wide,
+        // so text cols 0-5 are the tab and `if`.
+        $widget->handleClick(3, 12);
+        $widget->dragSelectTo(3, 18);
+        $widget->handleInput("\x03");
+
+        $this->assertSame(["\tif"], $copies, 'the copy is the file\'s text, tab and all');
+
+        // From the deletion's start into the addition: the deletion is tinted
+        // to its painted end, which a tab counted as one column cut short.
+        $widget->handleClick(2, 12);
+        $widget->dragSelectTo(3, 14);
+        $row = $widget->render(new RenderContext(80, 12))[2];
+        // The intraline emphasis on `x` splits the tint; its last run is the end.
+        $runs = \explode("\x1b[48;5;24m", $row);
+        $last = \explode("\x1b[49m", $runs[\count($runs) - 1], limit: 2)[0];
+        $this->assertSame(') {', AnsiUtils::stripAnsiCodes($last));
+    }
+
+    public function testHorizontalScrollReachesTheEndOfATabIndentedLine(): void
+    {
+        // Twelve tabs paint 48 columns: counted as one each, the scroll limit
+        // stopped short and `END` could never be brought into view.
+        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n ".\str_repeat("\t", times: 12)."END\n"), 'x.txt');
+        $widget->setFocused(true);
+        for ($i = 0; $i < 6; ++$i) {
+            $widget->handleInput("\x1b[C");
+        }
+
+        $this->assertStringContainsString('END', AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(50, 6))[2]));
     }
 
     public function testSplitDragBindsToItsHalf(): void

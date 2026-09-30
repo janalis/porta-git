@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Widget;
 
+use Porta\Editor\Document;
+use Porta\Editor\TextMetrics;
 use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Diff\DiffRowKind;
 use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
@@ -214,7 +216,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         $this->maxLineWidth = 0;
         foreach ($document->hunks ?? [] as $hunk) {
             foreach ($hunk->lines as $line) {
-                $this->maxLineWidth = \max($this->maxLineWidth, \mb_strwidth($line->text));
+                $this->maxLineWidth = \max($this->maxLineWidth, DiffViewRenderer::columns($line->text));
             }
         }
         $this->rebuildRows();
@@ -243,7 +245,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
                 }
 
                 $keys[] = $h.':'.$l;
-                $texts[] = $line->text;
+                $texts[] = DiffViewRenderer::shown($line->text);
             }
         }
 
@@ -604,39 +606,12 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             }
             $from = $r === $sel->fromRow ? $sel->fromCol : 0;
             $to = $r === $sel->toRow ? $sel->toCol : \PHP_INT_MAX;
-            $start = self::textOffsetAt($line->text, $from);
-            $end = \PHP_INT_MAX === $to ? \strlen($line->text) : self::textOffsetAt($line->text, $to);
+            $start = TextMetrics::byteColForDisplayCol($line->text, $from, Document::TAB_SIZE);
+            $end = \PHP_INT_MAX === $to ? \strlen($line->text) : TextMetrics::byteColForDisplayCol($line->text, $to, Document::TAB_SIZE);
             $texts[] = \substr($line->text, $start, \max(0, $end - $start));
         }
 
         return \implode("\n", $texts);
-    }
-
-    /** The byte offset where a display column starts within a raw line text. */
-    /**
-     * Byte offset of display column $col in $text.
-     *
-     * Looks like a slower {@see \Porta\Editor\TextMetrics::byteColForDisplayCol()}
-     * and is deliberately not replaced by it: that one expands a tab to the next
-     * tab stop, which is right for the editor because the editor renders tabs
-     * expanded. The diff view does not — it passes the line through and measures
-     * it with mb_strwidth, where a tab counts as one column ({@see $maxLineWidth},
-     * the horizontal scroll and the truncation all agree on that). Swapping in
-     * the editor's version would make click mapping disagree with this widget's
-     * own coordinate system.
-     */
-    private static function textOffsetAt(string $text, int $col): int
-    {
-        $offset = 0;
-        $width = 0;
-        $len = \mb_strlen($text);
-        for ($i = 0; $i < $len && $width < $col; ++$i) {
-            $ch = \mb_substr($text, $i, length: 1);
-            $width += \mb_strwidth($ch);
-            $offset += \strlen($ch);
-        }
-
-        return $offset;
     }
 
     public function render(RenderContext $context): array

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Widget;
 
+use Porta\Editor\Document;
+use Porta\Editor\TextMetrics;
 use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Diff\DiffLine;
 use Porta\GitPlugin\Diff\DiffRowKind;
@@ -115,7 +117,7 @@ final readonly class DiffViewRenderer
         $textStart = DiffGeometry::textStart($sel->side, $width);
         $segEnd = DiffColumn::Old === $sel->side ? DiffGeometry::splitBoundary($width) : $width;
         $fromCol = $rowIndex === $sel->fromRow ? $sel->fromCol : 0;
-        $toCol = $rowIndex === $sel->toRow ? $sel->toCol : \mb_strwidth($target->text);
+        $toCol = $rowIndex === $sel->toRow ? $sel->toCol : self::columns($target->text);
         $start = \max($textStart, $textStart + $fromCol - $this->hScroll);
         $end = \min($segEnd, $textStart + $toCol - $this->hScroll);
 
@@ -142,8 +144,9 @@ final readonly class DiffViewRenderer
         if ($from >= $to) {
             return $rendered;
         }
-        $startCol = \mb_strwidth(\substr($line->text, offset: 0, length: $from));
-        $endCol = $startCol + \mb_strwidth(\substr($line->text, $from, $to - $from));
+        // Both ends measured from column 0: a tab's width depends on where it starts.
+        $startCol = self::columns(\substr($line->text, offset: 0, length: $from));
+        $endCol = self::columns(\substr($line->text, offset: 0, length: $to));
 
         return LineDecorator::apply($rendered, $startCol, $endCol, $bg, Sgr::DEFAULT_BG, $bg);
     }
@@ -181,7 +184,7 @@ final readonly class DiffViewRenderer
             .\str_pad(null === $line->newNo ? '' : (string) $line->newNo, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT)
             .' '
             .Glyphs::DIFF_COLUMN;
-        $body = $width - \mb_strwidth($gutter) - 1;
+        $body = $width - AnsiUtils::visibleWidth($gutter) - 1;
         if ($body < 1) {
             // Clipped BEFORE it is styled, never after: re-slicing an already
             // styled string cuts escape sequences in half.
@@ -207,11 +210,31 @@ final readonly class DiffViewRenderer
         // The '-' and '\' markers deliberately leave their foreground open so
         // the whole row inherits it (deletions render whole-row red).
         return match ($line->origin) {
-            '+' => [$this->styles->of(Role::Added)->apply('+'), $this->withEmphasis($this->highlighted[$key] ?? $line->text, $line, $this->styles->of(Role::AddEmphasisBg)->getAnsiRestore())],
-            '-' => [$this->styles->of(Role::Deleted)->getAnsiRestore().'-', $this->withEmphasis($line->text, $line, $this->styles->of(Role::DelEmphasisBg)->getAnsiRestore())],
-            '\\' => [$this->styles->of(Role::Dim)->getAnsiRestore().' ', $line->text],
-            default => [' ', $this->highlighted[$key] ?? $line->text],
+            '+' => [
+                $this->styles->of(Role::Added)->apply('+'),
+                $this->withEmphasis($this->highlighted[$key] ?? self::shown($line->text), $line, $this->styles->of(Role::AddEmphasisBg)->getAnsiRestore()),
+            ],
+            '-' => [$this->styles->of(Role::Deleted)->getAnsiRestore().'-', $this->withEmphasis(self::shown($line->text), $line, $this->styles->of(Role::DelEmphasisBg)->getAnsiRestore())],
+            '\\' => [$this->styles->of(Role::Dim)->getAnsiRestore().' ', self::shown($line->text)],
+            default => [' ', $this->highlighted[$key] ?? self::shown($line->text)],
         };
+    }
+
+    /**
+     * A line text as the view paints it: tabs expanded to the editor's stops.
+     * A raw tab reached the terminal, which jumps to its own stop (every
+     * eighth column) while the vendor had counted three, so the row ran past
+     * its width. The model keeps the tab: copies and patches read the raw text.
+     */
+    public static function shown(string $text): string
+    {
+        return TextMetrics::expandTabs($text, Document::TAB_SIZE);
+    }
+
+    /** The columns $text takes once {@see shown()}: every column this view maps is on that text. */
+    public static function columns(string $text): int
+    {
+        return TextMetrics::displayWidth($text, Document::TAB_SIZE);
     }
 
     /**
@@ -246,7 +269,7 @@ final readonly class DiffViewRenderer
         // The same five-column gutter plus a marker, and the same floor: half
         // of a split pane is half as wide, so this side reaches the case first.
         $gutter = \str_pad(null === $no ? '' : (string) $no, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT).' ';
-        $body = $width - \mb_strwidth($gutter) - 1;
+        $body = $width - AnsiUtils::visibleWidth($gutter) - 1;
         if ($body < 1) {
             return $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::DEFAULT_FG;
         }
