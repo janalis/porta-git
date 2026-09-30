@@ -49,6 +49,7 @@ use Porta\I18n\Translator;
 use Porta\Input\HitTester;
 use Porta\Layout\EditorAreaPanes;
 use Porta\Layout\LayoutController;
+use Porta\Layout\PreviewSplit;
 use Porta\Layout\ViewRegion;
 use Porta\Layout\ViewRegions;
 use Porta\Support\Clipboard;
@@ -214,6 +215,7 @@ final class GitViewControllerTest extends TestCase
             // so the layout gets it from there rather than being handed one.
             $regions,
             $t,
+            new PreviewSplit(Styles::dark()),
         );
 
         // The region arrives already minted, exactly as ViewServices delivers
