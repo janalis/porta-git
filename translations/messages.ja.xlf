@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+  <file source-language="en" target-language="ja" datatype="plaintext" original="messages">
+    <body>
+      <trans-unit id="1">
+        <source>%count% changed file|%count% changed files</source>
+        <target>%count% 件の変更ファイル</target>
+      </trans-unit>
+      <trans-unit id="2">
+        <source>Files (%count%)</source>
+        <target>ファイル (%count%)</target>
+      </trans-unit>
+      <trans-unit id="3">
+        <source>History (%count%)</source>
+        <target>履歴 (%count%)</target>
+      </trans-unit>
+      <trans-unit id="4">
+        <source> S split </source>
+        <target> S split </target>
+      </trans-unit>
+      <trans-unit id="5">
+        <source> W hide-ws </source>
+        <target> W hide-ws </target>
+      </trans-unit>
+      <trans-unit id="6">
+        <source>Commit failed (nothing staged?)</source>
+        <target>コミットに失敗しました (ステージが空?)</target>
+      </trans-unit>
+      <trans-unit id="7">
+        <source>Commit failed: %summary%</source>
+        <target>コミットに失敗しました: %summary%</target>
+      </trans-unit>
+      <trans-unit id="8">
+        <source>Commit message</source>
+        <target>コミットメッセージ</target>
+      </trans-unit>
+      <trans-unit id="9">
+        <source>Committed: %summary%</source>
+        <target>コミットしました: %summary%</target>
+      </trans-unit>
+      <trans-unit id="10">
+        <source>Copied %count% line|Copied %count% lines</source>
+        <target>%count% 行をコピーしました</target>
+      </trans-unit>
+      <trans-unit id="11">
+        <source>Deleted %path%</source>
+        <target>%path% を削除しました</target>
+      </trans-unit>
+      <trans-unit id="12">
+        <source>Description</source>
+        <target>説明</target>
+      </trans-unit>
+      <trans-unit id="13">
+        <source>Diff context: %label%</source>
+        <target>差分コンテキスト: %label%</target>
+      </trans-unit>
+      <trans-unit id="14">
+        <source>Discard failed</source>
+        <target>破棄に失敗しました</target>
+      </trans-unit>
+      <trans-unit id="15">
+        <source>Discarded changes to %path%</source>
+        <target>%path% の変更を破棄しました</target>
+      </trans-unit>
+      <trans-unit id="16">
+        <source>Git not available</source>
+        <target>git を利用できません</target>
+      </trans-unit>
+      <trans-unit id="17">
+        <source>Last commit undone (changes kept staged)</source>
+        <target>直前のコミットを取り消しました (変更はステージに残ります)</target>
+      </trans-unit>
+      <trans-unit id="18">
+        <source>No blame for this line</source>
+        <target>この行の blame はありません</target>
+      </trans-unit>
+      <trans-unit id="19">
+        <source>Not a git repository</source>
+        <target>git リポジトリではありません</target>
+      </trans-unit>
+      <trans-unit id="20">
+        <source>Show whitespace changes to stage lines (w)</source>
+        <target>行をステージするには空白の変更を表示 (w)</target>
+      </trans-unit>
+      <trans-unit id="21">
+        <source>Stage failed</source>
+        <target>ステージに失敗しました</target>
+      </trans-unit>
+      <trans-unit id="22">
+        <source>Staged %path%</source>
+        <target>%path% をステージしました</target>
+      </trans-unit>
+      <trans-unit id="23">
+        <source>Summary (required)</source>
+        <target>概要 (必須)</target>
+      </trans-unit>
+      <trans-unit id="24">
+        <source>Untracked files always show the whole file</source>
+        <target>追跡外のファイルは常にファイル全体を表示します</target>
+      </trans-unit>
+      <trans-unit id="25">
+        <source>Untracked: stage the whole file with Space in the changes list</source>
+        <target>追跡外: 変更リストで Space を押してファイル全体をステージします</target>
+      </trans-unit>
+      <trans-unit id="26">
+        <source>[→%count%]</source>
+        <target>[→%count%]</target>
+      </trans-unit>
+      <trans-unit id="27">
+        <source>git apply refused the partial patch</source>
+        <target>git apply が部分パッチを拒否しました</target>
+      </trans-unit>
+      <trans-unit id="28">
+        <source>git refused the staging change</source>
+        <target>git がステージ変更を拒否しました</target>
+      </trans-unit>
+      <trans-unit id="29">
+        <source>Select two files in the project tree to compare</source>
+        <target>比較する 2 つのファイルをプロジェクトツリーで選択してください</target>
+      </trans-unit>
+      <trans-unit id="30">
+        <source>The two files are identical</source>
+        <target>2 つのファイルは同一です</target>
+      </trans-unit>
+      <trans-unit id="31">
+        <source>±10 lines</source>
+        <target>±10 行</target>
+      </trans-unit>
+      <trans-unit id="32">
+        <source>No changes selected</source>
+        <target>変更が選択されていません</target>
+      </trans-unit>
+      <trans-unit id="33">
+        <source>Working tree clean</source>
+        <target>作業ツリーはクリーンです</target>
+      </trans-unit>
+      <trans-unit id="34">
+        <source>No changes (whitespace hidden)</source>
+        <target>変更なし (空白を非表示)</target>
+      </trans-unit>
+      <trans-unit id="35">
+        <source>Select a commit file</source>
+        <target>コミットのファイルを選択</target>
+      </trans-unit>
+      <trans-unit id="36">
+        <source>No commits</source>
+        <target>コミットはありません</target>
+      </trans-unit>
+      <trans-unit id="37">
+        <source>No files in this commit</source>
+        <target>このコミットにファイルはありません</target>
+      </trans-unit>
+      <trans-unit id="38">
+        <source>No patch (whitespace hidden)</source>
+        <target>パッチなし (空白を非表示)</target>
+      </trans-unit>
+      <trans-unit id="39">
+        <source>No patch for this file</source>
+        <target>このファイルのパッチはありません</target>
+      </trans-unit>
+      <trans-unit id="40">
+        <source>Whitespace changes hidden</source>
+        <target>空白の変更を非表示</target>
+      </trans-unit>
+      <trans-unit id="41">
+        <source>Whitespace changes shown</source>
+        <target>空白の変更を表示</target>
+      </trans-unit>
+      <trans-unit id="42">
+        <source>Fetched</source>
+        <target>フェッチ完了</target>
+      </trans-unit>
+      <trans-unit id="43">
+        <source>Pulling…</source>
+        <target>プル中…</target>
+      </trans-unit>
+      <trans-unit id="44">
+        <source>Pushing…</source>
+        <target>プッシュ中…</target>
+      </trans-unit>
+      <trans-unit id="45">
+        <source>%operation% failed: %error%</source>
+        <target>%operation% が失敗しました: %error%</target>
+      </trans-unit>
+      <trans-unit id="46">
+        <source>A git remote operation is already running</source>
+        <target>git リモート操作は既に実行中です</target>
+      </trans-unit>
+      <trans-unit id="47">
+        <source>Not a git repository (or git missing)</source>
+        <target>git リポジトリではありません（または git がありません）</target>
+      </trans-unit>
+      <trans-unit id="48">
+        <source>+ Create new branch…</source>
+        <target>+ 新しいブランチを作成…</target>
+      </trans-unit>
+      <trans-unit id="49">
+        <source>New branch name</source>
+        <target>新しいブランチ名</target>
+      </trans-unit>
+      <trans-unit id="50">
+        <source>Switched to %branch%</source>
+        <target>%branch% に切り替えました</target>
+      </trans-unit>
+      <trans-unit id="51">
+        <source>Created and switched to %branch%</source>
+        <target>%branch% を作成して切り替えました</target>
+      </trans-unit>
+      <trans-unit id="52">
+        <source>Pull: branch diverged</source>
+        <target>Pull: ブランチが分岐しています</target>
+      </trans-unit>
+      <trans-unit id="53">
+        <source>Rebase local commits onto the remote</source>
+        <target>ローカルのコミットをリモートにリベース</target>
+      </trans-unit>
+      <trans-unit id="54">
+        <source>Merge the remote into the local branch</source>
+        <target>リモートをローカルブランチにマージ</target>
+      </trans-unit>
+      <trans-unit id="55">
+        <source>Push: no upstream branch</source>
+        <target>Push: アップストリームブランチがありません</target>
+      </trans-unit>
+      <trans-unit id="56">
+        <source>Push with --set-upstream origin %branch%</source>
+        <target>--set-upstream origin %branch% でプッシュ</target>
+      </trans-unit>
+      <trans-unit id="57">
+        <source>No git remote operation is running</source>
+        <target>実行中の git リモート操作はありません</target>
+      </trans-unit>
+      <trans-unit id="58">
+        <source>Git remote operation cancelled</source>
+        <target>git リモート操作をキャンセルしました</target>
+      </trans-unit>
+      <trans-unit id="59">
+        <source>− Delete branch…</source>
+        <target>− ブランチを削除…</target>
+      </trans-unit>
+      <trans-unit id="60">
+        <source>Delete branch</source>
+        <target>ブランチを削除</target>
+      </trans-unit>
+      <trans-unit id="61">
+        <source>Delete %branch%?</source>
+        <target>%branch% を削除しますか？</target>
+      </trans-unit>
+      <trans-unit id="62">
+        <source>Deleted branch %branch%</source>
+        <target>ブランチ %branch% を削除しました</target>
+      </trans-unit>
+      <trans-unit id="63">
+        <source>No other local branches to delete</source>
+        <target>削除できる他のローカルブランチはありません</target>
+      </trans-unit>
+      <trans-unit id="64">
+        <source>Switched to %branch% (tracking %remote%)</source>
+        <target>%branch% に切り替えました（%remote% を追跡）</target>
+      </trans-unit>
+      <trans-unit id="65">
+        <source>Stash failed</source>
+        <target>スタッシュに失敗しました</target>
+      </trans-unit>
+      <trans-unit id="66">
+        <source>Stash popped</source>
+        <target>スタッシュを復元しました</target>
+      </trans-unit>
+      <trans-unit id="67">
+        <source>No stashes</source>
+        <target>スタッシュはありません</target>
+      </trans-unit>
+      <trans-unit id="68">
+        <source>%stash%: apply, pop or drop?</source>
+        <target>%stash%: 適用・復元・削除？</target>
+      </trans-unit>
+      <trans-unit id="69">
+        <source>Applied %stash%</source>
+        <target>%stash% を適用しました</target>
+      </trans-unit>
+      <trans-unit id="70">
+        <source>Popped %stash%</source>
+        <target>%stash% を復元しました</target>
+      </trans-unit>
+      <trans-unit id="71">
+        <source>Dropped %stash%</source>
+        <target>%stash% を削除しました</target>
+      </trans-unit>
+      <trans-unit id="72">
+        <source>Stash left conflicts — resolve them in the editor</source>
+        <target>スタッシュで競合が発生しました — エディタで解決してください</target>
+      </trans-unit>
+      <trans-unit id="73">
+        <source>History — %path% (%count%)</source>
+        <target>履歴 — %path% (%count%)</target>
+      </trans-unit>
+      <trans-unit id="74">
+        <source>Blame annotations shown</source>
+        <target>Blame 注釈を表示</target>
+      </trans-unit>
+      <trans-unit id="75">
+        <source>Blame annotations hidden</source>
+        <target>Blame 注釈を非表示</target>
+      </trans-unit>
+      <trans-unit id="76">
+        <source>Unstage</source>
+        <target>ステージ解除</target>
+      </trans-unit>
+      <trans-unit id="77">
+        <source>Discard…</source>
+        <target>破棄…</target>
+      </trans-unit>
+      <trans-unit id="78">
+        <source>Cherry-pick</source>
+        <target>チェリーピック</target>
+      </trans-unit>
+      <trans-unit id="79">
+        <source>Cherry-picked %sha%</source>
+        <target>%sha% をチェリーピックしました</target>
+      </trans-unit>
+      <trans-unit id="80">
+        <source>Copied %sha%</source>
+        <target>%sha% をコピーしました</target>
+      </trans-unit>
+      <trans-unit id="81">
+        <source>Copy Hash</source>
+        <target>ハッシュをコピー</target>
+      </trans-unit>
+      <trans-unit id="82">
+        <source>Create Branch from Commit…</source>
+        <target>コミットからブランチを作成…</target>
+      </trans-unit>
+      <trans-unit id="83">
+        <source>Delete Branch…</source>
+        <target>ブランチを削除…</target>
+      </trans-unit>
+      <trans-unit id="84">
+        <source>Mixed (unstage changes)</source>
+        <target>Mixed（変更のステージを解除）</target>
+      </trans-unit>
+      <trans-unit id="85">
+        <source>New Branch…</source>
+        <target>新しいブランチ…</target>
+      </trans-unit>
+      <trans-unit id="86">
+        <source>Reset to %sha% (%mode%)</source>
+        <target>%sha% へリセットしました (%mode%)</target>
+      </trans-unit>
+      <trans-unit id="87">
+        <source>Reset to %sha%?</source>
+        <target>%sha% へリセットしますか？</target>
+      </trans-unit>
+      <trans-unit id="88">
+        <source>Reset to Commit…</source>
+        <target>コミットへリセット…</target>
+      </trans-unit>
+      <trans-unit id="89">
+        <source>Revert Commit</source>
+        <target>コミットをリバート</target>
+      </trans-unit>
+      <trans-unit id="90">
+        <source>Reverted %sha%</source>
+        <target>%sha% をリバートしました</target>
+      </trans-unit>
+      <trans-unit id="91">
+        <source>Soft (keep staged changes)</source>
+        <target>Soft（ステージ済みの変更を保持）</target>
+      </trans-unit>
+      <trans-unit id="92">
+        <source>Switch Branch…</source>
+        <target>ブランチを切り替え…</target>
+      </trans-unit>
+      <trans-unit id="93">
+        <source>Amend last commit</source>
+        <target>直前のコミットを修正</target>
+      </trans-unit>
+      <trans-unit id="94">
+        <source>Commit to branch</source>
+        <target>ブランチにコミット</target>
+      </trans-unit>
+      <trans-unit id="95">
+        <source>Discard changes to %path%?</source>
+        <target>%path% の変更を破棄しますか？</target>
+      </trans-unit>
+      <trans-unit id="96">
+        <source>Discard (y)</source>
+        <target>破棄 (y)</target>
+      </trans-unit>
+      <trans-unit id="97">
+        <source>No commit to amend</source>
+        <target>修正するコミットがありません</target>
+      </trans-unit>
+      <trans-unit id="98">
+        <source>%operation% needs a choice</source>
+        <target>%operation% には選択が必要です</target>
+      </trans-unit>
+      <trans-unit id="99">
+        <source>No change here</source>
+        <target>ここに変更はありません</target>
+      </trans-unit>
+      <trans-unit id="100">
+        <source>Revert this change</source>
+        <target>この変更を元に戻す</target>
+      </trans-unit>
+      <trans-unit id="101">
+        <source>Change at line %line%</source>
+        <target>%line% 行目の変更</target>
+      </trans-unit>
+      <trans-unit id="102">
+        <source>The buffer has changed since; save it and try again</source>
+        <target>その後バッファーが変更されました。保存してからもう一度お試しください</target>
+      </trans-unit>
+      <trans-unit id="103">
+        <source>Change reverted</source>
+        <target>変更を元に戻しました</target>
+      </trans-unit>
+      <trans-unit id="104">
+        <source>Git branch %branch% — click to switch, create or delete a branch</source>
+        <target>Git ブランチ %branch% — クリックで切り替え・作成・削除</target>
+      </trans-unit>
+      <trans-unit id="105">
+        <source>Unstage this file</source>
+        <target>このファイルのステージを解除</target>
+      </trans-unit>
+      <trans-unit id="106">
+        <source>Stage this file</source>
+        <target>このファイルをステージ</target>
+      </trans-unit>
+      <trans-unit id="107">
+        <source>Untracked: new to git</source>
+        <target>未追跡: git に新規</target>
+      </trans-unit>
+      <trans-unit id="108">
+        <source>Renamed from %path%</source>
+        <target>%path% から名前変更</target>
+      </trans-unit>
+      <trans-unit id="109">
+        <source>Copied from %path%</source>
+        <target>%path% からコピー</target>
+      </trans-unit>
+      <trans-unit id="110">
+        <source>Unmerged: a conflict to resolve</source>
+        <target>未マージ: 解決すべき競合</target>
+      </trans-unit>
+      <trans-unit id="111">
+        <source>Type changed</source>
+        <target>種類が変更</target>
+      </trans-unit>
+      <trans-unit id="112">
+        <source>Staged</source>
+        <target>ステージ済み</target>
+      </trans-unit>
+      <trans-unit id="113">
+        <source>Partly staged</source>
+        <target>一部ステージ済み</target>
+      </trans-unit>
+      <trans-unit id="114">
+        <source>Not staged</source>
+        <target>未ステージ</target>
+      </trans-unit>
+      <trans-unit id="115">
+        <source>Unstage everything</source>
+        <target>すべてのステージを解除</target>
+      </trans-unit>
+      <trans-unit id="116">
+        <source>Stage everything</source>
+        <target>すべてステージ</target>
+      </trans-unit>
+      <trans-unit id="117">
+        <source>Side-by-side diff</source>
+        <target>左右に並べた差分</target>
+      </trans-unit>
+      <trans-unit id="118">
+        <source>Hide whitespace-only changes</source>
+        <target>空白のみの変更を隠す</target>
+      </trans-unit>
+      <trans-unit id="119">
+        <source>Write a summary first</source>
+        <target>まず概要を入力してください</target>
+      </trans-unit>
+      <trans-unit id="120">
+        <source>Stage a change first</source>
+        <target>まず変更をステージしてください</target>
+      </trans-unit>
+      <trans-unit id="121">
+        <source>Esc to edit the file · F7 next conflict · Alt+M resolve · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
+        <target>Esc でファイルを編集 · F7 次の競合 · Alt+M 解決 · Ctrl+S の後 Ctrl+Q — 競合が残るとマージは失敗します</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

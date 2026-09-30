@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+  <file source-language="en" target-language="es" datatype="plaintext" original="messages">
+    <body>
+      <trans-unit id="1">
+        <source>%count% changed file|%count% changed files</source>
+        <target>%count% archivo modificado|%count% archivos modificados</target>
+      </trans-unit>
+      <trans-unit id="2">
+        <source>Files (%count%)</source>
+        <target>Archivos (%count%)</target>
+      </trans-unit>
+      <trans-unit id="3">
+        <source>History (%count%)</source>
+        <target>Historial (%count%)</target>
+      </trans-unit>
+      <trans-unit id="4">
+        <source> S split </source>
+        <target> S split </target>
+      </trans-unit>
+      <trans-unit id="5">
+        <source> W hide-ws </source>
+        <target> W hide-ws </target>
+      </trans-unit>
+      <trans-unit id="6">
+        <source>Commit failed (nothing staged?)</source>
+        <target>Error al confirmar (¿nada preparado?)</target>
+      </trans-unit>
+      <trans-unit id="7">
+        <source>Commit failed: %summary%</source>
+        <target>Error al confirmar: %summary%</target>
+      </trans-unit>
+      <trans-unit id="8">
+        <source>Commit message</source>
+        <target>Mensaje de commit</target>
+      </trans-unit>
+      <trans-unit id="9">
+        <source>Committed: %summary%</source>
+        <target>Confirmado: %summary%</target>
+      </trans-unit>
+      <trans-unit id="10">
+        <source>Copied %count% line|Copied %count% lines</source>
+        <target>%count% línea copiada|%count% líneas copiadas</target>
+      </trans-unit>
+      <trans-unit id="11">
+        <source>Deleted %path%</source>
+        <target>%path% eliminado</target>
+      </trans-unit>
+      <trans-unit id="12">
+        <source>Description</source>
+        <target>Descripción</target>
+      </trans-unit>
+      <trans-unit id="13">
+        <source>Diff context: %label%</source>
+        <target>Contexto del diff: %label%</target>
+      </trans-unit>
+      <trans-unit id="14">
+        <source>Discard failed</source>
+        <target>Descartar falló</target>
+      </trans-unit>
+      <trans-unit id="15">
+        <source>Discarded changes to %path%</source>
+        <target>Cambios descartados en %path%</target>
+      </trans-unit>
+      <trans-unit id="16">
+        <source>Git not available</source>
+        <target>Git no disponible</target>
+      </trans-unit>
+      <trans-unit id="17">
+        <source>Last commit undone (changes kept staged)</source>
+        <target>Último commit deshecho (cambios preparados conservados)</target>
+      </trans-unit>
+      <trans-unit id="18">
+        <source>No blame for this line</source>
+        <target>Sin blame para esta línea</target>
+      </trans-unit>
+      <trans-unit id="19">
+        <source>Not a git repository</source>
+        <target>No es un repositorio git</target>
+      </trans-unit>
+      <trans-unit id="20">
+        <source>Show whitespace changes to stage lines (w)</source>
+        <target>Muestra los espacios para preparar líneas (w)</target>
+      </trans-unit>
+      <trans-unit id="21">
+        <source>Stage failed</source>
+        <target>Preparación fallida</target>
+      </trans-unit>
+      <trans-unit id="22">
+        <source>Staged %path%</source>
+        <target>%path% preparado</target>
+      </trans-unit>
+      <trans-unit id="23">
+        <source>Summary (required)</source>
+        <target>Resumen (obligatorio)</target>
+      </trans-unit>
+      <trans-unit id="24">
+        <source>Untracked files always show the whole file</source>
+        <target>Los archivos sin seguimiento siempre muestran el archivo completo</target>
+      </trans-unit>
+      <trans-unit id="25">
+        <source>Untracked: stage the whole file with Space in the changes list</source>
+        <target>Sin seguimiento: prepara el archivo completo con Espacio en la lista de cambios</target>
+      </trans-unit>
+      <trans-unit id="26">
+        <source>[→%count%]</source>
+        <target>[→%count%]</target>
+      </trans-unit>
+      <trans-unit id="27">
+        <source>git apply refused the partial patch</source>
+        <target>git apply rechazó el parche parcial</target>
+      </trans-unit>
+      <trans-unit id="28">
+        <source>git refused the staging change</source>
+        <target>git rechazó el cambio de preparación</target>
+      </trans-unit>
+      <trans-unit id="29">
+        <source>Select two files in the project tree to compare</source>
+        <target>Selecciona dos archivos en el árbol del proyecto para compararlos</target>
+      </trans-unit>
+      <trans-unit id="30">
+        <source>The two files are identical</source>
+        <target>Los dos archivos son idénticos</target>
+      </trans-unit>
+      <trans-unit id="31">
+        <source>±10 lines</source>
+        <target>±10 líneas</target>
+      </trans-unit>
+      <trans-unit id="32">
+        <source>No changes selected</source>
+        <target>Ningún cambio seleccionado</target>
+      </trans-unit>
+      <trans-unit id="33">
+        <source>Working tree clean</source>
+        <target>Árbol de trabajo limpio</target>
+      </trans-unit>
+      <trans-unit id="34">
+        <source>No changes (whitespace hidden)</source>
+        <target>Sin cambios (espacios ocultos)</target>
+      </trans-unit>
+      <trans-unit id="35">
+        <source>Select a commit file</source>
+        <target>Selecciona un archivo del commit</target>
+      </trans-unit>
+      <trans-unit id="36">
+        <source>No commits</source>
+        <target>No hay commits</target>
+      </trans-unit>
+      <trans-unit id="37">
+        <source>No files in this commit</source>
+        <target>No hay archivos en este commit</target>
+      </trans-unit>
+      <trans-unit id="38">
+        <source>No patch (whitespace hidden)</source>
+        <target>Sin parche (espacios ocultos)</target>
+      </trans-unit>
+      <trans-unit id="39">
+        <source>No patch for this file</source>
+        <target>Sin parche para este archivo</target>
+      </trans-unit>
+      <trans-unit id="40">
+        <source>Whitespace changes hidden</source>
+        <target>Cambios de espacios ocultos</target>
+      </trans-unit>
+      <trans-unit id="41">
+        <source>Whitespace changes shown</source>
+        <target>Cambios de espacios mostrados</target>
+      </trans-unit>
+      <trans-unit id="42">
+        <source>Fetched</source>
+        <target>Recuperado</target>
+      </trans-unit>
+      <trans-unit id="43">
+        <source>Pulling…</source>
+        <target>Incorporando…</target>
+      </trans-unit>
+      <trans-unit id="44">
+        <source>Pushing…</source>
+        <target>Enviando…</target>
+      </trans-unit>
+      <trans-unit id="45">
+        <source>%operation% failed: %error%</source>
+        <target>%operation% falló: %error%</target>
+      </trans-unit>
+      <trans-unit id="46">
+        <source>A git remote operation is already running</source>
+        <target>Ya hay una operación remota de git en curso</target>
+      </trans-unit>
+      <trans-unit id="47">
+        <source>Not a git repository (or git missing)</source>
+        <target>No es un repositorio git (o falta git)</target>
+      </trans-unit>
+      <trans-unit id="48">
+        <source>+ Create new branch…</source>
+        <target>+ Crear rama nueva…</target>
+      </trans-unit>
+      <trans-unit id="49">
+        <source>New branch name</source>
+        <target>Nombre de la rama nueva</target>
+      </trans-unit>
+      <trans-unit id="50">
+        <source>Switched to %branch%</source>
+        <target>Cambiado a %branch%</target>
+      </trans-unit>
+      <trans-unit id="51">
+        <source>Created and switched to %branch%</source>
+        <target>Creada y cambiado a %branch%</target>
+      </trans-unit>
+      <trans-unit id="52">
+        <source>Pull: branch diverged</source>
+        <target>Pull: la rama ha divergido</target>
+      </trans-unit>
+      <trans-unit id="53">
+        <source>Rebase local commits onto the remote</source>
+        <target>Rebasar los commits locales sobre el remoto</target>
+      </trans-unit>
+      <trans-unit id="54">
+        <source>Merge the remote into the local branch</source>
+        <target>Fusionar el remoto en la rama local</target>
+      </trans-unit>
+      <trans-unit id="55">
+        <source>Push: no upstream branch</source>
+        <target>Push: no hay rama upstream</target>
+      </trans-unit>
+      <trans-unit id="56">
+        <source>Push with --set-upstream origin %branch%</source>
+        <target>Hacer push con --set-upstream origin %branch%</target>
+      </trans-unit>
+      <trans-unit id="57">
+        <source>No git remote operation is running</source>
+        <target>No hay ninguna operación git remota en curso</target>
+      </trans-unit>
+      <trans-unit id="58">
+        <source>Git remote operation cancelled</source>
+        <target>Operación git remota cancelada</target>
+      </trans-unit>
+      <trans-unit id="59">
+        <source>− Delete branch…</source>
+        <target>− Eliminar rama…</target>
+      </trans-unit>
+      <trans-unit id="60">
+        <source>Delete branch</source>
+        <target>Eliminar rama</target>
+      </trans-unit>
+      <trans-unit id="61">
+        <source>Delete %branch%?</source>
+        <target>¿Eliminar %branch%?</target>
+      </trans-unit>
+      <trans-unit id="62">
+        <source>Deleted branch %branch%</source>
+        <target>Rama %branch% eliminada</target>
+      </trans-unit>
+      <trans-unit id="63">
+        <source>No other local branches to delete</source>
+        <target>No hay otras ramas locales que eliminar</target>
+      </trans-unit>
+      <trans-unit id="64">
+        <source>Switched to %branch% (tracking %remote%)</source>
+        <target>Cambiado a %branch% (sigue a %remote%)</target>
+      </trans-unit>
+      <trans-unit id="65">
+        <source>Stash failed</source>
+        <target>Falló el stash</target>
+      </trans-unit>
+      <trans-unit id="66">
+        <source>Stash popped</source>
+        <target>Stash recuperado</target>
+      </trans-unit>
+      <trans-unit id="67">
+        <source>No stashes</source>
+        <target>No hay stashes</target>
+      </trans-unit>
+      <trans-unit id="68">
+        <source>%stash%: apply, pop or drop?</source>
+        <target>%stash%: ¿aplicar, recuperar o descartar?</target>
+      </trans-unit>
+      <trans-unit id="69">
+        <source>Applied %stash%</source>
+        <target>%stash% aplicado</target>
+      </trans-unit>
+      <trans-unit id="70">
+        <source>Popped %stash%</source>
+        <target>%stash% recuperado</target>
+      </trans-unit>
+      <trans-unit id="71">
+        <source>Dropped %stash%</source>
+        <target>%stash% descartado</target>
+      </trans-unit>
+      <trans-unit id="72">
+        <source>Stash left conflicts — resolve them in the editor</source>
+        <target>El stash dejó conflictos — resuélvelos en el editor</target>
+      </trans-unit>
+      <trans-unit id="73">
+        <source>History — %path% (%count%)</source>
+        <target>Historial — %path% (%count%)</target>
+      </trans-unit>
+      <trans-unit id="74">
+        <source>Blame annotations shown</source>
+        <target>Anotaciones de blame visibles</target>
+      </trans-unit>
+      <trans-unit id="75">
+        <source>Blame annotations hidden</source>
+        <target>Anotaciones de blame ocultas</target>
+      </trans-unit>
+      <trans-unit id="76">
+        <source>Unstage</source>
+        <target>Quitar de preparados</target>
+      </trans-unit>
+      <trans-unit id="77">
+        <source>Discard…</source>
+        <target>Descartar…</target>
+      </trans-unit>
+      <trans-unit id="78">
+        <source>Cherry-pick</source>
+        <target>Cherry-pick</target>
+      </trans-unit>
+      <trans-unit id="79">
+        <source>Cherry-picked %sha%</source>
+        <target>Cherry-pick de %sha% aplicado</target>
+      </trans-unit>
+      <trans-unit id="80">
+        <source>Copied %sha%</source>
+        <target>%sha% copiado</target>
+      </trans-unit>
+      <trans-unit id="81">
+        <source>Copy Hash</source>
+        <target>Copiar hash</target>
+      </trans-unit>
+      <trans-unit id="82">
+        <source>Create Branch from Commit…</source>
+        <target>Crear rama desde el commit…</target>
+      </trans-unit>
+      <trans-unit id="83">
+        <source>Delete Branch…</source>
+        <target>Eliminar rama…</target>
+      </trans-unit>
+      <trans-unit id="84">
+        <source>Mixed (unstage changes)</source>
+        <target>Mixed (quitar los cambios de preparados)</target>
+      </trans-unit>
+      <trans-unit id="85">
+        <source>New Branch…</source>
+        <target>Nueva rama…</target>
+      </trans-unit>
+      <trans-unit id="86">
+        <source>Reset to %sha% (%mode%)</source>
+        <target>Restablecido a %sha% (%mode%)</target>
+      </trans-unit>
+      <trans-unit id="87">
+        <source>Reset to %sha%?</source>
+        <target>¿Restablecer a %sha%?</target>
+      </trans-unit>
+      <trans-unit id="88">
+        <source>Reset to Commit…</source>
+        <target>Restablecer al commit…</target>
+      </trans-unit>
+      <trans-unit id="89">
+        <source>Revert Commit</source>
+        <target>Revertir commit</target>
+      </trans-unit>
+      <trans-unit id="90">
+        <source>Reverted %sha%</source>
+        <target>%sha% revertido</target>
+      </trans-unit>
+      <trans-unit id="91">
+        <source>Soft (keep staged changes)</source>
+        <target>Soft (mantener los cambios preparados)</target>
+      </trans-unit>
+      <trans-unit id="92">
+        <source>Switch Branch…</source>
+        <target>Cambiar de rama…</target>
+      </trans-unit>
+      <trans-unit id="93">
+        <source>Amend last commit</source>
+        <target>Corregir último commit</target>
+      </trans-unit>
+      <trans-unit id="94">
+        <source>Commit to branch</source>
+        <target>Confirmar en la rama</target>
+      </trans-unit>
+      <trans-unit id="95">
+        <source>Discard changes to %path%?</source>
+        <target>¿Descartar los cambios de %path%?</target>
+      </trans-unit>
+      <trans-unit id="96">
+        <source>Discard (y)</source>
+        <target>Descartar (y)</target>
+      </trans-unit>
+      <trans-unit id="97">
+        <source>No commit to amend</source>
+        <target>No hay ningún commit que enmendar</target>
+      </trans-unit>
+      <trans-unit id="98">
+        <source>%operation% needs a choice</source>
+        <target>%operation% requiere una elección</target>
+      </trans-unit>
+      <trans-unit id="99">
+        <source>No change here</source>
+        <target>No hay ningún cambio aquí</target>
+      </trans-unit>
+      <trans-unit id="100">
+        <source>Revert this change</source>
+        <target>Revertir este cambio</target>
+      </trans-unit>
+      <trans-unit id="101">
+        <source>Change at line %line%</source>
+        <target>Cambio en la línea %line%</target>
+      </trans-unit>
+      <trans-unit id="102">
+        <source>The buffer has changed since; save it and try again</source>
+        <target>El búfer ha cambiado desde entonces; guárdalo e inténtalo de nuevo</target>
+      </trans-unit>
+      <trans-unit id="103">
+        <source>Change reverted</source>
+        <target>Cambio revertido</target>
+      </trans-unit>
+      <trans-unit id="104">
+        <source>Git branch %branch% — click to switch, create or delete a branch</source>
+        <target>Rama Git %branch% — clic para cambiar, crear o eliminar una rama</target>
+      </trans-unit>
+      <trans-unit id="105">
+        <source>Unstage this file</source>
+        <target>Quitar este archivo del área de preparación</target>
+      </trans-unit>
+      <trans-unit id="106">
+        <source>Stage this file</source>
+        <target>Preparar este archivo</target>
+      </trans-unit>
+      <trans-unit id="107">
+        <source>Untracked: new to git</source>
+        <target>Sin seguimiento: nuevo para git</target>
+      </trans-unit>
+      <trans-unit id="108">
+        <source>Renamed from %path%</source>
+        <target>Renombrado desde %path%</target>
+      </trans-unit>
+      <trans-unit id="109">
+        <source>Copied from %path%</source>
+        <target>Copiado desde %path%</target>
+      </trans-unit>
+      <trans-unit id="110">
+        <source>Unmerged: a conflict to resolve</source>
+        <target>Sin fusionar: un conflicto por resolver</target>
+      </trans-unit>
+      <trans-unit id="111">
+        <source>Type changed</source>
+        <target>Tipo cambiado</target>
+      </trans-unit>
+      <trans-unit id="112">
+        <source>Staged</source>
+        <target>Preparado</target>
+      </trans-unit>
+      <trans-unit id="113">
+        <source>Partly staged</source>
+        <target>Parcialmente preparado</target>
+      </trans-unit>
+      <trans-unit id="114">
+        <source>Not staged</source>
+        <target>No preparado</target>
+      </trans-unit>
+      <trans-unit id="115">
+        <source>Unstage everything</source>
+        <target>Quitar todo del área de preparación</target>
+      </trans-unit>
+      <trans-unit id="116">
+        <source>Stage everything</source>
+        <target>Preparar todo</target>
+      </trans-unit>
+      <trans-unit id="117">
+        <source>Side-by-side diff</source>
+        <target>Diff en paralelo</target>
+      </trans-unit>
+      <trans-unit id="118">
+        <source>Hide whitespace-only changes</source>
+        <target>Ocultar cambios solo de espacios</target>
+      </trans-unit>
+      <trans-unit id="119">
+        <source>Write a summary first</source>
+        <target>Escriba primero un resumen</target>
+      </trans-unit>
+      <trans-unit id="120">
+        <source>Stage a change first</source>
+        <target>Prepare primero un cambio</target>
+      </trans-unit>
+      <trans-unit id="121">
+        <source>Esc to edit the file · F7 next conflict · Alt+M resolve · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
+        <target>Esc para editar el archivo · F7 siguiente conflicto · Alt+M resolver · Ctrl+S y luego Ctrl+Q — si quedan conflictos, la fusión falla</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>
