@@ -6,6 +6,7 @@ namespace Porta\GitPlugin;
 
 use Porta\GitPlugin\Process\GitProcessRunner;
 use Porta\Plugin\Api\PluginApi;
+use Porta\Plugin\Api\ToolEffect;
 use Porta\Support\FiberWait;
 
 /**
@@ -27,6 +28,7 @@ final readonly class GitTools
             'The branch and every changed, staged or untracked file, as `git status --short --branch` prints it.',
             ['type' => 'object', 'properties' => []],
             fn (array $arguments): string => $this->run(['status', '--short', '--branch', '--untracked-files=all']),
+            effect: ToolEffect::Reads,
         );
         $this->api->registerTool(
             'diff',
@@ -39,6 +41,7 @@ final readonly class GitTools
                 ],
             ],
             $this->diff(...),
+            effect: ToolEffect::Reads,
         );
     }
 
