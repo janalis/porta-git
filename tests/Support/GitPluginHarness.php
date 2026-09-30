@@ -21,6 +21,7 @@ use Porta\Tests\Support\TestDockTools;
 use Porta\Tests\Support\TestLspQuery;
 use Porta\Tests\Support\TestRunController;
 use Porta\Tests\Support\TestTui;
+use Porta\Tests\Support\TestWorkspaceEditor;
 use Porta\Tree\FileStatuses;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\FileTreeWidget;
@@ -86,6 +87,7 @@ final readonly class GitPluginHarness
             TestLspQuery::create(),
             new BufferSaver(new BufferManager(), new EventDispatcher()),
             TestRunController::create(),
+            TestWorkspaceEditor::create(),
         ));
         $api = new PluginApi('git', $manager, $project->dir, $settings);
         $manager->commit($api);
