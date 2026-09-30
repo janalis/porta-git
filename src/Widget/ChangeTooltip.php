@@ -10,6 +10,7 @@ use Porta\I18n\Translator;
 use Porta\Ui\Glyphs;
 use Porta\Ui\Tooltip;
 use Porta\Widget\Render\FieldBox;
+use Symfony\Component\Tui\Ansi\AnsiUtils;
 
 /**
  * What a changes-list row says under the pointer, cell by cell: its box what
@@ -38,7 +39,7 @@ final class ChangeTooltip
                 $letter - 1,
             ),
             $col === $letter => self::status($entry, $translator, $row, $letter),
-            $col > $letter && \mb_strwidth($path) > ($width - $letter - 2) => new Tooltip('git:path:'.$entry->path, $path, $row, $letter + 2, $width),
+            $col > $letter && AnsiUtils::visibleWidth($path) > ($width - $letter - 2) => new Tooltip('git:path:'.$entry->path, $path, $row, $letter + 2, $width),
             default => null,
         };
     }
