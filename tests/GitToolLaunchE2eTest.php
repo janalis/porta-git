@@ -6,6 +6,7 @@ namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\Container\ToolLaunch;
+use Porta\Event\ChangeProposed;
 use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
@@ -16,6 +17,7 @@ use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\Toasts;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Workbench\View\ViewRegistry;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
@@ -59,6 +61,30 @@ final class GitToolLaunchE2eTest extends TestCase
             ],
             tool: ToolLaunch::diff($blob->path('a_LOCAL_123.php'), $project->path('a.php')),
         );
+    }
+
+    public function testAnAgentsProposedChangeIsComparedAndClosingItEndsNothingButTheView(): void
+    {
+        self::skipWithoutGit();
+        \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.php' => "<?php\necho 'as it is';\n"]);
+        $project->initGit();
+        $project->commitAll('init');
+        $proposal = new TempProject(['a.php' => "<?php\necho 'as proposed';\n"]);
+
+        $this->runIde($project, null, [
+            100 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project, $proposal): void {
+                Services::resolve($ide, EventDispatcherInterface::class)->dispatch(new ChangeProposed($project->path('a.php'), $proposal->path('a.php')));
+                $this->awaitPainted($tui, $terminal, "echo 'as it is';");
+                $this->awaitPainted($tui, $terminal, "echo 'as proposed';");
+                $view = Services::resolve($ide, ViewRegistry::class)->find('git');
+                $this->assertTrue($view?->isOpen(), 'side by side in the git view');
+
+                $tui->handleInput("\x1b");
+                $this->await(static fn (): bool => false === $view?->isOpen(), what: 'Esc to close it');
+                $this->assertTrue($tui->isRunning(), 'and Porta goes on — this was no difftool run');
+            },
+        ]);
     }
 
     public function testAMergetoolLaunchOpensTheConflictedFileUnderTheGitView(): void
