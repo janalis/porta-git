@@ -19,7 +19,7 @@ use Porta\Tests\Support\RecordingFileOpener;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\TestDockTools;
 use Porta\Tests\Support\TestLspQuery;
-use Porta\Tests\Support\TestRunController;
+use Porta\Tests\Support\TestRuns;
 use Porta\Tests\Support\TestTui;
 use Porta\Tests\Support\TestWorkspaceEditor;
 use Porta\Tree\FileStatuses;
@@ -86,7 +86,7 @@ final readonly class GitPluginHarness
             new FileTreeWidget(\sys_get_temp_dir()),
             TestLspQuery::create(),
             new BufferSaver(new BufferManager(), new EventDispatcher()),
-            TestRunController::create(),
+            TestRuns::create(),
             TestWorkspaceEditor::create(),
         ));
         $api = new PluginApi('git', $manager, $project->dir, $settings);
