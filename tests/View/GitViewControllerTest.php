@@ -47,7 +47,6 @@ use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Input\HitTester;
-use Porta\Layout\EditorAreaPanes;
 use Porta\Layout\LayoutController;
 use Porta\Layout\PreviewSplit;
 use Porta\Layout\ViewRegion;
@@ -77,6 +76,7 @@ use Porta\Workbench\Menu\Menu;
 use Porta\Workbench\Notifier;
 use Porta\Workbench\View\ViewHost;
 use Porta\Workbench\View\ViewRegistry;
+use Porta\Workbench\View\ViewWindow;
 use Revolt\EventLoop;
 use Revolt\EventLoop\InvalidCallbackError;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -222,18 +222,8 @@ final class GitViewControllerTest extends TestCase
         // it: core mints it for the registered id before calling the factory.
         $region = $regions->mint('git');
         $host = new ViewHost(
-            $this->main,
+            new ViewWindow($this->main),
             $this->menuBar,
-            new readonly class($editWidget) implements EditorAreaPanes {
-                public function __construct(
-                    private ContainerWidget $editWidget,
-                ) {}
-
-                public function orderedEditorPanes(): array
-                {
-                    return [$this->editWidget];
-                }
-            },
             $editorArea,
             $this->tui,
         );
@@ -401,29 +391,30 @@ final class GitViewControllerTest extends TestCase
         }
     }
 
-    public function testToggleSwapsTheMainChildrenAndRestoresThem(): void
+    public function testToggleOpensTheWindowAndEmptiesIt(): void
     {
         $controller = $this->controller();
+        $ids = fn (): array => \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all());
 
         $this->menuBar->setMenus([new Menu('File', [])]);
         $this->menuBar->open(0);
         $controller->toggle();
         $this->assertTrue($controller->isOpen());
-        $this->assertSame(['git-area'], \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all()));
-        $this->assertFalse($this->menuBar->isOpen(), 'an open dropdown closes across the swap');
+        $this->assertSame(['git-area'], $ids(), 'the region is in the window');
+        $this->assertFalse($this->menuBar->isOpen(), 'an open dropdown closes as the window opens');
         $controller->open(); // idempotent
         $this->assertTrue($controller->isOpen());
 
         $controller->toggle();
         $this->assertFalse($controller->isOpen());
-        $this->assertSame(['edit-stub'], \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all()));
+        $this->assertSame([], $ids(), 'the window holds nothing once closed');
         $this->assertSame($this->editor, $this->tui->getFocus(), 'close restores focus to the editor area');
         $controller->close(); // idempotent
-        $this->assertSame(['edit-stub'], \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all()));
+        $this->assertSame([], $ids());
 
         $controller->toggle(); // second round trip stays stable
         $controller->toggle();
-        $this->assertSame(['edit-stub'], \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->main->all()));
+        $this->assertSame([], $ids());
     }
 
     public function testFocusTargetFollowsTheActiveTab(): void

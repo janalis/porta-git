@@ -194,9 +194,14 @@ final class GitViewController implements ContributedView
         return 'git';
     }
 
-    public function ownsMainArea(): bool
+    public function hostsWindow(): bool
     {
         return true;
+    }
+
+    public function title(): string
+    {
+        return $this->translator->trans('Git');
     }
 
     public function isOpen(): bool

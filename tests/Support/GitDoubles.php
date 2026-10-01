@@ -12,13 +12,13 @@ use Porta\GitPlugin\Support\Modals;
 use Porta\GitPlugin\Support\Translate;
 use Porta\I18n\Translator;
 use Porta\Layout\DiffLayout;
-use Porta\Layout\EditorAreaPanes;
 use Porta\Overlay\State\ToastSeverity;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\MenuBarWidget;
 use Porta\Workbench\EditorArea;
 use Porta\Workbench\Notifier;
 use Porta\Workbench\View\ViewHost;
+use Porta\Workbench\View\ViewWindow;
 use Symfony\Component\Tui\Tui;
 use Symfony\Component\Tui\Widget\ContainerWidget;
 
@@ -109,14 +109,8 @@ final class GitDoubles
     public static function host(Tui $tui): ViewHost
     {
         return new ViewHost(
-            new ContainerWidget(),
+            new ViewWindow(new ContainerWidget()),
             new MenuBarWidget(),
-            new class implements EditorAreaPanes {
-                public function orderedEditorPanes(): array
-                {
-                    return [];
-                }
-            },
             new EditorArea(new BufferManager(), new CodeEditorWidget(), new EditorPanes(), $tui),
             $tui,
         );
