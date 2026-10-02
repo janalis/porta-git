@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Process;
 
+use Porta\Config\WorkspaceTrust;
 use Porta\GitPlugin\GitInfo;
 use Porta\Support\AsyncProcess;
 use Porta\Support\Outcome;
@@ -23,6 +24,9 @@ use Porta\Support\Text;
 final readonly class GitProcessRunner
 {
     private bool $repository;
+
+    /** @var list<string> config overrides for a repository not trusted to run code */
+    private array $untrusted;
 
     private ProcessLane $lane;
 
@@ -45,6 +49,11 @@ final readonly class GitProcessRunner
         // FILE holding `gitdir: …`. is_dir left the whole feature silently dead
         // in both — git ran nowhere and the view said "not a repository".
         $this->repository = \file_exists($rootDir.'/.git');
+        // An untrusted repository's own config is not obeyed where it would run
+        // something: `core.fsmonitor` names a program git runs on every status,
+        // and the status poll runs with no one asking. A clone never carries
+        // .git/config, but a tarball or a shared folder does.
+        $this->untrusted = WorkspaceTrust::fromEnvironment()->isTrusted($rootDir) ? [] : ['-c', 'core.fsmonitor=false'];
     }
 
     /**
@@ -118,7 +127,7 @@ final readonly class GitProcessRunner
         // --no-optional-locks: the porcelain readers (status/diff) must never
         // take the opportunistic index lock — under load it collides with a
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
-        $command = [$git, '--no-optional-locks', '-C', $this->rootDir, ...$args];
+        $command = [$git, ...$this->untrusted, '--no-optional-locks', '-C', $this->rootDir, ...$args];
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, $stdin),
             static function (int $code, string $out) use ($onDone): void {
@@ -154,7 +163,7 @@ final readonly class GitProcessRunner
         // --no-optional-locks: the porcelain readers (status/diff) must never
         // take the opportunistic index lock — under load it collides with a
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
-        $command = [$git, '--no-optional-locks', '-C', $this->rootDir, ...$args];
+        $command = [$git, ...$this->untrusted, '--no-optional-locks', '-C', $this->rootDir, ...$args];
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, captureStderr: true),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
