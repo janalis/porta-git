@@ -15,13 +15,27 @@ use Porta\Support\Outcome;
  * failures, "not possible to fast-forward"), credential prompts must be
  * forced non-interactive, and only one remote operation runs at a time.
  *
- * `GIT_TERMINAL_PROMPT=0` turns a would-be credential prompt into a clean
- * non-zero exit with the reason on stderr. Known limitation: ssh itself can
- * still prompt for an agent-less key passphrase; forcing BatchMode would
- * break ssh-agent users, so it stays unset — an agent is expected.
+ * Nothing it runs may ask the terminal anything — Porta is drawing on it —
+ * and nothing may wait forever:
+ *
+ * - `GIT_TERMINAL_PROMPT=0` turns git's own credential prompt into a clean
+ *   failure, with the reason on stderr.
+ * - ssh asks through `SSH_ASKPASS`, forced, and the program it is given
+ *   says no: a passphrase or an unknown host key is a failure, not text
+ *   written over the screen and keys stolen from it. An agent still signs.
+ * - An HTTPS transfer that stalls ends after {@see STALL_SECONDS}; and any
+ *   operation, ssh's black-holed connection included, after {@see TIMEOUT}.
+ *
+ * What the user set in the environment wins over each.
  */
 final readonly class GitRemote
 {
+    /** Seconds an operation may take at all: long enough for a large fetch, short of forever. */
+    public const float TIMEOUT = 900.0;
+
+    /** Seconds an HTTPS transfer may move less than a kilobyte a second. */
+    private const string STALL_SECONDS = '30';
+
     private bool $repository;
 
     private ProcessLane $lane;
@@ -127,10 +141,18 @@ final readonly class GitRemote
         }
         /** @var list<string> $command */
         $command = [$git, '-C', $this->rootDir, ...$args];
-        $env = \array_merge(\getenv(), ['GIT_TERMINAL_PROMPT' => '0', 'LC_ALL' => 'C']);
+        $env = [
+            'SSH_ASKPASS_REQUIRE' => 'force',
+            'SSH_ASKPASS' => 'false',
+            'GIT_HTTP_LOW_SPEED_LIMIT' => '1000',
+            'GIT_HTTP_LOW_SPEED_TIME' => self::STALL_SECONDS,
+            ...\getenv(),
+            'GIT_TERMINAL_PROMPT' => '0',
+            'LC_ALL' => 'C',
+        ];
         /** @var array<string, string> $env */
         $started = $this->lane->start(
-            new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $env),
+            new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $env, timeout: self::TIMEOUT),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
                 $onDone(Outcome::of(0 === $code), \trim(\trim($process->errorOutput())."\n".\trim($out)));
             },

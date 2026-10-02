@@ -265,4 +265,38 @@ final class GitRemoteTest extends TestCase
         $this->assertTrue($result['ok'], $result['out']);
         $this->assertStringContainsString('Merge', $this->git($this->clone2, 'log -1 --format=%s'), 'a merge commit integrated the branches');
     }
+
+    public function testNothingItRunsMayAskTheTerminalAndAStallEnds(): void
+    {
+        $remote = $this->remotes();
+        $seen = $this->clone2->path('ssh-env');
+        $ssh = $this->clone2->path('fake-ssh');
+        \file_put_contents($ssh, data: "#!/bin/sh\nprintf '%s|%s|%s' \"\$SSH_ASKPASS_REQUIRE\" \"\$SSH_ASKPASS\" \"\$GIT_HTTP_LOW_SPEED_TIME\" > ".\escapeshellarg($seen)."\nexit 1\n");
+        \chmod($ssh, permissions: 0o755);
+        $this->git($this->clone2, 'remote set-url origin ssh://example.invalid/repo.git');
+        \putenv('GIT_SSH_COMMAND='.$ssh);
+        try {
+            $done = false;
+            $remote->fetch(static function () use (&$done): void {
+                $done = true;
+            });
+            $this->await(static function () use (&$done): bool {
+                return $done;
+            }, what: 'the fetch to fail');
+            $this->assertSame('force|false|30', \file_get_contents($seen), 'ssh asks a program that says no; a stalled transfer ends');
+
+            \putenv('SSH_ASKPASS=/usr/local/bin/my-askpass');
+            $done = false;
+            $remote->fetch(static function () use (&$done): void {
+                $done = true;
+            });
+            $this->await(static function () use (&$done): bool {
+                return $done;
+            }, what: 'the second fetch');
+            $this->assertSame('force|/usr/local/bin/my-askpass|30', \file_get_contents($seen), 'what the user set wins');
+        } finally {
+            \putenv('GIT_SSH_COMMAND');
+            \putenv('SSH_ASKPASS');
+        }
+    }
 }

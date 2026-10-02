@@ -170,8 +170,11 @@ message; resolve in the editor and commit as usual. Pushing a branch with no
 upstream offers **Push with --set-upstream origin <branch>** instead of
 failing — nothing is published without a confirmation (`Git: Push (Set
 Upstream)` runs the same thing directly). Other failures (auth, rejected
-push) flash git's first error line. A remote operation that hangs (for
-example an ssh passphrase prompt without an agent) can be cancelled with
+push) flash git's first error line. Nothing asks on the terminal: a key that
+needs a passphrase without an agent, or a host seen for the first time, fails
+with ssh's reason instead (set `SSH_ASKPASS` to a program of your own to be
+asked). An HTTPS transfer that stalls for half a minute ends, and any remote
+operation ends after fifteen minutes; one can also be cancelled with
 `Git: Cancel Remote Operation`.
 
 `Git: Branches…` opens a picker over the editor: local branches first (newest
