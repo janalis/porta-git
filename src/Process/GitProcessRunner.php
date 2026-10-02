@@ -25,6 +25,9 @@ final readonly class GitProcessRunner
 {
     private bool $repository;
 
+    /** git's well-known empty tree (SHA-1): an attribute source that says nothing. */
+    private const string EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
     /** @var list<string> config overrides for a repository not trusted to run code */
     private array $untrusted;
 
@@ -53,6 +56,12 @@ final readonly class GitProcessRunner
         // something: `core.fsmonitor` names a program git runs on every status,
         // and the status poll runs with no one asking. A clone never carries
         // .git/config, but a tarball or a shared folder does.
+        //
+        // Nor its attributes: `.gitattributes` names filter and textconv
+        // drivers its config defines (`filter.x.clean = …`), and a status
+        // re-hashing a touched file runs the clean filter. Attributes read from
+        // the empty tree are none at all — a git older than 2.40 ignores the
+        // variable, and the fsmonitor half still holds there.
         $this->untrusted = WorkspaceTrust::fromEnvironment()->isTrusted($rootDir) ? [] : ['-c', 'core.fsmonitor=false'];
     }
 
@@ -69,6 +78,18 @@ final readonly class GitProcessRunner
     public function binary(): ?string
     {
         return GitBinary::resolve($this->gitPath instanceof \Closure ? ($this->gitPath)() : $this->gitPath);
+    }
+
+    /**
+     * The child's environment: inherited as is, or — for an untrusted
+     * repository — with its attributes read from the empty tree. Per spawn, so
+     * a PATH changed since boot is the one git sees.
+     *
+     * @return array<string, string>|null
+     */
+    private function environment(): ?array
+    {
+        return [] === $this->untrusted ? null : [...\getenv(), 'GIT_ATTR_SOURCE' => self::EMPTY_TREE];
     }
 
     public function isAvailable(): bool
@@ -129,7 +150,7 @@ final readonly class GitProcessRunner
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
         $command = [$git, ...$this->untrusted, '--no-optional-locks', '-C', $this->rootDir, ...$args];
         $started = $this->lane->start(
-            new AsyncProcess($command, $this->rootDir, $stdin),
+            new AsyncProcess($command, $this->rootDir, $stdin, env: $this->environment()),
             static function (int $code, string $out) use ($onDone): void {
                 $onDone($code, $out);
             },
@@ -165,7 +186,7 @@ final readonly class GitProcessRunner
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
         $command = [$git, ...$this->untrusted, '--no-optional-locks', '-C', $this->rootDir, ...$args];
         $started = $this->lane->start(
-            new AsyncProcess($command, $this->rootDir, captureStderr: true),
+            new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $this->environment()),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
                 $onDone(Outcome::of(0 === $code), Text::firstLine($process->errorOutput()));
             },
