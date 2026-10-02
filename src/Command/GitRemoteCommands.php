@@ -124,10 +124,11 @@ final readonly class GitRemoteCommands
     }
 
     /**
-     * The escape hatch for a hung remote operation (an ssh passphrase prompt
-     * without an agent, an unreachable host). Cancelled AsyncProcess
-     * callbacks never fire, so this flash is the only completion signal —
-     * and no GitRemoteCompleted is synthesized.
+     * The escape hatch for a hung remote operation (an unreachable host, a
+     * transfer that crawls). Cancelled AsyncProcess callbacks never fire, so
+     * this says the outcome itself — and announces it as a failed operation
+     * named `cancelled`: a pull stopped part-way may have moved refs or left
+     * a rebase, and whatever shows them must look again.
      */
     public function cancelOperation(): void
     {
@@ -139,6 +140,7 @@ final readonly class GitRemoteCommands
         $this->remote->cancelAll();
         // A cancelled operation never calls back, so this is its outcome.
         $this->notifier->warn($this->translator->trans('Git remote operation cancelled'), slot: self::SLOT);
+        $this->dispatcher->dispatch(new GitRemoteCompleted('cancelled', false));
     }
 
     /** Route a git-view remote key to its operation. */
@@ -182,7 +184,7 @@ final readonly class GitRemoteCommands
             $ok->isOk()
                 ? $this->notifier->success($succeeded, 3.0, self::SLOT)
                 : $this->notifier->error(
-                    $this->translator->trans('%operation% failed: %error%', ['%operation%' => \ucfirst($operation->value), '%error%' => Text::firstLine($output)]),
+                    $this->translator->trans('%operation% failed: %error%', ['%operation%' => \ucfirst($operation->value), '%error%' => self::reason($output)]),
                     6.0,
                     self::SLOT,
                 );
@@ -202,5 +204,17 @@ final readonly class GitRemoteCommands
     {
         $this->editor->openListOverlay($title, $items, $onPick);
         ($this->repaint)();
+    }
+
+    /**
+     * The line of git's output that says what went wrong: the last `fatal:`
+     * or `error:` one — a remote's chatter, progress and hints come first,
+     * and the first line is often one of them — or else the first line.
+     */
+    private static function reason(string $output): string
+    {
+        $lines = \preg_grep('/^(?:fatal|error): /', \array_map(\rtrim(...), \explode("\n", $output)));
+
+        return [] === $lines || false === $lines ? Text::firstLine($output) : \array_last($lines);
     }
 }

@@ -13,6 +13,7 @@ use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\EditorState;
 use Porta\Tests\Support\GitBinary;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\StatusReads;
 use Porta\Tests\Support\TempProject;
@@ -214,6 +215,19 @@ final class GitRemoteCommandsTest extends TestCase
         $this->assertStringContainsString('Merge', $subject);
     }
 
+    public function testTheLineSaidIsTheErrorNotTheChatterBeforeIt(): void
+    {
+        $this->assertSame(
+            "fatal: Authentication failed for 'https://example.org/repo.git/'",
+            Probe::invokeStatic(GitRemoteCommands::class, 'reason', "remote: Counting objects\nhint: try again\nfatal: Authentication failed for 'https://example.org/repo.git/'\n"),
+        );
+        $this->assertSame(
+            'ssh: connect to host example.org port 22: Operation timed out',
+            Probe::invokeStatic(GitRemoteCommands::class, 'reason', "ssh: connect to host example.org port 22: Operation timed out\nmore\n"),
+            'none: the first line, as before',
+        );
+    }
+
     public function testNonUpstreamPushFailureKeepsTheGenericFlash(): void
     {
         // A diverged push is rejected for a non-upstream reason: the
@@ -256,6 +270,7 @@ final class GitRemoteCommandsTest extends TestCase
         $commands->cancelOperation();
         $this->assertFalse($remote->isBusy());
         $this->assertStringContainsString('Git remote operation cancelled', $this->statusRow($this->status));
-        $this->assertSame([], $this->events, 'no completion event is synthesized for a cancel');
+        $this->assertCount(1, $this->events, 'announced, so whatever shows refs looks again');
+        $this->assertSame(['cancelled', false], [$this->events[0]->operation, $this->events[0]->ok]);
     }
 }
