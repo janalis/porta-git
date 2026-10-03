@@ -173,10 +173,25 @@ final readonly class GitProcessRunner
      */
     public function runWithErrors(array $args, callable $onDone): void
     {
+        $this->runCapturing($args, static fn (Outcome $ok, string $out, string $errors) => $onDone($ok, Text::firstLine($errors)));
+    }
+
+    /**
+     * Both streams, whole: for a verb that answers on stdout and whose
+     * failure has to be told apart, and for one whose first stderr line is
+     * progress rather than the reason (`worktree add` says "Preparing
+     * worktree" before it says what went wrong).
+     *
+     * @param list<string>                            $args
+     * @param callable(Outcome, string, string): void $onDone (ok, stdout, stderr)
+     */
+    public function runCapturing(array $args, callable $onDone): void
+    {
         $git = $this->binary();
         if (null === $git || !$this->repository) {
+            $none = '';
             $reason = 'git is not available';
-            $onDone(Outcome::Failed, $reason);
+            $onDone(Outcome::Failed, $none, $reason);
 
             return;
         }
@@ -188,13 +203,14 @@ final readonly class GitProcessRunner
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $this->environment()),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
-                $onDone(Outcome::of(0 === $code), Text::firstLine($process->errorOutput()));
+                $onDone(Outcome::of(0 === $code), $out, $process->errorOutput());
             },
         );
         if (!$started) {
             // @codeCoverageIgnoreStart
+            $none = '';
             $reason = 'could not start git';
-            $onDone(Outcome::Failed, $reason);
+            $onDone(Outcome::Failed, $none, $reason);
 
             // @codeCoverageIgnoreEnd
         }

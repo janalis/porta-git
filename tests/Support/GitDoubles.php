@@ -6,6 +6,8 @@ namespace Porta\GitPlugin\Tests\Support;
 
 use Porta\Editor\BufferManager;
 use Porta\Editor\EditorPanes;
+use Porta\GitPlugin\Command\WorktreeCommands;
+use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\Setting\DiffPrefs;
 use Porta\GitPlugin\Support\Flash;
 use Porta\GitPlugin\Support\Modals;
@@ -121,5 +123,25 @@ final class GitDoubles
     public static function splitLayout(bool $split): DiffLayout
     {
         return $split ? DiffLayout::Split : DiffLayout::Unified;
+    }
+
+    /**
+     * Worktree commands for a test about something else: a list or prompt
+     * they open lands on an editor nobody reads, and a switch goes nowhere.
+     */
+    public static function worktrees(GitInfo $git, string $rootDir): WorktreeCommands
+    {
+        $flashes = [];
+
+        return new WorktreeCommands(
+            $git,
+            self::modals(new CodeEditorWidget()),
+            self::recordingFlash($flashes),
+            static function (): void {},
+            self::translate(new Translator('en')),
+            static function (string $path, string $repeat): void {},
+            static fn (): string => '',
+            $rootDir,
+        );
     }
 }

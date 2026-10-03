@@ -9,10 +9,12 @@ use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\Parse\BranchParser;
 use Porta\GitPlugin\Support\Flash;
 use Porta\GitPlugin\Support\Modals;
 use Porta\GitPlugin\Support\Translate;
 use Porta\GitPlugin\View\GitViewController;
+use Porta\GitPlugin\Worktree;
 use Porta\Support\Outcome;
 use Porta\Ui\Glyphs;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -42,6 +44,7 @@ final readonly class GitCommands
         private \Closure $selectedFiles,
         /** @var \Closure(list<string>, string): void publishes the compared lines under a title */
         private \Closure $showComparison,
+        private WorktreeCommands $worktrees,
     ) {}
 
     public function commit(): void
@@ -298,43 +301,97 @@ final readonly class GitCommands
     private const string CREATE = "create\nbranch";
     private const string DELETE = "delete\nbranch";
     private const string REMOTE_PREFIX = "remote\n";
+    private const string NEW_WORKTREE = "new\nworktree";
+    private const string WORKTREE_PREFIX = "worktree\n";
 
     /**
      * The branch picker: local branches (newest activity first), unshadowed
      * remote branches (checked out as tracking branches), a create row and a
      * delete row. Checkout failures flash git's own message — no auto-stash.
+     *
+     * A branch another worktree has checked out cannot be checked out here —
+     * git refuses — so picking it opens that worktree instead.
      */
     public function branches(): void
     {
         if (!$this->guardAvailable()) {
             return;
         }
-        $this->git->branches(function (array $branches): void {
+        $this->withBranches(function (array $branches, array $holders): void {
             $items = [
                 ['label' => $this->translator->trans('+ Create new branch…'), 'hint' => '', 'value' => self::CREATE],
                 ['label' => $this->translator->trans('− Delete branch…'), 'hint' => '', 'value' => self::DELETE],
+                ['label' => $this->translator->trans('+ New worktree…'), 'hint' => '', 'value' => self::NEW_WORKTREE],
             ];
             foreach ($branches as $branch) {
+                $holder = $branch['remote'] ? null : $holders[$branch['name']] ?? null;
                 $hint = match (true) {
                     $branch['remote'] => $this->translator->trans('remote'),
                     $branch['current'] => $this->translator->trans('current'),
+                    null !== $holder => $this->translator->trans('in worktree %name%', ['%name%' => $holder->name()]),
                     default => '',
                 };
                 $items[] = [
                     'label' => ($branch['current'] ? Glyphs::BRANCH_CURRENT.' ' : '  ').$branch['name'],
                     'hint' => $hint,
-                    'value' => $branch['remote'] ? self::REMOTE_PREFIX.$branch['name'] : $branch['name'],
+                    'value' => match (true) {
+                        $branch['remote'] => self::REMOTE_PREFIX.$branch['name'],
+                        null !== $holder => self::WORKTREE_PREFIX.$holder->path,
+                        default => $branch['name'],
+                    },
                 ];
             }
             $this->editor->openListOverlay($this->translator->trans('Branches'), $items, function (string $value): void {
                 match (true) {
                     self::CREATE === $value => $this->promptNewBranch(),
                     self::DELETE === $value => $this->pickBranchToDelete(),
+                    self::NEW_WORKTREE === $value => $this->worktrees->newWorktree(),
                     \str_starts_with($value, self::REMOTE_PREFIX) => $this->checkoutTracking(\substr($value, \strlen(self::REMOTE_PREFIX))),
+                    \str_starts_with($value, self::WORKTREE_PREFIX) => $this->worktrees->open(\substr($value, \strlen(self::WORKTREE_PREFIX))),
                     default => $this->checkout($value),
                 };
             });
             ($this->repaint)();
+        });
+    }
+
+    /**
+     * The branches, and those other worktrees have checked out, by name —
+     * asked of git at once, not one after the other. No holders when git
+     * cannot list worktrees: an old git still switches branches here.
+     *
+     * A worktree whose folder is gone holds its branch too, but there is
+     * nothing to open: git's own refusal to check it out says where it is.
+     *
+     * @param \Closure(list<array{name: string, current: bool, remote: bool}>, array<string, Worktree>): void $then
+     */
+    private function withBranches(\Closure $then): void
+    {
+        /** @var list<array{name: string, current: bool, remote: bool}>|null $branches filled by its own git call */
+        $branches = null;
+        /** @var array<string, Worktree>|null $holders filled by its own git call */
+        $holders = null;
+        $join = static function () use (&$branches, &$holders, $then): void {
+            if (null !== $branches && null !== $holders) {
+                $then($branches, $holders);
+            }
+        };
+        $this->git->worktrees(
+            /** @param list<Worktree>|null $worktrees */
+            function (?array $worktrees) use (&$holders, $join): void {
+                $holders = [];
+                foreach ($worktrees ?? [] as $worktree) {
+                    if (null === $worktree->branch || $worktree->prunable || $this->worktrees->isCurrent($worktree)) {
+                        continue;
+                    }
+                    $holders[$worktree->branch] = $worktree;
+                }
+                $join();
+            },
+        );
+        $this->git->branches(static function (array $found) use (&$branches, $join): void {
+            $branches = $found;
+            $join();
         });
     }
 
@@ -356,11 +413,14 @@ final readonly class GitCommands
         $this->pickBranchToDelete();
     }
 
-    /** Second picker: local branches minus the current one, then a confirm. */
+    /**
+     * Second picker: local branches minus the current one and those other
+     * worktrees have checked out — git refuses to delete those — then a confirm.
+     */
     private function pickBranchToDelete(): void
     {
-        $this->git->branches(function (array $branches): void {
-            $deletable = \array_values(\array_filter($branches, static fn (array $b): bool => !$b['remote'] && !$b['current']));
+        $this->withBranches(function (array $branches, array $holders): void {
+            $deletable = \array_values(\array_filter($branches, static fn (array $b): bool => !$b['remote'] && !$b['current'] && !\array_key_exists($b['name'], $holders)));
             if ([] === $deletable) {
                 $this->notifier->flash($this->translator->trans('No other local branches to delete'));
 
@@ -392,8 +452,7 @@ final readonly class GitCommands
     /** Check out origin/x as a local tracking branch x. */
     private function checkoutTracking(string $remoteBranch): void
     {
-        $slash = \strpos($remoteBranch, needle: '/');
-        $local = false === $slash ? $remoteBranch : \substr($remoteBranch, $slash + 1);
+        $local = BranchParser::shortName($remoteBranch);
         $this->git->checkoutTracking($remoteBranch, fn (Outcome $ok, string $error) => $this->finishSwitch($ok, $error, $this->translator->trans('Switched to %branch% (tracking %remote%)', [
             '%branch%' => $local,
             '%remote%' => $remoteBranch,

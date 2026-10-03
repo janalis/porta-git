@@ -10,6 +10,7 @@ use Porta\GitPlugin\Parse\BranchParser;
 use Porta\GitPlugin\Parse\HunkParser;
 use Porta\GitPlugin\Parse\LogParser;
 use Porta\GitPlugin\Parse\StatusParser;
+use Porta\GitPlugin\Parse\WorktreeParser;
 use Porta\GitPlugin\Process\GitProcesses;
 use Porta\GitPlugin\Process\GitProcessRunner;
 use Porta\GitPlugin\Process\ProcessLane;
@@ -397,9 +398,7 @@ final readonly class GitInfo
      */
     public function checkoutTracking(string $remoteBranch, callable $onDone): void
     {
-        $slash = \strpos($remoteBranch, needle: '/');
-        $local = false === $slash ? $remoteBranch : \substr($remoteBranch, $slash + 1);
-        $this->runner->runWithErrors(['checkout', '-b', $local, '--track', $remoteBranch], $onDone);
+        $this->runner->runWithErrors(['checkout', '-b', BranchParser::shortName($remoteBranch), '--track', $remoteBranch], $onDone);
     }
 
     /**
@@ -486,9 +485,118 @@ final readonly class GitInfo
         $this->runner->run(['show', '--no-color', '--no-ext-diff', '--format=', ...(WhitespaceMode::Hidden === $whitespace ? ['-w'] : []), $sha, '--', $relPath], $onDone);
     }
 
+    /**
+     * The repository's worktrees, the main one first — or null when git
+     * could not list them, with its reason.
+     *
+     * `-z` arrived in git 2.36, and an older git refuses the switch outright.
+     * It is asked again without, then: only a path with a newline in it,
+     * which `-z` exists for, reads wrong that way.
+     *
+     * @param callable(list<Worktree>|null, string): void $onDone
+     */
+    public function worktrees(callable $onDone): void
+    {
+        $this->runner->runCapturing(['worktree', 'list', '--porcelain', '-z'], function (Outcome $ok, string $out, string $errors) use ($onDone): void {
+            if ($ok->isOk()) {
+                $none = '';
+                $onDone(WorktreeParser::parse($out), $none);
+
+                return;
+            }
+            $this->runner->runCapturing(['worktree', 'list', '--porcelain'], static function (Outcome $ok, string $out, string $errors) use ($onDone): void {
+                $none = '';
+                $ok->isOk() ? $onDone(WorktreeParser::parse($out, "\n"), $none) : $onDone(null, self::reason($errors));
+            });
+        });
+    }
+
+    /**
+     * Add a worktree at $path: on a new branch $newBranch (from $commitish,
+     * or HEAD), or with $commitish checked out — GitHub Desktop's three
+     * shapes, a new branch, a local one, and a remote one tracked locally.
+     *
+     * @param callable(Outcome, string): void $onDone (ok, git's reason on failure)
+     */
+    public function addWorktree(string $path, ?string $newBranch, ?string $commitish, callable $onDone): void
+    {
+        $this->changeWorktrees(['add', ...(null === $newBranch ? [] : ['-b', $newBranch]), '--', $path, ...(null === $commitish ? [] : [$commitish])], $onDone);
+    }
+
+    /**
+     * Delete a worktree's folder and git's record of it. git refuses one with
+     * changes in it, which is the caller's to ask about.
+     *
+     * @param callable(Outcome, string): void $onDone
+     */
+    public function removeWorktree(string $path, callable $onDone): void
+    {
+        $this->changeWorktrees(['remove', '--', $path], $onDone);
+    }
+
+    /**
+     * Delete a worktree and the changes in it, once someone has said so.
+     *
+     * @param callable(Outcome, string): void $onDone
+     */
+    public function forceRemoveWorktree(string $path, callable $onDone): void
+    {
+        $this->changeWorktrees(['remove', '--force', '--', $path], $onDone);
+    }
+
+    /** @param callable(Outcome, string): void $onDone */
+    public function moveWorktree(string $from, string $to, callable $onDone): void
+    {
+        $this->changeWorktrees(['move', '--', $from, $to], $onDone);
+    }
+
+    /** @param callable(Outcome, string): void $onDone */
+    public function lockWorktree(string $path, string $reason, callable $onDone): void
+    {
+        $this->changeWorktrees(['lock', ...('' === $reason ? [] : ['--reason', $reason]), '--', $path], $onDone);
+    }
+
+    /** @param callable(Outcome, string): void $onDone */
+    public function unlockWorktree(string $path, callable $onDone): void
+    {
+        $this->changeWorktrees(['unlock', '--', $path], $onDone);
+    }
+
+    /**
+     * Forget the worktrees whose folders are gone.
+     *
+     * @param callable(Outcome, string): void $onDone
+     */
+    public function pruneWorktrees(callable $onDone): void
+    {
+        $this->changeWorktrees(['prune'], $onDone);
+    }
+
     public function cancelAll(): void
     {
         $this->runner->cancelAll();
+    }
+
+    /**
+     * @param list<string>                    $args after `worktree`
+     * @param callable(Outcome, string): void $onDone
+     */
+    private function changeWorktrees(array $args, callable $onDone): void
+    {
+        $this->runner->runCapturing(['worktree', ...$args], static fn (Outcome $ok, string $out, string $errors) => $onDone($ok, self::reason($errors)));
+    }
+
+    /**
+     * What went wrong, from git's stderr: its last `fatal:` or `error:` line.
+     * The first line is the wrong one here — `worktree add` opens with
+     * "Preparing worktree (new branch 'x')" and only then says why it failed.
+     */
+    private static function reason(string $errors): string
+    {
+        $lines = \explode("\n", \trim($errors));
+        $said = \array_values(\array_filter($lines, static fn (string $line): bool => \str_starts_with($line, 'fatal: ') || \str_starts_with($line, 'error: ')));
+
+        return [] === $said ? Text::firstLine($errors) : \rtrim($said[\count($said) - 1], characters: "\r");
     }
 
     /**

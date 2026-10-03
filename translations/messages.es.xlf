@@ -486,6 +486,182 @@
         <source>Esc to edit the file · F7 next conflict · Alt+M resolve · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
         <target>Esc para editar el archivo · F7 siguiente conflicto · Alt+M resolver · Ctrl+S y luego Ctrl+Q — si quedan conflictos, la fusión falla</target>
       </trans-unit>
+      <trans-unit id="122">
+        <source>%name% has changes. Delete it anyway, and them?</source>
+        <target>%name% tiene cambios. ¿Eliminarlo de todos modos, con ellos?</target>
+      </trans-unit>
+      <trans-unit id="123">
+        <source>%path% already exists</source>
+        <target>%path% ya existe</target>
+      </trans-unit>
+      <trans-unit id="124">
+        <source>+ New branch %branch%</source>
+        <target>+ Nueva rama %branch%</target>
+      </trans-unit>
+      <trans-unit id="125">
+        <source>+ New worktree…</source>
+        <target>+ Nuevo worktree…</target>
+      </trans-unit>
+      <trans-unit id="126">
+        <source>Branch for %path%</source>
+        <target>Rama para %path%</target>
+      </trans-unit>
+      <trans-unit id="127">
+        <source>Could not list worktrees: %reason%</source>
+        <target>No se pudieron listar los worktrees: %reason%</target>
+      </trans-unit>
+      <trans-unit id="128">
+        <source>Created worktree %name%</source>
+        <target>Worktree %name% creado</target>
+      </trans-unit>
+      <trans-unit id="129">
+        <source>Delete %name%? Its folder goes with it</source>
+        <target>¿Eliminar %name%? Su carpeta se elimina con él</target>
+      </trans-unit>
+      <trans-unit id="130">
+        <source>Delete anyway</source>
+        <target>Eliminar de todos modos</target>
+      </trans-unit>
+      <trans-unit id="131">
+        <source>Delete worktree</source>
+        <target>Eliminar worktree</target>
+      </trans-unit>
+      <trans-unit id="132">
+        <source>Deleted worktree %name%</source>
+        <target>Worktree %name% eliminado</target>
+      </trans-unit>
+      <trans-unit id="133">
+        <source>Folder for new worktrees</source>
+        <target>Carpeta para nuevos worktrees</target>
+      </trans-unit>
+      <trans-unit id="134">
+        <source>Forget missing worktrees</source>
+        <target>Olvidar worktrees ausentes</target>
+      </trans-unit>
+      <trans-unit id="135">
+        <source>Forgot the missing worktrees</source>
+        <target>Worktrees ausentes olvidados</target>
+      </trans-unit>
+      <trans-unit id="136">
+        <source>Git branch %branch% in worktree %name% — click to switch branch or worktree</source>
+        <target>Rama Git %branch% en el worktree %name% — clic para cambiar de rama o de worktree</target>
+      </trans-unit>
+      <trans-unit id="137">
+        <source>Git: New Worktree…</source>
+        <target>Git: Nuevo worktree…</target>
+      </trans-unit>
+      <trans-unit id="138">
+        <source>Git: Worktrees…</source>
+        <target>Git: Worktrees…</target>
+      </trans-unit>
+      <trans-unit id="139">
+        <source>Lock or unlock worktree</source>
+        <target>Bloquear o desbloquear worktree</target>
+      </trans-unit>
+      <trans-unit id="140">
+        <source>Lock or unlock worktree…</source>
+        <target>Bloquear o desbloquear worktree…</target>
+      </trans-unit>
+      <trans-unit id="141">
+        <source>Locked %name%</source>
+        <target>%name% bloqueado</target>
+      </trans-unit>
+      <trans-unit id="142">
+        <source>New Worktree…</source>
+        <target>Nuevo worktree…</target>
+      </trans-unit>
+      <trans-unit id="143">
+        <source>New name for %name%</source>
+        <target>Nuevo nombre para %name%</target>
+      </trans-unit>
+      <trans-unit id="144">
+        <source>No linked worktrees</source>
+        <target>No hay worktrees vinculados</target>
+      </trans-unit>
+      <trans-unit id="145">
+        <source>No other worktrees to delete</source>
+        <target>No hay otros worktrees que eliminar</target>
+      </trans-unit>
+      <trans-unit id="146">
+        <source>No other worktrees to rename</source>
+        <target>No hay otros worktrees que renombrar</target>
+      </trans-unit>
+      <trans-unit id="147">
+        <source>Open %name%?</source>
+        <target>¿Abrir %name%?</target>
+      </trans-unit>
+      <trans-unit id="148">
+        <source>Ctrl+S to save, then switch worktree</source>
+        <target>Ctrl+S para guardar y luego cambiar de worktree</target>
+      </trans-unit>
+      <trans-unit id="149">
+        <source>Rename worktree</source>
+        <target>Renombrar worktree</target>
+      </trans-unit>
+      <trans-unit id="150">
+        <source>Rename worktree…</source>
+        <target>Renombrar worktree…</target>
+      </trans-unit>
+      <trans-unit id="151">
+        <source>Renamed worktree to %name%</source>
+        <target>Worktree renombrado a %name%</target>
+      </trans-unit>
+      <trans-unit id="152">
+        <source>Stay</source>
+        <target>Quedarse</target>
+      </trans-unit>
+      <trans-unit id="153">
+        <source>Unlocked %name%</source>
+        <target>%name% desbloqueado</target>
+      </trans-unit>
+      <trans-unit id="154">
+        <source>Why lock %name%? (optional)</source>
+        <target>¿Por qué bloquear %name%? (opcional)</target>
+      </trans-unit>
+      <trans-unit id="155">
+        <source>Worktree name</source>
+        <target>Nombre del worktree</target>
+      </trans-unit>
+      <trans-unit id="156">
+        <source>Worktrees</source>
+        <target>Worktrees</target>
+      </trans-unit>
+      <trans-unit id="157">
+        <source>Worktrees…</source>
+        <target>Worktrees…</target>
+      </trans-unit>
+      <trans-unit id="158">
+        <source>beside the main worktree</source>
+        <target>junto al worktree principal</target>
+      </trans-unit>
+      <trans-unit id="159">
+        <source>folder missing</source>
+        <target>falta la carpeta</target>
+      </trans-unit>
+      <trans-unit id="160">
+        <source>in worktree %name%</source>
+        <target>en el worktree %name%</target>
+      </trans-unit>
+      <trans-unit id="161">
+        <source>locked</source>
+        <target>bloqueado</target>
+      </trans-unit>
+      <trans-unit id="162">
+        <source>main</source>
+        <target>principal</target>
+      </trans-unit>
+      <trans-unit id="163">
+        <source>this session ends</source>
+        <target>esta sesión termina</target>
+      </trans-unit>
+      <trans-unit id="164">
+        <source>− Delete worktree…</source>
+        <target>− Eliminar worktree…</target>
+      </trans-unit>
+      <trans-unit id="165">
+        <source>%branch% is checked out in another worktree</source>
+        <target>%branch% está activo en otro worktree</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

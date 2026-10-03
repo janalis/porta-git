@@ -264,6 +264,7 @@ final class GitViewControllerTest extends TestCase
                     $dispatcher,
                     static fn (): array => [],
                     static function (array $lines, string $title): void {},
+                    GitDoubles::worktrees($this->git, \sys_get_temp_dir()),
                 ),
                 $t,
             ),

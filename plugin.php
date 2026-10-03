@@ -19,6 +19,7 @@ use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\Command\GitRemoteCommands;
 use Porta\GitPlugin\Command\IndexCommands;
 use Porta\GitPlugin\Command\Stash;
+use Porta\GitPlugin\Command\WorktreeCommands;
 use Porta\GitPlugin\GitBranchSegment;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitMenu;
@@ -45,6 +46,7 @@ use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\GitPlugin\WorkingTreeStatus;
+use Porta\GitPlugin\Worktree;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\DisposablePlugin;
 use Porta\Plugin\Api\PluginApi;
@@ -220,6 +222,16 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         }
 
         $refresher = new GitRefresher($git, $repaint);
+        $worktrees = new WorktreeCommands(
+            $git,
+            $modals,
+            $flash,
+            $repaint,
+            $trans,
+            $api->openProject(...),
+            static fn (): string => (string) $api->setting('worktreeFolder'),
+            $root,
+        );
         $commands = new GitCommands(
             $git,
             $modals,
@@ -240,11 +252,14 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
                 $api->showList(self::COMPARE_TOOL, $rows);
                 $api->flash($title);
             },
+            $worktrees,
         );
         $remote = new GitRemoteCommands(new GitRemote($root, $gitPath, $processes->remote), $flash, $trans, $events, $modals, $repaint);
 
         $api->registerListTool(self::COMPARE_TOOL, 'Compare');
         $this->registerCommands($api, $commands, $remote);
+        $api->registerCommand('worktrees', 'Git: Worktrees…', $worktrees->worktrees(...));
+        $api->registerCommand('new_worktree', 'Git: New Worktree…', $worktrees->newWorktree(...));
         // On the tree row's own right-click, where a pair is built — dimmed
         // until there are exactly two, which is the command's precondition
         // said in the surface rather than only in a flash afterwards.
@@ -257,7 +272,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             viewSafe: GitMenu::viewSafe(),
         );
 
-        $branch = new GitBranchSegment($refresher, $settings, $commands, $trans);
+        $branch = new GitBranchSegment($refresher, $settings, $commands, $trans, $worktrees, Worktree::linkedName($root));
         $api->registerStatusSegment($branch->statusCell(...));
 
         // The view is built LATER — its factory runs after plugins have
@@ -475,6 +490,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         $api->registerSetting('signoff', 'Add Signed-off-by trailer', 'bool', false);
         $api->registerSetting('refreshInterval', 'Status refresh interval (seconds)', 'int', 2, min: 1, max: 3_600);
         $api->registerSetting('path', 'Git executable path', 'text', '', hint: 'auto-detect');
+        $api->registerSetting('worktreeFolder', 'Folder for new worktrees', 'text', '', hint: 'beside the main worktree');
         // The diff pane's two display toggles. Not on the page — the view sets
         // them from its own toolbar — but registered so they persist and so
         // reading one before it has ever been written yields a default.

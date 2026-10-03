@@ -32,7 +32,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
  */
 final class GitBranchSegmentTest extends TestCase
 {
-    private function segment(bool $showBranch, ?string $branch): GitBranchSegment
+    private function segment(bool $showBranch, ?string $branch, ?string $worktree = null): GitBranchSegment
     {
         $translator = new Translator('en');
         TestTui::create(80, 24);
@@ -43,6 +43,7 @@ final class GitBranchSegmentTest extends TestCase
         // the test is about the CELL rather than about a subprocess.
         Probe::set($refresher, 'branch', $branch);
         $flashes = [];
+        $worktrees = GitDoubles::worktrees($git, $project->dir);
         $commands = new GitCommands(
             $git,
             GitDoubles::modals(new CodeEditorWidget()),
@@ -54,9 +55,10 @@ final class GitBranchSegmentTest extends TestCase
             new EventDispatcher(),
             static fn (): array => [],
             static function (array $lines, string $title): void {},
+            $worktrees,
         );
 
-        return new GitBranchSegment($refresher, new GitSettings(['showBranch' => $showBranch]), $commands, GitDoubles::translate($translator));
+        return new GitBranchSegment($refresher, new GitSettings(['showBranch' => $showBranch]), $commands, GitDoubles::translate($translator), $worktrees, $worktree);
     }
 
     public function testTheSettingSuppressesTheCellEntirely(): void
@@ -84,8 +86,27 @@ final class GitBranchSegmentTest extends TestCase
         $this->assertNotNull($cell->menu, 'and it carries what a right-click offers');
         $this->assertSame('Git branch trunk — click to switch, create or delete a branch', $cell->tooltip);
         $this->assertSame(
-            ['Switch Branch…', 'New Branch…', 'Delete Branch…'],
+            ['Switch Branch…', 'New Branch…', 'Delete Branch…', 'Worktrees…', 'New Worktree…'],
             \array_map(static fn (object $item): string => $item->label, ($cell->menu)()),
         );
+    }
+
+    public function testInALinkedWorktreeTheCellSaysWhich(): void
+    {
+        // Two windows on two worktrees of one repository otherwise read as the
+        // same project, each on its own branch.
+        $cell = $this->segment(showBranch: true, branch: 'feat', worktree: 'ide-feat')->statusCell();
+
+        $this->assertInstanceOf(StatusCell::class, $cell);
+        $this->assertStringEndsWith('feat ❐ ide-feat', $cell->text);
+        $this->assertSame('Git branch feat in worktree ide-feat — click to switch branch or worktree', $cell->tooltip);
+    }
+
+    public function testInTheMainWorktreeTheCellIsTheBranchAlone(): void
+    {
+        $cell = $this->segment(showBranch: true, branch: 'main')->statusCell();
+
+        $this->assertInstanceOf(StatusCell::class, $cell);
+        $this->assertStringNotContainsString('❐', $cell->text);
     }
 }

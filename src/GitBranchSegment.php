@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin;
 
 use Porta\GitPlugin\Command\GitCommands;
+use Porta\GitPlugin\Command\WorktreeCommands;
 use Porta\GitPlugin\Setting\GitSettings;
 use Porta\GitPlugin\Support\Translate;
 use Porta\Ui\Glyphs;
@@ -33,6 +34,9 @@ final readonly class GitBranchSegment
         private GitSettings $settings,
         private GitCommands $commands,
         private Translate $translator,
+        private WorktreeCommands $worktrees,
+        /** @var string|null the linked worktree this project is, by name — null for the main one */
+        private ?string $worktree = null,
     ) {}
 
     /** The cell, or null when the setting is off or git has not answered yet. */
@@ -46,11 +50,17 @@ final readonly class GitBranchSegment
             return null;
         }
 
+        // In a linked worktree, which one: several of them open at once read
+        // as the same project otherwise, each on its own branch.
+        $where = null === $this->worktree ? '' : ' '.Glyphs::WORKTREE." {$this->worktree}";
+
         return new StatusCell(
-            Glyphs::STATUS_BRANCH." {$branch}",
+            Glyphs::STATUS_BRANCH." {$branch}{$where}",
             StatusTone::Accent,
             $this->branchItems(...),
-            $this->translator->trans('Git branch %branch% — click to switch, create or delete a branch', ['%branch%' => $branch]),
+            null === $this->worktree
+                ? $this->translator->trans('Git branch %branch% — click to switch, create or delete a branch', ['%branch%' => $branch])
+                : $this->translator->trans('Git branch %branch% in worktree %name% — click to switch branch or worktree', ['%branch%' => $branch, '%name%' => $this->worktree]),
         );
     }
 
@@ -67,6 +77,8 @@ final readonly class GitBranchSegment
             new MenuItem($this->translator->trans('Switch Branch…'), '', fn () => $this->commands->branches()),
             new MenuItem($this->translator->trans('New Branch…'), '', fn () => $this->commands->newBranch()),
             new MenuItem($this->translator->trans('Delete Branch…'), '', fn () => $this->commands->deleteBranch()),
+            new MenuItem($this->translator->trans('Worktrees…'), '', fn () => $this->worktrees->worktrees()),
+            new MenuItem($this->translator->trans('New Worktree…'), '', fn () => $this->worktrees->newWorktree()),
         ];
     }
 }

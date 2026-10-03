@@ -38,6 +38,7 @@ All async and non-blocking:
 - **Git: Commit…** — commit with a message prompt
 - **Git: Undo Last Commit** — soft-reset the last commit
 - **Git: Blame Current Line** — author/date/summary for the caret's line
+- **Git: Worktrees…** / **Git: New Worktree…** — see [Worktrees](#worktrees)
 
 ## The Git view (`Ctrl+Alt+D`)
 
@@ -186,6 +187,50 @@ confirmation before running `git branch -d` — an unmerged branch is refused
 with git's own message (use the shell for a force delete). Checkout failures
 (uncommitted changes in the way) flash git's message — nothing is stashed
 for you.
+
+A branch another worktree has checked out says so (*in worktree feat*), and
+picking it opens that worktree — git would refuse to check it out here — and
+it is left out of the delete picker for the same reason. (One whose folder is
+gone has nothing to open: git's refusal says where it is.)
+
+## Worktrees
+
+After GitHub Desktop. `Git: Worktrees` lists the repository's worktrees: the
+one open is checked, the main one (the clone itself) says *main*, each named
+by its folder and showing its branch (or commit, when detached). Picking one **reopens
+Porta there** — the same switch as File › Open Project, so unsaved buffers
+hold it until you pick again, and a worktree with its own `.porta.json` asks
+the trust question first. Below the worktrees come:
+
+- **+ New worktree…** (also `Git: New Worktree`, the Git menu, the status
+  bar branch's menu, and the branch picker): a name, then a branch. The name
+  is the folder's, and by default the new branch's — as in Desktop, a branch
+  that already has that name and is free is checked out instead of created.
+  Any other free local branch can be picked, or a remote one, which gets a
+  local branch of its short name. The picker's title says where the folder
+  goes; then *Open* or *Stay*.
+- **− Delete worktree…**: its folder goes, its branch stays. A worktree with
+  changes in it is refused by git, and a second question deletes it anyway.
+- **Rename worktree…**: a new name beside the old folder; refused when a
+  folder of that name exists (git would move the worktree *into* it).
+- **Lock or unlock worktree…**, with an optional reason. A locked worktree
+  cannot be deleted or renamed.
+- **Forget missing worktrees** (`git worktree prune`), offered when a
+  worktree's folder is gone; such a worktree is listed struck through.
+
+The main worktree, a locked one and **the one open** cannot be deleted or
+renamed: Desktop switches to the main worktree and then deletes, but here
+switching ends the session that would run the delete.
+
+New worktrees go beside the main one unless **Folder for new worktrees**
+(`plugins.git.worktreeFolder`, `~` allowed; a relative one is read from the
+main worktree, as git reads it) says where. Desktop puts them in
+its clone folder; the main worktree's folder is the nearest Porta has. In a
+linked worktree the status bar's branch reads `feat ❐ ide-feat`.
+
+Worktrees are listed with `worktree list -z` (git 2.36). An older git refuses
+`-z`, and the list is asked for again without it; only a folder with a
+newline in its name reads wrong that way.
 
 ## Stash, file history & blame
 

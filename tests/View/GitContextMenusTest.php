@@ -84,6 +84,7 @@ final class GitContextMenusTest extends TestCase
                 new EventDispatcher(),
                 static fn (): array => [],
                 static function (array $lines, string $title): void {},
+                GitDoubles::worktrees($git, \sys_get_temp_dir()),
             ),
             $translator,
         );

@@ -8,22 +8,24 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\Editor\Document;
 use Porta\GitPlugin\Command\GitCommands;
+use Porta\GitPlugin\Command\WorktreeCommands;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\Tests\Support\DrivesPickers;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\I18n\Translator;
 use Porta\Support\Clipboard;
 use Porta\Tests\Support\EditorState;
 use Porta\Tests\Support\GitBinary;
-use Porta\Tests\Support\PumpsLoop;
-use Porta\Tests\Support\StatusReads;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\TestTui;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\StatusBarWidget;
 use Porta\Workbench\Notifier;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Tui\Tui;
 
@@ -40,15 +42,10 @@ use Symfony\Component\Tui\Tui;
 final class GitCommandsTest extends TestCase
 {
     use GitBinary;
-    use StatusReads;
-    use PumpsLoop {
-        pump as private pumpFixed;
-    }
+    use DrivesPickers;
 
     private EventDispatcher $events;
     private TempProject $project;
-    private CodeEditorWidget $editor;
-    private StatusBarWidget $statusBar;
     private Tui $tui;
 
     protected function setUp(): void
@@ -420,7 +417,8 @@ final class GitCommandsTest extends TestCase
 
         $commands->branches();
         $this->overlayOpens();
-        // Rows: [+ Create], [− Delete], main (current), other. Move to "other".
+        // Rows: [+ Create], [− Delete], [+ New worktree], main (current), other. Move to "other".
+        $this->key("\x1b[B");
         $this->key("\x1b[B");
         $this->key("\x1b[B");
         $this->key("\x1b[B");
@@ -493,7 +491,8 @@ final class GitCommandsTest extends TestCase
 
         $commands->branches();
         $this->overlayOpens();
-        // Rows: [+ Create], [− Delete], main (the one local), origin/shipped.
+        // Rows: [+ Create], [− Delete], [+ New worktree], main (the one local), origin/shipped.
+        $this->key("\x1b[B");
         $this->key("\x1b[B");
         $this->key("\x1b[B");
         $this->key("\x1b[B");
@@ -516,6 +515,122 @@ final class GitCommandsTest extends TestCase
         $this->pump();
 
         $this->assertStringContainsString('No other local branches to delete', $this->statusRow($this->statusBar));
+    }
+
+    // --- Branches and worktrees -----------------------------------------------
+
+    public function testABranchAnotherWorktreeHasOutSaysWhereAndOpensIt(): void
+    {
+        // git refuses to check it out here ("already used by worktree"), so the
+        // row goes where the branch is instead of failing.
+        $commands = $this->commands(['a.txt' => "one\n"]);
+        $this->worktreeFolder = new TempProject([]);
+        $linked = $this->worktreeFolder->dir.'/feat';
+        $this->project->git('worktree', 'add', '-q', '-b', 'feat', $linked);
+
+        $commands->branches();
+        $this->overlayOpens();
+        $items = $this->overlayItems();
+        $feat = \array_first(\array_filter($items, static fn (array $i): bool => '  feat' === $i['label']));
+        $this->assertNotNull($feat);
+        $this->assertSame('in worktree feat', $feat['hint']);
+        $this->type('feat');
+        $this->key("\r");
+
+        $this->assertSame([\realpath($linked)], \array_map(\realpath(...), $this->opened));
+        $this->assertNotSame('feat', \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD')), 'nothing was checked out here');
+    }
+
+    public function testTheBranchOutHereIsNotSentToAWorktree(): void
+    {
+        // Every branch out anywhere has a worktree — this one's too. Only the
+        // OTHERS' are somewhere to go; this one's is where the user already is.
+        $commands = $this->commands(['a.txt' => "one\n"]);
+        $this->worktreeFolder = new TempProject([]);
+        $this->project->git('worktree', 'add', '-q', '-b', 'feat', $this->worktreeFolder->dir.'/feat');
+        $current = \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD'));
+
+        $commands->branches();
+        $this->overlayOpens();
+        $row = \array_first(\array_filter($this->overlayItems(), static fn (array $i): bool => '✓ '.$current === $i['label']));
+        $this->assertNotNull($row);
+        $this->assertSame('current', $row['hint']);
+        $this->assertSame($current, $row['value'], 'a checkout, not a switch');
+    }
+
+    public function testABranchWhoseWorktreeFolderIsGoneIsGitsToExplain(): void
+    {
+        // Nothing to open there; git's refusal to check it out says where it is.
+        $commands = $this->commands(['a.txt' => "one\n"]);
+        $this->worktreeFolder = new TempProject([]);
+        $this->project->git('worktree', 'add', '-q', '-b', 'gone', $this->worktreeFolder->dir.'/gone');
+        new Filesystem()->remove($this->worktreeFolder->dir.'/gone');
+
+        $commands->branches();
+        $this->overlayOpens();
+        $this->type('gone');
+        $this->key("\r");
+        $this->pump();
+
+        $this->assertSame([], $this->opened);
+        $this->assertStringContainsString('already used by worktree', $this->statusRow($this->statusBar));
+    }
+
+    public function testTheBranchPickerLeadsToANewWorktree(): void
+    {
+        $commands = $this->commands(['a.txt' => "one\n"]);
+
+        $commands->branches();
+        $this->overlayOpens();
+        $this->type('New worktree');
+        $this->key("\r");
+        $this->pump(fn (): bool => EditorState::promptOpen($this->editor), what: 'the worktree name prompt');
+
+        $this->assertTrue(EditorState::promptOpen($this->editor));
+    }
+
+    public function testABranchAnotherWorktreeHasOutIsNotOfferedForDeletion(): void
+    {
+        $commands = $this->commands(['a.txt' => "one\n"]);
+        $this->worktreeFolder = new TempProject([]);
+        $this->project->git('worktree', 'add', '-q', '-b', 'feat', $this->worktreeFolder->dir.'/feat');
+
+        $commands->deleteBranch();
+        $this->pump();
+
+        $this->assertStringContainsString('No other local branches to delete', $this->statusRow($this->statusBar), 'git would refuse it: "used by worktree"');
+    }
+
+    public function testAnOldGitStillSwitchesBranches(): void
+    {
+        // Before 2.36 `worktree list -z` fails; the picker carries on without it.
+        $this->project = new TempProject(['a.txt' => "one\n"]);
+        $this->project->initGit(branch: 'main');
+        $this->project->commitAll('init');
+        $script = <<<'SH'
+            #!/bin/sh
+            for a in "$@"; do
+                if [ "$a" = worktree ]; then echo "error: unknown switch \`z'" >&2; exit 129; fi
+            done
+            exec REAL "$@"
+            SH;
+        $fake = new TempProject(['git' => \str_replace('REAL', (string) $this->whichGit(), $script)."\n"]);
+        \chmod($fake->path('git'), permissions: 0o755);
+        $commands = $this->build(new GitInfo($this->project->dir, gitPath: $fake->path('git')));
+
+        $commands->branches();
+        $this->overlayOpens();
+
+        $this->assertContains('✓ main', \array_column($this->overlayItems(), 'label'));
+    }
+
+    /** @return list<array{label: string, hint: string, value: string}> */
+    private function overlayItems(): array
+    {
+        /** @var array{items: list<array{label: string, hint: string, value: string}>}|null $overlay */
+        $overlay = Probe::get(Probe::object($this->editor, 'overlayHost'), 'overlay');
+
+        return $overlay['items'] ?? [];
     }
 
     public function testBranchesWithNoRepositoryReportsUnavailable(): void
@@ -554,9 +669,9 @@ final class GitCommandsTest extends TestCase
     /** @var list<array{list<string>, string}> what the compare command published */
     private array $published = [];
 
-    private function build(): GitCommands
+    private function build(?GitInfo $git = null): GitCommands
     {
-        $git = new GitInfo($this->project->dir);
+        $git ??= new GitInfo($this->project->dir);
         $this->editor = new CodeEditorWidget();
         $this->statusBar = new StatusBarWidget();
         $this->tui = TestTui::create(100, 24);
@@ -578,8 +693,25 @@ final class GitCommandsTest extends TestCase
             function (array $lines, string $title): void {
                 $this->published[] = [$lines, $title];
             },
+            new WorktreeCommands(
+                $git,
+                GitDoubles::modals($this->editor),
+                GitDoubles::flash(new Notifier($this->statusBar, $this->tui)),
+                $this->tui->requestRender(...),
+                GitDoubles::translate($translator),
+                function (string $path, string $repeat): void {
+                    $this->opened[] = $path;
+                },
+                fn (): string => null === $this->worktreeFolder ? '' : $this->worktreeFolder->dir,
+                $this->project->dir,
+            ),
         );
     }
+
+    /** @var list<string> the folders the worktree commands asked core to open */
+    private array $opened = [];
+
+    private ?TempProject $worktreeFolder = null;
 
     /** Run git synchronously via Symfony Process; returns stdout. */
     private function porcelain(): string
@@ -605,51 +737,6 @@ final class GitCommandsTest extends TestCase
     private function openInEditor(string $rel, string $contents): void
     {
         $this->editor->showDocument($this->project->dir.'/'.$rel, new Document($contents));
-    }
-
-    /** Type printable characters into the open prompt. */
-    private function type(string $text): void
-    {
-        foreach (\mb_str_split($text) as $ch) {
-            $this->key($ch);
-        }
-    }
-
-    /** Feed one key event to the editor (routed to the open prompt/overlay). */
-    private function key(string $data): void
-    {
-        $this->editor->handleInput($data);
-    }
-
-    /**
-     * Pump the event loop until $until holds, then drain a few follow-up
-     * turns. With no predicate it just waits for a flash to land — the signal
-     * the simple actions end on; the overlay flows wait for the list to open.
-     */
-    private function pump(?callable $until = null, float $timeout = 10.0, string $what = 'a flash to land'): void
-    {
-        $this->await($until ?? fn (): bool => '' !== \trim($this->statusRow($this->statusBar)), $timeout, $what);
-        // Drain any callbacks the resolved op queued behind it (refreshers).
-        $this->pumpFixed(0.06);
-    }
-
-    /**
-     * Pump for a fixed span with nothing to await — the deliberate cousin of
-     * {@see pump()}, for the tests that assert a NON-event ("no commit was
-     * made", "it did not flash unavailable"). Those cannot use pump(): its
-     * predicate waits for a flash that by definition never lands, so they were
-     * relying on the timeout falling through silently. Prefer pump() whenever
-     * a real condition exists.
-     */
-    private function drain(float $seconds = 0.2): void
-    {
-        $this->pumpFixed($seconds);
-    }
-
-    /** Waits for the editor's list overlay (branch/stash pickers). */
-    private function overlayOpens(): void
-    {
-        $this->pump(fn (): bool => EditorState::pickerOpen($this->editor));
     }
 
     // --- Comparing two files --------------------------------------------------

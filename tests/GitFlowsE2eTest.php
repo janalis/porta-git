@@ -397,9 +397,10 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertStringContainsString('− Delete branch…', $screen());
                     $this->assertStringContainsString('feature', $screen());
                     $this->assertStringContainsString('remote-only', $screen());
-                    // Rows: create + delete sentinels, then feature, then the
-                    // current branch (ties sort by refname), then the remote
-                    // row — two steps down picks "feature".
+                    // Rows: create, delete and new-worktree sentinels, then
+                    // feature, then the current branch (ties sort by refname),
+                    // then the remote row — three steps down picks "feature".
+                    $tui->handleInput("\x1b[B");
                     $tui->handleInput("\x1b[B");
                     $tui->handleInput("\x1b[B");
                     $tui->handleInput("\r");
@@ -434,9 +435,9 @@ final class GitFlowsE2eTest extends TestCase
                     $terminal->clearOutput();
                     $palette($tui, label: 'Git: Branches');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the picker for the tracking round');
-                    // Rows: 2 sentinels + 3 locals (feature/fresh/main-or-master,
-                    // fresh current) + the remote row last — five steps down.
-                    foreach (\range(1, end: 5) as $_) {
+                    // Rows: 3 sentinels + 3 locals (feature/fresh/main-or-master,
+                    // fresh current) + the remote row last — six steps down.
+                    foreach (\range(1, end: 6) as $_) {
                         $tui->handleInput("\x1b[B");
                     }
                     $tui->handleInput("\r");

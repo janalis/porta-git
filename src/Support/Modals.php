@@ -21,7 +21,7 @@ namespace Porta\GitPlugin\Support;
 final readonly class Modals
 {
     /**
-     * @param \Closure(string, list<array{label: string, hint: string, value: string}>, \Closure(string): void): void $pick
+     * @param \Closure(string, list<array{label: string, hint: string, value: string, disabled?: bool, note?: bool}>, \Closure(string): void): void $pick
      * @param \Closure(string, string, \Closure(string): void): void       $prompt
      * @param \Closure(): (string|null)                                    $activeFile
      */
@@ -32,7 +32,7 @@ final readonly class Modals
     ) {}
 
     /**
-     * @param list<array{label: string, hint: string, value: string}> $items
+     * @param list<array{label: string, hint: string, value: string, disabled?: bool, note?: bool}> $items
      * @param \Closure(string): void                                  $onPick
      */
     public function openListOverlay(string $title, array $items, \Closure $onPick): void

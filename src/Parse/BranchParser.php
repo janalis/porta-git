@@ -53,4 +53,12 @@ final class BranchParser
 
         return [...$locals, ...$remotes];
     }
+
+    /** A remote branch's local name: `origin/feature/x` → `feature/x`. */
+    public static function shortName(string $remoteBranch): string
+    {
+        $slash = \strpos($remoteBranch, needle: '/');
+
+        return false === $slash ? $remoteBranch : \substr($remoteBranch, $slash + 1);
+    }
 }
