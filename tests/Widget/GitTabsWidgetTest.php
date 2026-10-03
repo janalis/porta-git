@@ -142,7 +142,7 @@ final class GitTabsWidgetTest extends TestCase
      * and the active mode's lid is heavy all round while the sidebar has the
      * keys.
      */
-    public function testTheModeTabsAreFolderTabsOnARoomyScreen(): void
+    public function testTheModeTabsArePillsOnARoomyScreen(): void
     {
         $density = new ScreenDensity();
         $widget = new GitTabsWidget(new Translator('en'), density: $density);
@@ -151,14 +151,15 @@ final class GitTabsWidgetTest extends TestCase
             return $focused;
         });
 
-        $tall = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(44, 5)));
+        $lines = $widget->render(new RenderContext(44, 5));
+        $tall = \array_map(AnsiUtils::stripAnsiCodes(...), $lines);
         $density->observe(29);
         $short = $widget->render(new RenderContext(44, 5));
 
-        $this->assertCount(3, $tall);
-        $this->assertStringStartsWith('┏━━━━━━━━━┓╭─────────╮ ', $tall[0]);
-        $this->assertStringStartsWith('┃ Changes ┃│ History │ ', $tall[1]);
-        $this->assertSame('┚         ┖┴─────────┴'.\str_repeat('─', times: 22), $tall[2], 'standing on a baseline that opens under the shown mode');
+        $this->assertCount(2, $tall, 'the labels and the baseline: the upper halves are the frame\'s, in the rule above');
+        $this->assertStringStartsWith(' Changes  History ', $tall[0]);
+        $this->assertSame(\str_repeat('▀', times: 9).\str_repeat('─', times: 35), $tall[1], 'the shown mode a pill, on a baseline that runs on beside it');
+        $this->assertStringContainsString("\x1b[38;5;31m▀", $lines[1], 'blue while the sidebar has the keys');
         $this->assertCount(1, $short, 'the sidebar is as tall as before: the screen is not');
 
         $density->observe(30);
@@ -166,6 +167,6 @@ final class GitTabsWidgetTest extends TestCase
         $revision = $widget->getRenderRevision();
         $widget->beforeRender();
         $this->assertNotSame($revision, $widget->getRenderRevision(), 'a focus change repaints');
-        $this->assertStringStartsWith('┍', AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(44, 5))[0]));
+        $this->assertStringContainsString("\x1b[38;5;237m▀", $widget->render(new RenderContext(44, 5))[1], 'grey without them');
     }
 }
