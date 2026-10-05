@@ -56,7 +56,7 @@ final class IntralineDiffTest extends TestCase
     {
         $doc = DiffDocument::parse("@@ -1,3 +1,3 @@\n-\$a = 1;\n-gone entirely\n+\$a = 2;\n+arrived entirely\n ctx\n");
 
-        [$del1, $del2, $add1, $add2] = $doc->hunks[0]->lines;
+        [$del1, $del2, $add1] = $doc->hunks[0]->lines;
         $this->assertSame([5, 6], $del1->changedRange, 'paired first del: only the digit differs');
         $this->assertSame([5, 6], $add1->changedRange);
         $this->assertNotNull($del2->changedRange, 'second pair shares the " entirely" suffix');

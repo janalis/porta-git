@@ -651,7 +651,7 @@ final class GitViewControllerTest extends TestCase
         $controller = $this->controller();
         $this->project->write('a.txt', "late\n");
         $controller->open();
-        $this->await(fn (): bool => null !== ($entry = $this->changes->selectedEntry()));
+        $this->await(fn (): bool => null !== $this->changes->selectedEntry());
 
         $entry = $this->changes->selectedEntry();
         Probe::invoke($controller, 'loadDiff', $entry);

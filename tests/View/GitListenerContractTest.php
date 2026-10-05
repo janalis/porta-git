@@ -83,7 +83,7 @@ final class GitListenerContractTest extends TestCase
         // `PluginApi::on()` refuses anything else, so a core event added to the
         // wrong map is a plugin that fails to load — loud, but only at runtime
         // and only in a repository. This catches it here instead.
-        foreach ([...GitWiring::VIEW_CORE, ...GitWiring::REFRESHER] as $event => $method) {
+        foreach (\array_keys([...GitWiring::VIEW_CORE, ...GitWiring::REFRESHER]) as $event) {
             $this->assertTrue(\is_a($event, PluginObservable::class, allow_string: true), $event.' is not plugin-observable');
         }
         foreach (GitWiring::VIEW as $event => $method) {
