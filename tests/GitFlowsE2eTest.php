@@ -7,7 +7,9 @@ namespace Porta\GitPlugin\Tests;
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
 use Porta\GitPlugin\Widget\ChangesListWidget;
+use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
+use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\EditorState;
@@ -123,8 +125,8 @@ final class GitFlowsE2eTest extends TestCase
                 },
                 900 => function (Tui $tui) use ($project): void {
                     $this->assertSame(51, Widgets::byId($tui, 'git-changes', ChangesListWidget::class)->width(), 'the drag resized the sidebar');
-                    $this->assertSame(51, $tui->getById('git-tabs')->width(), 'the tab strip follows');
-                    $this->assertSame(51, $tui->getById('git-commit')->width(), 'the commit box follows');
+                    $this->assertSame(51, Widgets::byId($tui, 'git-tabs', GitTabsWidget::class)->width(), 'the tab strip follows');
+                    $this->assertSame(51, Widgets::byId($tui, 'git-commit', CommitBoxWidget::class)->width(), 'the commit box follows');
                     $layout = \json_decode((string) \file_get_contents($project->path('.porta/layout.json')), associative: true);
                     $this->assertSame(41, $layout['viewSidebarWidthPercent']['git'], 'saved as a share of the window (round(51/124))');
                     $this->assertArrayNotHasKey('gitSidebarWidthPercent', $layout, 'and the pre-move key is not rewritten');
@@ -989,14 +991,14 @@ final class GitFlowsE2eTest extends TestCase
                     $this->frame($tui);
                     $this->assertStringContainsString(
                         "\x1b[48;5;240m",
-                        \implode('', $tui->getById('git-tabs')->render(new RenderContext(44, 1))),
+                        \implode('', Widgets::byId($tui, 'git-tabs', GitTabsWidget::class)->render(new RenderContext(44, 1))),
                         'the hovered git tab tints',
                     );
                     $tui->handleInput(\sprintf("\x1b[<35;%d;%dM", $tabsRect->col + 2, $tabsRect->row + 3)); // off the strip
                     $this->frame($tui);
                     $this->assertStringNotContainsString(
                         "\x1b[48;5;240m",
-                        \implode('', $tui->getById('git-tabs')->render(new RenderContext(44, 1))),
+                        \implode('', Widgets::byId($tui, 'git-tabs', GitTabsWidget::class)->render(new RenderContext(44, 1))),
                         'leaving the strip clears the tint',
                     );
 

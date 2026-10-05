@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\TestCase;
+use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
@@ -55,7 +56,7 @@ final class GitContextMenuE2eTest extends TestCase
                 550 => function (Tui $tui, $terminal, Ide $ide): void {
                     $this->await(static fn (): bool => 'git-changes' === $tui->getFocus()?->getId());
                     $tui->handleInput('2'); // switch to the History tab
-                    $this->await(static fn (): bool => null !== $tui->getById('git-history')->selectedCommit());
+                    $this->await(static fn (): bool => null !== Widgets::byId($tui, 'git-history', HistoryListWidget::class)->selectedCommit());
 
                     $renderer = Services::resolve($ide, Renderer::class);
                     $rect = $renderer->getWidgetRect($tui->getById('git-history'));
