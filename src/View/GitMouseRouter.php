@@ -99,51 +99,78 @@ final class GitMouseRouter implements ViewPointer
     /** A left press on a git pane (rects exist only while the view is swapped in). */
     public function press(MouseEvent $mouse): bool
     {
+        // Which pane, then what a press does there — one method each, so
+        // this stays the table of panes it reads as.
         if (null !== ($rel = $this->hit->hit($this->tabs, $mouse->row, $mouse->col))) {
-            $mode = $this->tabs->modeAtColumn($rel['col']);
-            $this->tabs->handleClick($rel['col']);
-            // A strip click focuses the pane it reveals — this was the only
-            // git pane click that left the focus wherever it happened to be.
-            if (null !== $mode) {
-                $this->host->focus(GitViewMode::History === $mode ? $this->history : $this->changes);
-            }
-            $this->host->invalidate();
-
-            return true;
+            return $this->pressTabs($rel['col']);
         }
         if (null !== ($rel = $this->hit->hit($this->changes, $mouse->row, $mouse->col))) {
-            $this->host->focus($this->changes);
-            $this->changes->handleClick($rel['row'], $rel['col']);
-            $this->host->invalidate();
-
-            return true;
+            return $this->pressChanges($rel['row'], $rel['col']);
         }
         if (null !== ($rel = $this->hit->hit($this->history, $mouse->row, $mouse->col))) {
-            $this->host->focus($this->history);
-            $this->history->handleClick($rel['row']);
-            $this->host->invalidate();
-
-            return true;
+            return $this->pressHistory($rel['row']);
         }
         if (null !== ($rel = $this->hit->hit($this->commitBox, $mouse->row, $mouse->col))) {
-            $this->host->focus($this->commitBox);
-            $this->commitBox->handleClick($rel['row']);
-            $this->host->invalidate();
-
-            return true;
+            return $this->pressCommitBox($rel['row']);
         }
         if (null !== ($rel = $this->hit->hit($this->diff, $mouse->row, $mouse->col))) {
-            $this->host->focus($this->diff);
-            $this->diff->handleClick($rel['row'], $rel['col']);
-            // A body-row press arms a drag selection (rows join the range as
-            // the pointer moves; ctrl+c then copies the highlighted lines).
-            $this->diffSelecting = $rel['row'] > 0;
-            $this->host->invalidate();
-
-            return true;
+            return $this->pressDiff($rel['row'], $rel['col']);
         }
 
         return false;
+    }
+
+    private function pressTabs(int $col): bool
+    {
+        $mode = $this->tabs->modeAtColumn($col);
+        $this->tabs->handleClick($col);
+        // A strip click focuses the pane it reveals — this was the only
+        // git pane click that left the focus wherever it happened to be.
+        if (null !== $mode) {
+            $this->host->focus(GitViewMode::History === $mode ? $this->history : $this->changes);
+        }
+        $this->host->invalidate();
+
+        return true;
+    }
+
+    private function pressChanges(int $row, int $col): bool
+    {
+        $this->host->focus($this->changes);
+        $this->changes->handleClick($row, $col);
+        $this->host->invalidate();
+
+        return true;
+    }
+
+    private function pressHistory(int $row): bool
+    {
+        $this->host->focus($this->history);
+        $this->history->handleClick($row);
+        $this->host->invalidate();
+
+        return true;
+    }
+
+    private function pressCommitBox(int $row): bool
+    {
+        $this->host->focus($this->commitBox);
+        $this->commitBox->handleClick($row);
+        $this->host->invalidate();
+
+        return true;
+    }
+
+    private function pressDiff(int $row, int $col): bool
+    {
+        $this->host->focus($this->diff);
+        $this->diff->handleClick($row, $col);
+        // A body-row press arms a drag selection (rows join the range as
+        // the pointer moves; ctrl+c then copies the highlighted lines).
+        $this->diffSelecting = $row > 0;
+        $this->host->invalidate();
+
+        return true;
     }
 
     /**
