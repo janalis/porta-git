@@ -103,7 +103,7 @@ final class WorktreeCommandsTest extends TestCase
 
         $this->type('Forget');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Forgot the missing worktrees', $this->statusRow($this->statusBar));
         $this->assertStringNotContainsString('gone', $this->project->git('worktree', 'list'));
@@ -132,7 +132,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->gitPath = $this->fakeGit('[ "$a" = worktree ] && { echo "fatal: not a git repository" >&2; exit 128; }');
 
         $this->commands()->newWorktree();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Could not list worktrees: fatal: not a git repository', $this->statusRow($this->statusBar));
         $this->assertFalse(EditorState::promptOpen($this->editor), 'nothing is asked that could not be done');
@@ -163,7 +163,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->assertStringEndsWith('/'.\basename($this->folder->dir).'/topic', $this->overlay()['title'], 'the title says where the folder goes');
         $this->assertSame('+ New branch topic', $this->overlay()['items'][0]['label']);
         $this->key("\r");
-        $this->pump(fn (): bool => \str_starts_with($this->overlay()['title'] ?? '', 'Open'), what: 'the open-or-stay question');
+        $this->pumpUntil(fn (): bool => \str_starts_with($this->overlay()['title'] ?? '', 'Open'), what: 'the open-or-stay question');
 
         $this->assertStringContainsString('Created worktree topic', $this->statusRow($this->statusBar));
         $this->assertSame('topic', \trim($this->gitIn($this->at('topic'), 'rev-parse', '--abbrev-ref', 'HEAD')));
@@ -197,7 +197,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->key("\r");
         $this->overlayOpens();
         $this->key("\r");
-        $this->pump(fn (): bool => \str_starts_with($this->overlay()['title'] ?? '', 'Open'), what: 'the open-or-stay question');
+        $this->pumpUntil(fn (): bool => \str_starts_with($this->overlay()['title'] ?? '', 'Open'), what: 'the open-or-stay question');
         $this->type('Stay');
         $this->key("\r");
 
@@ -239,7 +239,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->assertSame('  topic', $labels[0], 'the branch of that name leads, and no new one is offered');
         $this->assertNotContains('+ New branch topic', $labels);
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertSame('topic', \trim($this->gitIn($this->at('topic'), 'rev-parse', '--abbrev-ref', 'HEAD')));
     }
@@ -257,7 +257,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->assertNotContains('  main', $labels, 'main is checked out in the main worktree, and git would refuse it');
         $this->type('other');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertSame('other', \trim($this->gitIn($this->at('wt'), 'rev-parse', '--abbrev-ref', 'HEAD')));
     }
@@ -273,7 +273,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->overlayOpens();
         $this->type('origin/feature');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertSame('feature/x', \trim($this->gitIn($this->at('wt'), 'rev-parse', '--abbrev-ref', 'HEAD')));
     }
@@ -300,7 +300,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->key("\r");
         $this->overlayOpens();
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         // git's "Preparing worktree" comes first on stderr; the reason is the fatal line.
         $this->assertStringContainsString('already exists', $this->statusRow($this->statusBar));
@@ -333,7 +333,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->key("\r");
         $this->overlayOpens();
         $this->key("\r");
-        $this->pump(fn (): bool => \str_starts_with($this->overlay()['title'] ?? '', 'Open'), what: 'the open-or-stay question');
+        $this->pumpUntil(fn (): bool => \str_starts_with($this->overlay()['title'] ?? '', 'Open'), what: 'the open-or-stay question');
         $this->key("\r"); // Open
 
         $this->assertDirectoryExists($this->at('topic'));
@@ -353,7 +353,7 @@ final class WorktreeCommandsTest extends TestCase
 
         $this->assertSame('Branch for ~/'.\basename($this->folder->dir).'/topic', $this->overlay()['title'], 'shown from ~ again');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
         $this->assertDirectoryExists($this->at('topic'));
     }
 
@@ -368,7 +368,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->key("\r");
         $this->assertSame('Delete feat? Its folder goes with it', $this->overlay()['title']);
         $this->key("\r"); // Delete
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Deleted worktree feat', $this->statusRow($this->statusBar));
         $this->assertDirectoryDoesNotExist($this->at('feat'));
@@ -383,12 +383,12 @@ final class WorktreeCommandsTest extends TestCase
         $this->pickAction('Delete');
         $this->key("\r"); // feat
         $this->key("\r"); // Delete
-        $this->pump(fn (): bool => \str_contains($this->overlay()['title'] ?? '', 'has changes'), what: 'the second question');
+        $this->pumpUntil(fn (): bool => \str_contains($this->overlay()['title'] ?? '', 'has changes'), what: 'the second question');
 
         $this->assertDirectoryExists($this->at('feat'), 'git refused, and nothing is gone yet');
         $this->assertSame('feat has changes. Delete it anyway, and them?', $this->overlay()['title']);
         $this->key("\r"); // Delete anyway
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Deleted worktree feat', $this->statusRow($this->statusBar));
         $this->assertDirectoryDoesNotExist($this->at('feat'));
@@ -409,7 +409,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->project->git('worktree', 'prune');
         $this->key("\r");
         $this->key("\r"); // Delete
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('is not a working tree', $this->statusRow($this->statusBar));
         $this->assertStringNotContainsString('anyway', $this->overlay()['title'] ?? '');
@@ -464,7 +464,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->clearPrompt('feat');
         $this->type('renamed');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Renamed worktree to renamed', $this->statusRow($this->statusBar));
         $this->assertDirectoryExists($this->at('renamed'));
@@ -483,7 +483,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->clearPrompt('feat');
         $this->type('taken');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('already exists', $this->statusRow($this->statusBar));
         $this->assertDirectoryExists($this->at('feat'), 'left where it was');
@@ -513,7 +513,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->clearPrompt('feat');
         $this->type('no/such/parent');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('fatal:', $this->statusRow($this->statusBar));
         $this->assertDirectoryExists($this->at('feat'));
@@ -537,14 +537,14 @@ final class WorktreeCommandsTest extends TestCase
         $this->promptOpens();
         $this->type('on a usb disk');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Locked feat', $this->statusRow($this->statusBar));
         $this->assertMatchesRegularExpression('/\x00locked on a usb disk(\x00|$)/', $this->listedRaw());
 
         $this->pickAction('Lock');
         $this->key("\r");
-        $this->pump(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Unlocked'), what: 'the unlock');
+        $this->pumpUntil(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Unlocked'), what: 'the unlock');
 
         $this->assertStringNotContainsString('locked', $this->listedRaw());
     }
@@ -557,7 +557,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->key("\r");
         $this->promptOpens();
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertMatchesRegularExpression('/\x00locked(\x00|$)/', $this->listedRaw(), 'locked, with no reason after it');
     }
@@ -583,7 +583,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->key("\r");
         $this->promptOpens();
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('fatal:', $this->statusRow($this->statusBar));
     }
@@ -618,7 +618,7 @@ final class WorktreeCommandsTest extends TestCase
         $this->overlayOpens();
         $this->type($action);
         $this->key("\r");
-        $this->pump(fn (): bool => EditorState::pickerOpen($this->editor) || '' !== \trim($this->statusRow($this->statusBar)), what: 'the second list, or why there is none');
+        $this->pumpUntil(fn (): bool => EditorState::pickerOpen($this->editor) || '' !== \trim($this->statusRow($this->statusBar)), what: 'the second list, or why there is none');
     }
 
     /** A git that does $guard for some argument `$a`, and is the real git otherwise. */

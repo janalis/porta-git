@@ -6,6 +6,8 @@ namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
+use Porta\GitPlugin\Widget\ChangesListWidget;
+use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\EditorState;
@@ -18,6 +20,7 @@ use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\Toasts;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Tests\Support\ViewWindowCells;
+use Porta\Tests\Support\Widgets;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\ContextMenu;
 use Porta\Workbench\View\ViewRegistry;
@@ -111,15 +114,15 @@ final class GitFlowsE2eTest extends TestCase
                 },
                 600 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
                     $this->frame($tui);
-                    $this->assertSame(31, $tui->getById('git-changes')->width(), 'the seeded percent applied to the window');
+                    $this->assertSame(31, Widgets::byId($tui, 'git-changes', ChangesListWidget::class)->width(), 'the seeded percent applied to the window');
                     // Drag the git separator (region column 31, after the
                     // 31-wide sidebar) out to 51: the whole left column follows.
                     $tui->handleInput(self::windowSgr($ide, 0, 4, 31)); // arm on the separator
                     $tui->handleInput(self::windowSgr($ide, 32, 4, 51)); // drag right
                     $tui->handleInput(self::windowSgr($ide, 0, 4, 51, release: true));
                 },
-                900 => function ($tui) use ($project): void {
-                    $this->assertSame(51, $tui->getById('git-changes')->width(), 'the drag resized the sidebar');
+                900 => function (Tui $tui) use ($project): void {
+                    $this->assertSame(51, Widgets::byId($tui, 'git-changes', ChangesListWidget::class)->width(), 'the drag resized the sidebar');
                     $this->assertSame(51, $tui->getById('git-tabs')->width(), 'the tab strip follows');
                     $this->assertSame(51, $tui->getById('git-commit')->width(), 'the commit box follows');
                     $layout = \json_decode((string) \file_get_contents($project->path('.porta/layout.json')), associative: true);
@@ -163,12 +166,12 @@ final class GitFlowsE2eTest extends TestCase
                     $project->git('add', '-A');
                     $palette($tui, label: 'Git: Commit'); // opens the message prompt
                 },
-                200 => function ($tui): void {
+                200 => function (Tui $tui): void {
                     // Every keystroke below only means something while the
                     // prompt is up, and the palette opens it through a command
                     // rather than on the keypress — so the three gaps here were
                     // bets on a prompt, not waits for one.
-                    $editor = $tui->getById('editor');
+                    $editor = Widgets::editor($tui);
                     $this->await(
                         static fn (): bool => EditorState::promptOpen($editor),
                         what: 'the commit-message prompt to open',
@@ -176,8 +179,8 @@ final class GitFlowsE2eTest extends TestCase
 
                     $tui->handleInput("\r"); // empty message -> no-op, prompt closes
                 },
-                300 => function ($tui) use ($palette): void {
-                    $editor = $tui->getById('editor');
+                300 => function (Tui $tui) use ($palette): void {
+                    $editor = Widgets::editor($tui);
                     $this->await(
                         static fn (): bool => !EditorState::promptOpen($editor),
                         what: 'the empty message to close the prompt',
@@ -185,8 +188,8 @@ final class GitFlowsE2eTest extends TestCase
 
                     $palette($tui, label: 'Git: Commit');
                 },
-                400 => function ($tui): void {
-                    $editor = $tui->getById('editor');
+                400 => function (Tui $tui): void {
+                    $editor = Widgets::editor($tui);
                     $this->await(
                         static fn (): bool => EditorState::promptOpen($editor),
                         what: 'the commit-message prompt to reopen',
@@ -382,7 +385,7 @@ final class GitFlowsE2eTest extends TestCase
             $project->path('src/A.php'),
             [
                 300 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project, $palette): void {
-                    $editor = $tui->getById('editor');
+                    $editor = Widgets::editor($tui);
                     $screen = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
 
                     // Round 1: switch to "feature". The picker's list is built
@@ -545,7 +548,7 @@ final class GitFlowsE2eTest extends TestCase
                     // The gutter MARKS are the git plugin's now and are
                     // asserted in its own suite; the width contract the gutter
                     // column imposes is still core's.
-                    $editor = $tui->getById('editor');
+                    $editor = Widgets::editor($tui);
                     foreach ($editor->render(new RenderContext(80, 10)) as $line) {
                         $this->assertSame(80, AnsiUtils::visibleWidth($line));
                     }
@@ -640,7 +643,7 @@ final class GitFlowsE2eTest extends TestCase
                 300 => static function ($tui): void {
                     $tui->handleInput("\x1b\x04"); // ctrl+alt+d opens the git view
                 },
-                550 => function ($tui, $terminal, Ide $ide) use ($project): void {
+                550 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '[ ] M src/A.php'));
                     $renderer = Services::resolve($ide, Renderer::class);
                     $rect = $renderer->getWidgetRect($tui->getById('git-changes'));
@@ -651,7 +654,7 @@ final class GitFlowsE2eTest extends TestCase
                     // right-press that never moved focus would look identical.
                     $tui->setFocus($tui->getById('git-diff'));
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 8, $rect->row + 2)); // right-click the first row
-                    $this->assertTrue($tui->getById('context-menu')->isOpen(), 'right-clicking a changes row opened its menu');
+                    $this->assertTrue(Widgets::byId($tui, 'context-menu', ContextMenu::class)->isOpen(), 'right-clicking a changes row opened its menu');
                     // Asserted HERE, not after the menu action: selecting the row
                     // under the pointer and taking focus is part of answering,
                     // and it is what makes the Ctrl+F10 parity below act on this
@@ -676,7 +679,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertSame('git-changes', $tui->getFocus()?->getId());
                     $terminal->clearOutput();
                     $tui->handleInput("\x1b[21;5~");
-                    $this->assertTrue($tui->getById('context-menu')->isOpen(), 'Ctrl+F10 opened the row menu');
+                    $this->assertTrue(Widgets::byId($tui, 'context-menu', ContextMenu::class)->isOpen(), 'Ctrl+F10 opened the row menu');
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Unstage'));
                     $this->assertStringContainsString('Unstage', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'a staged row offers Unstage');
 
@@ -793,7 +796,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput(self::widgetSgr($ide, 'git-changes', 0, 1, 2));
                     $tui->handleInput(self::widgetSgr($ide, 'git-changes', 0, 1, 2, release: true));
                 },
-                550 => function ($tui, $terminal, Ide $ide) use ($project): void {
+                550 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
                     // Staging is a git subprocess, so this waits — but on the
                     // VIEW's reading of it rather than by shelling out to
                     // `git status` every 20 ms, which is what testing.md means
@@ -801,7 +804,7 @@ final class GitFlowsE2eTest extends TestCase
                     // async op". Await the checkbox, then read the disk once.
                     $this->await(
                         static fn (): bool => \str_contains(
-                            AnsiUtils::stripAnsiCodes($tui->getById('git-changes')->render(new RenderContext(44, 4))[1] ?? ''),
+                            AnsiUtils::stripAnsiCodes(Widgets::byId($tui, 'git-changes', ChangesListWidget::class)->render(new RenderContext(44, 4))[1] ?? ''),
                             '[✓]',
                         ),
                         what: 'the changes list to show a.txt staged',
@@ -829,9 +832,9 @@ final class GitFlowsE2eTest extends TestCase
                     // Horizontal wheel (trackpad code 67) over the diff pane
                     // scrolls sideways; the tree/list panes ignore it.
                     $tui->handleInput(self::widgetSgr($ide, 'git-diff', 67, 4, 34));
-                    $this->assertSame(6, $tui->getById('git-diff')->hScroll(), 'wheel-right scrolled the diff text');
+                    $this->assertSame(6, Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->hScroll(), 'wheel-right scrolled the diff text');
                     $tui->handleInput(self::widgetSgr($ide, 'git-diff', 68, 4, 34)); // shift+wheel-up = left
-                    $this->assertSame(0, $tui->getById('git-diff')->hScroll());
+                    $this->assertSame(0, Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->hScroll());
                     $tui->handleInput(self::widgetSgr($ide, 'git-changes', 67, 1, 9)); // over the changes list: ignored
                     // Wheel over the diff pane scrolls it; over the list it moves
                     // the selection (keyboard-like, so it may load).
@@ -847,7 +850,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput(self::widgetSgr($ide, 'git-commit', 0, 1, 4));
                     $tui->handleInput(self::widgetSgr($ide, 'git-commit', 0, 1, 4, release: true));
                 },
-                850 => function ($tui, $terminal, Ide $ide): void {
+                850 => function (Tui $tui, $terminal, Ide $ide): void {
                     $raw = $terminal->getOutput();
                     // Text col 2..12 of '+new long-tail …' (the pane's text starts
                     // 12 columns in): the exact ten chars, no markers, no newline.
@@ -859,7 +862,7 @@ final class GitFlowsE2eTest extends TestCase
                     // flips the modes and persists the prefs.
                     $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -20));
                     $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -20, release: true));
-                    $this->assertTrue($tui->getById('git-diff')->isSplit(), 'the split tag switched to side-by-side');
+                    $this->assertTrue(Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->isSplit(), 'the split tag switched to side-by-side');
                     $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -10));
                     $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -10, release: true));
                     $tui->handleInput("\x1b");

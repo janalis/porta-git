@@ -21,9 +21,11 @@ use Porta\Tests\Support\RunsIde;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
+use Porta\Tests\Support\Widgets;
 use Porta\Ui\ClickIntent;
 use Porta\Ui\Glyphs;
 use Porta\Widget\ContextMenu;
+use Porta\Widget\FileTreeWidget;
 use Porta\Workbench\View\ContributedView;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -151,8 +153,8 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal): void {
-                    $editor = $tui->getById('editor');
+                400 => function (Tui $tui, $terminal): void {
+                    $editor = Widgets::editor($tui);
                     $joined = static fn (): string => \implode('', $editor->render(new RenderContext(80, 10)));
 
                     $this->await(static fn (): bool => \str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
@@ -188,8 +190,8 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('untouched.php'),
             [
-                600 => function ($tui): void {
-                    $tree = $tui->getById('tree');
+                600 => function (Tui $tui): void {
+                    $tree = Widgets::byId($tui, 'tree', FileTreeWidget::class);
                     $rows = static function () use ($tree): string {
                         $tree->beforeRender();
 
@@ -229,8 +231,8 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('anchor.php'),
             [
-                600 => function ($tui, $terminal, Ide $ide) use ($project): void {
-                    $tree = $tui->getById('tree');
+                600 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
+                    $tree = Widgets::byId($tui, 'tree', FileTreeWidget::class);
                     $rows = static function () use ($tree): string {
                         $tree->beforeRender();
 
@@ -273,8 +275,8 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('a.txt'),
             [
-                400 => function ($tui, $terminal, $ide) use ($project): void {
-                    $decorations = $tui->getById('editor')->decorations;
+                400 => function (Tui $tui, $terminal, $ide) use ($project): void {
+                    $decorations = Widgets::editor($tui)->decorations;
                     $this->assertSame([], $decorations->vcsMarks, 'committed and unmodified: no marks');
 
                     $project->write('a.txt', "one\nCHANGED\n"); // external edit
@@ -321,8 +323,8 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                300 => function ($tui, $terminal, Ide $ide): void {
-                    $editorScreen = static fn (): string => AnsiUtils::stripAnsiCodes(\implode("\n", $tui->getById('editor')->render(new RenderContext(120, 20))));
+                300 => function (Tui $tui, $terminal, Ide $ide): void {
+                    $editorScreen = static fn (): string => AnsiUtils::stripAnsiCodes(\implode("\n", Widgets::editor($tui)->render(new RenderContext(120, 20))));
                     Services::resolve($ide, CommandRegistry::class)->run('git_toggle_blame');
                     $this->await(static fn (): bool => \str_contains($editorScreen(), 'tester'), what: 'the annotations to paint');
 
@@ -397,7 +399,7 @@ final class IdeGitPluginTest extends TestCase
             $project->path('src/A.php'),
             [
                 400 => function (Tui $tui, $terminal, Ide $ide): void {
-                    $editor = $tui->getById('editor');
+                    $editor = Widgets::editor($tui);
                     $joined = static fn (): string => \implode('', $editor->render(new RenderContext(80, 10)));
                     $this->await(static fn (): bool => \str_contains($joined(), "\x1b[38;5;75m┆"), what: 'the modified mark to land');
 
@@ -754,8 +756,8 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('a.php'),
             [
-                300 => function ($tui, $terminal, Ide $ide): void {
-                    $tree = $tui->getById('tree');
+                300 => function (Tui $tui, $terminal, Ide $ide): void {
+                    $tree = Widgets::byId($tui, 'tree', FileTreeWidget::class);
                     // Rows are alphabetical with dot files shown, so the tree
                     // reads `.porta.json`, `a.php`, `b.php` — and the cursor
                     // starts on the first of them.
@@ -788,7 +790,7 @@ final class IdeGitPluginTest extends TestCase
                     $terminal->clearOutput();
                     $this->frame($tui);
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 3, $rect->row + 3));
-                    $this->assertTrue($tui->getById('context-menu')->isOpen(), 'the tree row menu opened');
+                    $this->assertTrue(Widgets::byId($tui, 'context-menu', ContextMenu::class)->isOpen(), 'the tree row menu opened');
                     $this->frame($tui);
                     $this->assertStringContainsString(
                         'Compare Selected Files',
@@ -832,8 +834,8 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function ($tui, $terminal): void {
-                    $editor = $tui->getById('editor');
+                400 => function (Tui $tui, $terminal): void {
+                    $editor = Widgets::editor($tui);
                     /** @return list<string> e.g. ['M1'] — the kind and row of each GUTTER mark */
                     $gutterMarks = static function () use ($editor): array {
                         $out = [];

@@ -21,9 +21,7 @@ use Porta\Widget\StatusBarWidget;
 trait DrivesPickers
 {
     use StatusReads;
-    use PumpsLoop {
-        pump as private pumpFixed;
-    }
+    use PumpsLoop;
 
     private CodeEditorWidget $editor;
     private StatusBarWidget $statusBar;
@@ -47,35 +45,35 @@ trait DrivesPickers
      * turns. With no predicate it just waits for a flash to land — the signal
      * the simple actions end on; the overlay flows wait for the list to open.
      */
-    private function pump(?callable $until = null, float $timeout = 10.0, string $what = 'a flash to land'): void
+    private function pumpUntil(?callable $until = null, float $timeout = 10.0, string $what = 'a flash to land'): void
     {
         $this->await($until ?? fn (): bool => '' !== \trim($this->statusRow($this->statusBar)), $timeout, $what);
         // Drain any callbacks the resolved op queued behind it (refreshers).
-        $this->pumpFixed(0.06);
+        $this->pump(0.06);
     }
 
     /**
      * Pump for a fixed span with nothing to await — the deliberate cousin of
-     * {@see pump()}, for the tests that assert a NON-event ("no commit was
-     * made", "it did not flash unavailable"). Those cannot use pump(): its
+     * {@see pumpUntil()}, for the tests that assert a NON-event ("no commit was
+     * made", "it did not flash unavailable"). Those cannot use pumpUntil(): its
      * predicate waits for a flash that by definition never lands, so they were
-     * relying on the timeout falling through silently. Prefer pump() whenever
+     * relying on the timeout falling through silently. Prefer pumpUntil() whenever
      * a real condition exists.
      */
     private function drain(float $seconds = 0.2): void
     {
-        $this->pumpFixed($seconds);
+        $this->pump($seconds);
     }
 
     /** Waits for the editor's list overlay. */
     private function overlayOpens(): void
     {
-        $this->pump(fn (): bool => EditorState::pickerOpen($this->editor), what: 'the list');
+        $this->pumpUntil(fn (): bool => EditorState::pickerOpen($this->editor), what: 'the list');
     }
 
     /** Waits for the editor's one-line prompt. */
     private function promptOpens(): void
     {
-        $this->pump(fn (): bool => EditorState::promptOpen($this->editor), what: 'the prompt');
+        $this->pumpUntil(fn (): bool => EditorState::promptOpen($this->editor), what: 'the prompt');
     }
 }

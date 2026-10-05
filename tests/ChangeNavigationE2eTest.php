@@ -18,6 +18,7 @@ use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\Toasts;
 use Porta\Tests\Support\UsesBundledPlugins;
+use Porta\Tests\Support\Widgets;
 use Porta\Widget\CodeEditorWidget;
 use Symfony\Component\Tui\Tui;
 
@@ -47,7 +48,7 @@ final class ChangeNavigationE2eTest extends TestCase
             $project->path('a.txt'),
             [
                 400 => function (Tui $tui, $terminal, Ide $ide): void {
-                    $editor = $tui->getById('editor');
+                    $editor = Widgets::editor($tui);
                     $this->assertInstanceOf(CodeEditorWidget::class, $editor, 'the editor is the code editor');
                     $this->await(static fn (): bool => 2 === \count($editor->decorations->vcsMarks), what: 'the two changes to be marked');
                     $commands = Services::resolve($ide, CommandRegistry::class);
@@ -91,7 +92,7 @@ final class ChangeNavigationE2eTest extends TestCase
                     $this->assertContains('Change reverted', Toasts::all($ide));
                 },
                 700 => function (Tui $tui, $terminal, Ide $ide): void {
-                    $editor = $tui->getById('editor');
+                    $editor = Widgets::editor($tui);
                     $this->assertInstanceOf(CodeEditorWidget::class, $editor, 'the editor is the code editor');
                     $commands = Services::resolve($ide, CommandRegistry::class);
 
@@ -149,7 +150,7 @@ final class ChangeNavigationE2eTest extends TestCase
             $project->path('a.txt'),
             [
                 400 => function (Tui $tui, $terminal, Ide $ide): void {
-                    $editor = $tui->getById('editor');
+                    $editor = Widgets::editor($tui);
                     $this->assertInstanceOf(CodeEditorWidget::class, $editor, 'the editor is the code editor');
                     $this->await(static fn (): bool => [] !== $editor->decorations->vcsMarks, what: 'the deletion to be marked');
                     $this->assertSame([0], \array_keys($editor->decorations->vcsMarks), 'on the line above it');

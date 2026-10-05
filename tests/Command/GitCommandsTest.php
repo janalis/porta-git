@@ -64,7 +64,7 @@ final class GitCommandsTest extends TestCase
         $commands->commit();
         $this->type('a fresh commit');
         $this->key("\r"); // submit the prompt
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Committed: a fresh commit', $this->statusRow($this->statusBar));
         $this->assertStringContainsString('a fresh commit', $this->project->git('log', '-1', '--pretty=%s'));
@@ -92,7 +92,7 @@ final class GitCommandsTest extends TestCase
         $commands = $this->commandsOutsideRepo(['a.txt' => "one\n"]);
 
         $commands->commit();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Git not available', $this->statusRow($this->statusBar));
     }
@@ -123,7 +123,7 @@ final class GitCommandsTest extends TestCase
         $commands = $this->commandsOutsideRepo(['a.txt' => "one\n"]);
 
         $action($commands);
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Git not available', $this->statusRow($this->statusBar));
     }
@@ -133,7 +133,7 @@ final class GitCommandsTest extends TestCase
         $commands = $this->commands(['a.txt' => "one\n"]);
 
         $commands->stashes();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('No stashes', $this->statusRow($this->statusBar));
     }
@@ -149,7 +149,7 @@ final class GitCommandsTest extends TestCase
         $this->key("\r"); // pick the only stash
         $this->key("\x1b[B"); // move to "Pop"
         $this->key("\r"); // choose Pop
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('stashed', $this->readFile('a.txt'), 'the stash was popped back');
     }
@@ -164,7 +164,7 @@ final class GitCommandsTest extends TestCase
         $this->overlayOpens();
         $this->key("\r"); // pick the stash
         $this->key("\r"); // "Apply" is the first action
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('applied', $this->readFile('a.txt'), 'the stash was applied to the tree');
         $this->assertStringContainsString('wip', $this->project->git('stash', 'list'), 'apply keeps the stash');
@@ -182,7 +182,7 @@ final class GitCommandsTest extends TestCase
         $this->key("\x1b[B"); // Apply → Pop
         $this->key("\x1b[B"); // Pop → Drop
         $this->key("\r"); // choose Drop
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Dropped', $this->statusRow($this->statusBar));
         $this->assertStringNotContainsString('wip', $this->project->git('stash', 'list'), 'the stash is gone');
@@ -201,7 +201,7 @@ final class GitCommandsTest extends TestCase
         $this->key("\x1b[B"); // Pop → Drop
         $this->key("\x1b[B"); // Drop → Cancel
         $this->key("\r"); // choose Cancel — a no-op
-        $this->pump(fn (): bool => !EditorState::pickerOpen($this->editor));
+        $this->pumpUntil(fn (): bool => !EditorState::pickerOpen($this->editor));
 
         $this->assertStringContainsString('wip', $this->project->git('stash', 'list'), 'the stash is untouched');
     }
@@ -229,7 +229,7 @@ final class GitCommandsTest extends TestCase
         $commands->branchFromCommit(self::commitEntry($first));
         $this->type('from-first');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Created and switched to from-first', $this->statusRow($this->statusBar));
         $this->assertSame($first, \trim($this->project->git('rev-parse', 'from-first')), 'the new branch points at the chosen commit');
@@ -260,7 +260,7 @@ final class GitCommandsTest extends TestCase
         // Await the completion flash, not the on-disk effect: git writes b.txt
         // *before* its process exits, so under load a file-based pump can win
         // the race against the exit callback that sets the flash.
-        $this->pump(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Cherry-picked'));
+        $this->pumpUntil(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Cherry-picked'));
 
         $this->assertStringContainsString('Cherry-picked', $this->statusRow($this->statusBar));
         $this->assertFileExists($this->project->dir.'/b.txt');
@@ -276,7 +276,7 @@ final class GitCommandsTest extends TestCase
         $commands->revertCommit(self::commitEntry($bad));
         // Await the completion flash — the working-tree rewrite precedes the
         // exit callback that sets it (see the cherry-pick test above).
-        $this->pump(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Reverted'));
+        $this->pumpUntil(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Reverted'));
 
         $this->assertStringContainsString('Reverted', $this->statusRow($this->statusBar));
         $this->assertStringNotContainsString('added', $this->readFile('a.txt'), 'the reverting commit removed the line');
@@ -292,7 +292,7 @@ final class GitCommandsTest extends TestCase
         $commands->resetToCommit(self::commitEntry($base));
         $this->overlayOpens();
         $this->key("\r"); // "Soft" leads the confirm list
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Reset to '.\substr($base, offset: 0, length: 7).' (soft)', $this->statusRow($this->statusBar));
         $this->assertSame($base, \trim($this->project->git('rev-parse', 'HEAD')), 'HEAD moved to the chosen commit');
@@ -310,7 +310,7 @@ final class GitCommandsTest extends TestCase
         $this->overlayOpens();
         $this->key("\x1b[B"); // Soft → Mixed
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Reset to '.\substr($base, offset: 0, length: 7).' (mixed)', $this->statusRow($this->statusBar));
         $this->assertSame($base, \trim($this->project->git('rev-parse', 'HEAD')), 'HEAD moved to the chosen commit');
@@ -339,7 +339,7 @@ final class GitCommandsTest extends TestCase
         $commands = $this->commands(['a.txt' => "one\n"]);
 
         $commands->fileHistory();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Git not available', $this->statusRow($this->statusBar));
     }
@@ -368,7 +368,7 @@ final class GitCommandsTest extends TestCase
         $this->key("\r"); // "+ Create new branch…" leads the list
         $this->type('feature');
         $this->key("\r"); // submit the name
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Created and switched to feature', $this->statusRow($this->statusBar));
         $this->assertSame('feature', \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD')));
@@ -381,7 +381,7 @@ final class GitCommandsTest extends TestCase
         $commands->newBranch(); // the status-bar branch menu's "New Branch…"
         $this->type('feature');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Created and switched to feature', $this->statusRow($this->statusBar));
         $this->assertSame('feature', \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD')));
@@ -396,7 +396,7 @@ final class GitCommandsTest extends TestCase
         $this->overlayOpens(); // the deletable list
         $this->key("\r"); // pick "stale" (the only deletable)
         $this->key("\r"); // confirm "Delete"
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Deleted branch stale', $this->statusRow($this->statusBar));
     }
@@ -423,7 +423,7 @@ final class GitCommandsTest extends TestCase
         $this->key("\x1b[B");
         $this->key("\x1b[B");
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Switched to other', $this->statusRow($this->statusBar));
         $this->assertSame('other', \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD')));
@@ -441,7 +441,7 @@ final class GitCommandsTest extends TestCase
         $this->overlayOpens(); // the deletable list
         $this->key("\r"); // pick "stale" (the only deletable)
         $this->key("\r"); // confirm "Delete"
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Deleted branch stale', $this->statusRow($this->statusBar));
         $this->assertStringNotContainsString('stale', $this->project->git('branch'));
@@ -460,7 +460,7 @@ final class GitCommandsTest extends TestCase
         $this->key("\r"); // pick "keep"
         $this->key("\x1b[B"); // Delete → Cancel
         $this->key("\r"); // choose Cancel
-        $this->pump(fn (): bool => !EditorState::pickerOpen($this->editor));
+        $this->pumpUntil(fn (): bool => !EditorState::pickerOpen($this->editor));
 
         $this->assertStringContainsString('keep', $this->project->git('branch'), 'the branch survived the cancel');
     }
@@ -474,7 +474,7 @@ final class GitCommandsTest extends TestCase
         $this->overlayOpens();
         $this->key("\r"); // "+ Create new branch…"
         $this->key("\r"); // submit an empty name
-        $this->pump(fn (): bool => !EditorState::pickerOpen($this->editor));
+        $this->pumpUntil(fn (): bool => !EditorState::pickerOpen($this->editor));
 
         $this->assertSame($before, $this->project->git('branch'), 'no branch was created');
     }
@@ -497,7 +497,7 @@ final class GitCommandsTest extends TestCase
         $this->key("\x1b[B");
         $this->key("\x1b[B");
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('shipped', $this->statusRow($this->statusBar));
         $this->assertSame('shipped', \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD')));
@@ -512,7 +512,7 @@ final class GitCommandsTest extends TestCase
         $this->overlayOpens();
         $this->key("\x1b[B"); // "− Delete branch…"
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('No other local branches to delete', $this->statusRow($this->statusBar));
     }
@@ -570,7 +570,7 @@ final class GitCommandsTest extends TestCase
         $this->overlayOpens();
         $this->type('gone');
         $this->key("\r");
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertSame([], $this->opened);
         $this->assertStringContainsString('already used by worktree', $this->statusRow($this->statusBar));
@@ -584,7 +584,7 @@ final class GitCommandsTest extends TestCase
         $this->overlayOpens();
         $this->type('New worktree');
         $this->key("\r");
-        $this->pump(fn (): bool => EditorState::promptOpen($this->editor), what: 'the worktree name prompt');
+        $this->pumpUntil(fn (): bool => EditorState::promptOpen($this->editor), what: 'the worktree name prompt');
 
         $this->assertTrue(EditorState::promptOpen($this->editor));
     }
@@ -596,7 +596,7 @@ final class GitCommandsTest extends TestCase
         $this->project->git('worktree', 'add', '-q', '-b', 'feat', $this->worktreeFolder->dir.'/feat');
 
         $commands->deleteBranch();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('No other local branches to delete', $this->statusRow($this->statusBar), 'git would refuse it: "used by worktree"');
     }
@@ -638,7 +638,7 @@ final class GitCommandsTest extends TestCase
         $commands = $this->commandsOutsideRepo(['a.txt' => "one\n"]);
 
         $commands->branches();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertStringContainsString('Git not available', $this->statusRow($this->statusBar));
     }
@@ -747,7 +747,7 @@ final class GitCommandsTest extends TestCase
         $this->selected = [$this->project->path('a.php'), $this->project->path('b.php')];
 
         $commands->compareFiles();
-        $this->pump(fn (): bool => [] !== $this->published, what: 'the comparison to publish');
+        $this->pumpUntil(fn (): bool => [] !== $this->published, what: 'the comparison to publish');
 
         $this->assertCount(1, $this->published);
         [$lines, $title] = $this->published[0];
@@ -764,7 +764,7 @@ final class GitCommandsTest extends TestCase
         $this->selected = [$this->project->path('a.php'), $this->project->path('b.php')];
 
         $commands->compareFiles();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertSame([], $this->published);
         $this->assertStringContainsString('identical', $this->flashText($this->statusBar));
@@ -779,7 +779,7 @@ final class GitCommandsTest extends TestCase
         $this->selected = [$this->project->path('a.php')];
 
         $commands->compareFiles();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertSame([], $this->published);
         $this->assertStringContainsString('two files', $this->flashText($this->statusBar));
@@ -796,7 +796,7 @@ final class GitCommandsTest extends TestCase
         $this->selected = [$this->project->path('a.php'), $this->project->path('b.php')];
 
         $commands->compareFiles();
-        $this->pump();
+        $this->pumpUntil();
 
         $this->assertSame([], $this->published);
         $this->assertStringContainsString('Git not available', $this->flashText($this->statusBar));
