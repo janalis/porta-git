@@ -86,7 +86,7 @@ final class GitListenerContractTest extends TestCase
         foreach (\array_keys([...GitWiring::VIEW_CORE, ...GitWiring::REFRESHER]) as $event) {
             $this->assertTrue(\is_a($event, PluginObservable::class, allow_string: true), $event.' is not plugin-observable');
         }
-        foreach (GitWiring::VIEW as $event => $method) {
+        foreach (\array_keys(GitWiring::VIEW) as $event) {
             $this->assertStringStartsWith('Porta\\GitPlugin\\Event\\', $event, 'the view bus carries this plugin’s own events only');
         }
     }
