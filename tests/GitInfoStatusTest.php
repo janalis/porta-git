@@ -57,17 +57,8 @@ final class GitInfoStatusTest extends TestCase
         $project->git('add', 'a.txt');
         $project->write('a.txt', "one staged\ntwo worktree\n"); // further unstaged edit
 
-        $cached = null;
-        $worktree = null;
-        $git->cachedFileDiff($project->path('a.txt'), static function (string $out) use (&$cached): void {
-            $cached = $out;
-        });
-        $git->worktreeFileDiff($project->path('a.txt'), static function (string $out) use (&$worktree): void {
-            $worktree = $out;
-        });
-        $this->await(static function () use (&$cached, &$worktree): bool {
-            return null !== $cached && null !== $worktree;
-        });
+        $cached = $this->awaitString(static fn (\Closure $done) => $git->cachedFileDiff($project->path('a.txt'), $done));
+        $worktree = $this->awaitString(static fn (\Closure $done) => $git->worktreeFileDiff($project->path('a.txt'), $done));
 
         $this->assertStringContainsString('+one staged', $cached);
         $this->assertStringNotContainsString('worktree', $cached);
@@ -81,21 +72,8 @@ final class GitInfoStatusTest extends TestCase
         $git = $this->repo($project, committed: ['a.txt' => $body]);
         $project->write('a.txt', \str_replace('line 15', replace: 'line 15 EDITED', subject: $body));
 
-        $default = null;
-        $ten = null;
-        $git->worktreeFileDiff($project->path('a.txt'), static function (string $out) use (&$default): void {
-            $default = $out;
-        });
-        $git->worktreeFileDiff(
-            $project->path('a.txt'),
-            static function (string $out) use (&$ten): void {
-                $ten = $out;
-            },
-            context: 10,
-        );
-        $this->await(static function () use (&$default, &$ten): bool {
-            return null !== $default && null !== $ten;
-        });
+        $default = $this->awaitString(static fn (\Closure $done) => $git->worktreeFileDiff($project->path('a.txt'), $done));
+        $ten = $this->awaitString(static fn (\Closure $done) => $git->worktreeFileDiff($project->path('a.txt'), $done, context: 10));
 
         $this->assertStringContainsString(" line 12\n", $default, 'git default: three lines of context');
         $this->assertStringNotContainsString(" line 5\n", $default);
@@ -103,17 +81,7 @@ final class GitInfoStatusTest extends TestCase
         $this->assertStringNotContainsString(" line 1\n", $ten);
 
         $project->git('add', 'a.txt');
-        $full = null;
-        $git->cachedFileDiff(
-            $project->path('a.txt'),
-            static function (string $out) use (&$full): void {
-                $full = $out;
-            },
-            context: 999_999,
-        );
-        $this->await(static function () use (&$full): bool {
-            return null !== $full;
-        });
+        $full = $this->awaitString(static fn (\Closure $done) => $git->cachedFileDiff($project->path('a.txt'), $done, context: 999_999));
         $this->assertStringContainsString(" line 1\n", $full, 'the huge -U shows the whole file');
         $this->assertStringContainsString(" line 30\n", $full);
     }
@@ -124,21 +92,8 @@ final class GitInfoStatusTest extends TestCase
         // One indent-only change (bravo) and one real change (hotel).
         $project->write('a.txt', "alpha\n  bravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel CHANGED\n");
 
-        $plain = null;
-        $ignoring = null;
-        $git->worktreeFileDiff($project->path('a.txt'), static function (string $out) use (&$plain): void {
-            $plain = $out;
-        });
-        $git->worktreeFileDiff(
-            $project->path('a.txt'),
-            static function (string $out) use (&$ignoring): void {
-                $ignoring = $out;
-            },
-            whitespace: WhitespaceMode::Hidden,
-        );
-        $this->await(static function () use (&$ignoring, &$plain): bool {
-            return null !== $plain && null !== $ignoring;
-        });
+        $plain = $this->awaitString(static fn (\Closure $done) => $git->worktreeFileDiff($project->path('a.txt'), $done));
+        $ignoring = $this->awaitString(static fn (\Closure $done) => $git->worktreeFileDiff($project->path('a.txt'), $done, whitespace: WhitespaceMode::Hidden));
 
         $this->assertStringContainsString('+  bravo', $plain, 'the plain diff shows the indent change');
         $this->assertStringNotContainsString('bravo', $ignoring, '-w drops the whitespace-only hunk');
@@ -148,28 +103,10 @@ final class GitInfoStatusTest extends TestCase
         $project->git('commit', '-q', '-m', 'ws');
         $sha = $project->git('log', '-1', '--format=%H');
 
-        $cached = null;
-        $show = null;
         $project->write('a.txt', "alpha\n    bravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel CHANGED\n");
         $project->git('add', 'a.txt');
-        $git->cachedFileDiff(
-            $project->path('a.txt'),
-            static function (string $out) use (&$cached): void {
-                $cached = $out;
-            },
-            whitespace: WhitespaceMode::Hidden,
-        );
-        $git->commitFileDiff(
-            $sha,
-            'a.txt',
-            static function (string $out) use (&$show): void {
-                $show = $out;
-            },
-            whitespace: WhitespaceMode::Hidden,
-        );
-        $this->await(static function () use (&$cached, &$show): bool {
-            return null !== $cached && null !== $show;
-        });
+        $cached = $this->awaitString(static fn (\Closure $done) => $git->cachedFileDiff($project->path('a.txt'), $done, whitespace: WhitespaceMode::Hidden));
+        $show = $this->awaitString(static fn (\Closure $done) => $git->commitFileDiff($sha, 'a.txt', $done, whitespace: WhitespaceMode::Hidden));
 
         $this->assertStringNotContainsString('bravo', $cached, 'the cached -w diff hides the reindent');
         $this->assertStringNotContainsString('bravo', $show, "the commit's -w patch hides its indent hunk");
@@ -181,13 +118,7 @@ final class GitInfoStatusTest extends TestCase
         $git = $this->repo($project, committed: ['seed.txt' => "s\n"]);
         $project->write('brand-new.txt', "alpha\nbeta\n");
 
-        $diff = null;
-        $git->untrackedFileDiff($project->path('brand-new.txt'), static function (string $out) use (&$diff): void {
-            $diff = $out;
-        });
-        $this->await(static function () use (&$diff): bool {
-            return null !== $diff;
-        });
+        $diff = $this->awaitString(static fn (\Closure $done) => $git->untrackedFileDiff($project->path('brand-new.txt'), $done));
 
         $this->assertStringContainsString('+alpha', $diff);
         $this->assertStringContainsString('+beta', $diff);
@@ -278,13 +209,7 @@ final class GitInfoStatusTest extends TestCase
         });
         $this->assertTrue($committed);
 
-        $message = null;
-        $git->lastCommitMessage(static function (string $m) use (&$message): void {
-            $message = $m;
-        });
-        $this->await(static function () use (&$message): bool {
-            return null !== $message;
-        });
+        $message = $this->awaitString($git->lastCommitMessage(...));
         $this->assertSame("second\n\nwith body", $message, 'the full message comes back for the amend prefill');
 
         $amended = null;
@@ -509,15 +434,9 @@ final class GitInfoStatusTest extends TestCase
         $project->git('checkout', '-q', '-');
         \file_put_contents($project->path('a.txt'), data: "dirty\n");
 
-        $result = null;
-        $git->checkout('other', static function (Outcome $ok, string $error) use (&$result): void {
-            $result = ['ok' => $ok->isOk(), 'error' => $error];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
+        $result = $this->awaitOutcome(static fn (\Closure $done) => $git->checkout('other', $done));
         $this->assertFalse($result['ok']);
-        $this->assertNotSame('', $result['error'], "git's refusal reaches the caller verbatim");
+        $this->assertNotSame('', $result['out'], "git's refusal reaches the caller verbatim");
     }
 
     public function testDeleteBranchMergedAndUnmerged(): void
@@ -560,14 +479,8 @@ final class GitInfoStatusTest extends TestCase
         $project->git('branch', '-q', '-D', 'feature');
         $project->git('fetch', '-q', 'origin');
 
-        $result = null;
-        $git->checkoutTracking('origin/feature', static function (Outcome $ok, string $error) use (&$result): void {
-            $result = ['ok' => $ok->isOk(), 'error' => $error];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
-        $this->assertTrue($result['ok'], $result['error']);
+        $result = $this->awaitOutcome(static fn (\Closure $done) => $git->checkoutTracking('origin/feature', $done));
+        $this->assertTrue($result['ok'], $result['out']);
         $this->assertSame('origin/feature', $project->git('rev-parse', '--abbrev-ref', 'feature@{upstream}'), 'the new local branch tracks the remote');
     }
 
@@ -601,27 +514,15 @@ final class GitInfoStatusTest extends TestCase
         $git = $this->repo($project, ['a.txt' => "one\n"]);
 
         // A clean tree: push succeeds with git's "no local changes" line.
-        $result = null;
-        $git->stashPush(static function (Outcome $ok, string $line) use (&$result): void {
-            $result = [$ok->isOk(), $line];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
-        $this->assertTrue($result[0]);
-        $this->assertStringContainsString('No local changes', $result[1]);
+        $result = $this->awaitOutcome($git->stashPush(...));
+        $this->assertTrue($result['ok']);
+        $this->assertStringContainsString('No local changes', $result['out']);
 
         // A dirty tree stashes; the list carries the subject; pop restores.
         \file_put_contents($project->path('a.txt'), data: "two\n");
-        $result = null;
-        $git->stashPush(static function (Outcome $ok, string $line) use (&$result): void {
-            $result = [$ok->isOk(), $line];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
-        $this->assertTrue($result[0]);
-        $this->assertStringContainsString('Saved working directory', $result[1]);
+        $result = $this->awaitOutcome($git->stashPush(...));
+        $this->assertTrue($result['ok']);
+        $this->assertStringContainsString('Saved working directory', $result['out']);
         $this->assertSame("one\n", \file_get_contents($project->path('a.txt')), 'the tree reverted');
 
         $stashes = null;
@@ -637,35 +538,17 @@ final class GitInfoStatusTest extends TestCase
         $this->assertGreaterThan(0, $stashes[0]['timestamp']);
 
         // Apply keeps the stash; drop removes it; a second drop fails.
-        $result = null;
-        $git->stashApply('stash@{0}', static function (Outcome $ok, string $error) use (&$result): void {
-            $result = [$ok->isOk(), $error];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
-        $this->assertTrue($result[0]);
+        $result = $this->awaitOutcome(static fn (\Closure $done) => $git->stashApply('stash@{0}', $done));
+        $this->assertTrue($result['ok']);
         $this->assertSame("two\n", \file_get_contents($project->path('a.txt')), 'apply restored the change');
 
         $project->git('checkout', '-q', '--', 'a.txt'); // clean again so drop/pop paths are unambiguous
-        $result = null;
-        $git->stashDrop('stash@{0}', static function (Outcome $ok, string $error) use (&$result): void {
-            $result = [$ok->isOk(), $error];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
-        $this->assertTrue($result[0]);
+        $result = $this->awaitOutcome(static fn (\Closure $done) => $git->stashDrop('stash@{0}', $done));
+        $this->assertTrue($result['ok']);
 
-        $result = null;
-        $git->stashPop(null, static function (Outcome $ok, string $error) use (&$result): void {
-            $result = [$ok->isOk(), $error];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
-        $this->assertFalse($result[0], 'nothing left to pop');
-        $this->assertNotSame('', $result[1], 'git explains');
+        $result = $this->awaitOutcome(static fn (\Closure $done) => $git->stashPop(null, $done));
+        $this->assertFalse($result['ok'], 'nothing left to pop');
+        $this->assertNotSame('', $result['out'], 'git explains');
     }
 
     public function testStashPopConflictSurfacesGitsError(): void
@@ -678,14 +561,8 @@ final class GitInfoStatusTest extends TestCase
         $project->git('add', '-A');
         $project->git('commit', '-q', '-m', 'conflicting');
 
-        $result = null;
-        $git->stashPop(null, static function (Outcome $ok, string $error) use (&$result): void {
-            $result = [$ok->isOk(), $error];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
-        $this->assertFalse($result[0], 'the conflicting pop failed');
+        $result = $this->awaitOutcome(static fn (\Closure $done) => $git->stashPop(null, $done));
+        $this->assertFalse($result['ok'], 'the conflicting pop failed');
         // Git reports the conflict on stdout — stderr (what we surface) is
         // empty here; GitCommands supplies the fallback message.
         $this->assertStringContainsString('<<<<<<<', (string) \file_get_contents($project->path('a.txt')), 'the markers landed in the tree');

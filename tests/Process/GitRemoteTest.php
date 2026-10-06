@@ -99,13 +99,7 @@ final class GitRemoteTest extends TestCase
         \file_put_contents($this->clone2->path('a.txt'), data: "one\nlocal\n");
         $this->git($this->clone2, 'commit -aqm local');
 
-        $result = null;
-        $remote->pull(static function (Outcome $ok, string $out) use (&$result): void {
-            $result = ['ok' => $ok->isOk(), 'out' => $out];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
+        $result = $this->awaitOutcome($remote->pull(...));
         $this->assertFalse($result['ok']);
         $this->assertStringContainsStringIgnoringCase('fast-forward', $result['out'], "git's own refusal is surfaced");
     }
@@ -136,13 +130,7 @@ final class GitRemoteTest extends TestCase
         $this->git($this->clone2, 'add -A');
         $this->git($this->clone2, 'commit -qm feature');
 
-        $result = null;
-        $remote->push(static function (Outcome $ok, string $out) use (&$result): void {
-            $result = ['ok' => $ok->isOk(), 'out' => $out];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
+        $result = $this->awaitOutcome($remote->push(...));
         $this->assertFalse($result['ok']);
         $this->assertStringContainsString('upstream', $result['out']);
 
@@ -162,13 +150,7 @@ final class GitRemoteTest extends TestCase
         $remote = $this->remotes();
         $this->git($this->clone2, 'remote set-url origin /nonexistent-origin');
 
-        $result = null;
-        $remote->fetch(static function (Outcome $ok, string $out) use (&$result): void {
-            $result = ['ok' => $ok->isOk(), 'out' => $out];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
+        $result = $this->awaitOutcome($remote->fetch(...));
         $this->assertFalse($result['ok']);
         $this->assertNotSame('', $result['out'], 'the failure carries stderr detail');
     }
@@ -235,13 +217,7 @@ final class GitRemoteTest extends TestCase
         $this->git($this->clone2, 'add -A');
         $this->git($this->clone2, 'commit -qm local');
 
-        $result = null;
-        $remote->pullRebase(static function (Outcome $ok, string $out) use (&$result): void {
-            $result = ['ok' => $ok->isOk(), 'out' => $out];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
+        $result = $this->awaitOutcome($remote->pullRebase(...));
         $this->assertTrue($result['ok'], $result['out']);
         $this->assertSame("one\ntwo\n", \file_get_contents($this->clone2->path('a.txt')), 'the remote commit landed');
         $this->assertFileExists($this->clone2->path('b.txt'), 'the local commit was rebased on top');
@@ -255,13 +231,7 @@ final class GitRemoteTest extends TestCase
         $this->git($this->clone2, 'add -A');
         $this->git($this->clone2, 'commit -qm local');
 
-        $result = null;
-        $remote->pullMerge(static function (Outcome $ok, string $out) use (&$result): void {
-            $result = ['ok' => $ok->isOk(), 'out' => $out];
-        });
-        $this->await(static function () use (&$result): bool {
-            return null !== $result;
-        });
+        $result = $this->awaitOutcome($remote->pullMerge(...));
         $this->assertTrue($result['ok'], $result['out']);
         $this->assertStringContainsString('Merge', $this->git($this->clone2, 'log -1 --format=%s'), 'a merge commit integrated the branches');
     }
