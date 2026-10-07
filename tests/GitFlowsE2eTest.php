@@ -11,6 +11,8 @@ use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\Ide;
+use Porta\Overlay\Presenter\ViewWindowPresenter;
+use Porta\Overlay\Region\ModalBox;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\EditorState;
 use Porta\Tests\Support\GitBinary;
@@ -861,7 +863,16 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertSame('git-commit', $tui->getFocus()?->getId(), 'click focused the commit box');
                     // The diff toolbar tags sit at the right edge of the diff
                     // title row: ' S split ' then ' W hide-ws '. Clicking them
-                    // flips the modes and persists the prefs.
+                    // flips the modes and persists the prefs. The toolbar is
+                    // flush under the window's title bar, where the copy's
+                    // toast floats on this short screen: Alt+D dismisses it.
+                    $box = Services::resolve($ide, ViewWindowPresenter::class)->box();
+                    $this->assertInstanceOf(ModalBox::class, $box);
+                    $diffRect = Services::resolve($ide, Renderer::class)->getWidgetRect(Widgets::byId($tui, 'git-diff', DiffViewWidget::class));
+                    $this->assertSame($box->startRow + 1, $diffRect?->row, 'the diff toolbar is flush under the title bar');
+                    $tui->handleInput("\x1bd");
+                    $this->assertSame([], Toasts::all($ide), 'Alt+D dismissed the copy toast');
+                    $this->frame($tui); // its click box goes with the next frame
                     $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -20));
                     $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -20, release: true));
                     $this->assertTrue(Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->isSplit(), 'the split tag switched to side-by-side');

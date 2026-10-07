@@ -160,6 +160,8 @@ final class GitViewController implements ContributedView
         // diff pane is fixed, so it goes in once.
         $this->region = $region;
         $this->region->content()->add($this->panes->diffView);
+        // The diff's toolbar sits flush under the window's title bar.
+        $this->region->flushContentTop();
         // How this sidebar resizes. Four stacked widgets each render their own
         // width, so a drag fans the new one out to all of them; core sees a
         // container and cannot know that.
