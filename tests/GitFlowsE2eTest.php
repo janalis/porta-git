@@ -65,7 +65,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->await(static fn (): bool => null !== self::clickableColumn($status), what: 'the branch to render in the status bar');
 
                     $renderer = Services::resolve($ide, Renderer::class);
-                    $rect = $renderer->getWidgetRect($status);
+                    $rect = Widgets::rect($renderer, $status);
                     $col = $rect->col + (int) self::clickableColumn($status);
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $col + 1, $rect->row + 1)); // right-click (1-based)
                     $this->frame($tui);
@@ -650,7 +650,7 @@ final class GitFlowsE2eTest extends TestCase
                 550 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '[ ] M src/A.php'));
                     $renderer = Services::resolve($ide, Renderer::class);
-                    $rect = $renderer->getWidgetRect($tui->getById('git-changes'));
+                    $rect = Widgets::rect($renderer, $tui->getById('git-changes'));
 
                     $terminal->clearOutput();
                     // Focus somewhere else first, or this proves nothing: the
@@ -997,7 +997,7 @@ final class GitFlowsE2eTest extends TestCase
                     // Pointer motion over the git mode tabs tints the inactive one.
                     $this->frame($tui);
                     $renderer = Services::resolve($ide, Renderer::class);
-                    $tabsRect = $renderer->getWidgetRect($tui->getById('git-tabs'));
+                    $tabsRect = Widgets::rect($renderer, $tui->getById('git-tabs'));
                     $tui->handleInput(\sprintf("\x1b[<35;%d;%dM", $tabsRect->col + 12, $tabsRect->row + 1)); // over 'History'
                     $this->frame($tui);
                     $this->assertStringContainsString(

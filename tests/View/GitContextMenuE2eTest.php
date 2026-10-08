@@ -59,7 +59,7 @@ final class GitContextMenuE2eTest extends TestCase
                     $this->await(static fn (): bool => null !== Widgets::byId($tui, 'git-history', HistoryListWidget::class)->selectedCommit());
 
                     $renderer = Services::resolve($ide, Renderer::class);
-                    $rect = $renderer->getWidgetRect($tui->getById('git-history'));
+                    $rect = Widgets::rect($renderer, $tui->getById('git-history'));
                     $terminal->clearOutput();
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 8, $rect->row + 2)); // right-click the first commit row (SGR is 1-based)
                     $this->assertTrue(Widgets::byId($tui, 'context-menu', ContextMenu::class)->isOpen(), 'right-clicking a commit opened its menu');

@@ -786,7 +786,7 @@ final class IdeGitPluginTest extends TestCase
                 600 => function (Tui $tui, $terminal, Ide $ide): void {
                     // And the way a person finds it: the tree row's own
                     // right-click, on the pair that is still selected.
-                    $rect = Services::resolve($ide, Renderer::class)->getWidgetRect($tui->getById('tree'));
+                    $rect = Widgets::rect(Services::resolve($ide, Renderer::class), $tui->getById('tree'));
                     $terminal->clearOutput();
                     $this->frame($tui);
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 3, $rect->row + 3));
