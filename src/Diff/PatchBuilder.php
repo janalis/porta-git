@@ -70,7 +70,7 @@ final class PatchBuilder
         $newCount = 0;
         $prevKeptOriginal = false; // whether the previous source line was emitted with its own origin
         foreach ($hunk->lines as $i => $line) {
-            $isSelected = ($sel[$i] ?? null) !== null;
+            $isSelected = null !== ($sel[$i] ?? null);
             switch ($line->origin) {
                 case ' ':
                     $body[] = ' '.$line->text;

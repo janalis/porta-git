@@ -27,7 +27,7 @@ final class StatusParser
             $path = \substr($token, offset: 3);
 
             $renamedFrom = null;
-            if (('R' === $index || 'C' === $index) && ($tokens[$i + 1] ?? null) !== null && '' !== $tokens[$i + 1]) {
+            if (('R' === $index || 'C' === $index) && null !== ($tokens[$i + 1] ?? null) && '' !== $tokens[$i + 1]) {
                 $renamedFrom = $tokens[++$i];
             }
 

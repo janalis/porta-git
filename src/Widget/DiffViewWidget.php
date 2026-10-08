@@ -512,7 +512,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         $texts = [];
         foreach ($document->hunks as $h => $hunk) {
             foreach ($hunk->lines as $l => $line) {
-                if (($selected[$h][$l] ?? null) === null || '\\' === $line->origin) {
+                if (null === ($selected[$h][$l] ?? null) || '\\' === $line->origin) {
                     continue;
                 }
 

@@ -57,6 +57,6 @@ final class IntralineDiff
     /** Whether the byte at $offset is a UTF-8 continuation byte (splitting there breaks a char). */
     private static function isContinuation(string $s, int $offset): bool
     {
-        return ($s[$offset] ?? null) !== null && 0x80 === (\ord($s[$offset]) & 0xC0);
+        return null !== ($s[$offset] ?? null) && 0x80 === (\ord($s[$offset]) & 0xC0);
     }
 }
