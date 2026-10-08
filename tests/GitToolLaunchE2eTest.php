@@ -38,7 +38,7 @@ final class GitToolLaunchE2eTest extends TestCase
 
     public function testADifftoolLaunchShowsTheTwoFilesAndClosingItEndsTheRun(): void
     {
-        self::skipWithoutGit();
+        $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // git diff --no-index needs git
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.php' => "<?php\necho 'working tree';\n"]);
         $project->initGit();
@@ -66,7 +66,7 @@ final class GitToolLaunchE2eTest extends TestCase
 
     public function testAnAgentsProposedChangeIsComparedAndClosingItEndsNothingButTheView(): void
     {
-        self::skipWithoutGit();
+        $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH);
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.php' => "<?php\necho 'as it is';\n"]);
         $project->initGit();
@@ -94,7 +94,7 @@ final class GitToolLaunchE2eTest extends TestCase
 
     public function testAMergetoolLaunchOpensTheConflictedFileUnderTheGitView(): void
     {
-        self::skipWithoutGit();
+        $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH);
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.php' => "<?php\necho 'base';\n"]);
         $project->initGit(branch: 'main');

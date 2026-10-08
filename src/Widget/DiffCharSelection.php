@@ -33,7 +33,7 @@ final readonly class DiffCharSelection
         if ($this->isDegenerate()) {
             return null;
         }
-        if ($this->fromRow > $this->toRow || $this->fromRow === $this->toRow && $this->fromCol > $this->toCol) {
+        if ($this->fromRow > $this->toRow || ($this->fromRow === $this->toRow && $this->fromCol > $this->toCol)) {
             return new self($this->toRow, $this->toCol, $this->fromRow, $this->fromCol, $this->side);
         }
 

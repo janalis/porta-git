@@ -60,7 +60,8 @@ final class DirectoryComparison
             if (!$file instanceof \SplFileInfo || !$file->isFile()) {
                 continue;
             }
-            $files[\substr($file->getPathname(), \strlen($root) + 1)] = $file->getPathname();
+            $path = $file->getPathname();
+            $files[\substr($path, \strlen($root) + 1)] = $path;
         }
 
         return $files;

@@ -30,7 +30,7 @@ final readonly class ChangeEntry
      */
     public function isUnmerged(): bool
     {
-        return 'U' === $this->indexStatus || 'U' === $this->worktreeStatus || $this->indexStatus === $this->worktreeStatus && \in_array($this->indexStatus, ['A', 'D'], strict: true);
+        return 'U' === $this->indexStatus || 'U' === $this->worktreeStatus || ($this->indexStatus === $this->worktreeStatus && \in_array($this->indexStatus, ['A', 'D'], strict: true));
     }
 
     /** The checkbox state: fully staged, partially staged, or not staged. */

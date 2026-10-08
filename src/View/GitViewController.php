@@ -424,7 +424,7 @@ final class GitViewController implements ContributedView
                 return; // a newer status is out or already applied; see $statusGeneration
             }
             $this->statusInFlight = false;
-            if (!$this->open || RefreshMode::Quiet === $mode && $raw === $this->lastStatusRaw) {
+            if (!$this->open || (RefreshMode::Quiet === $mode && $raw === $this->lastStatusRaw)) {
                 return;
             }
             $this->lastStatusRaw = $raw;

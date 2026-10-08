@@ -109,7 +109,7 @@ final class NarrowGitPaneRenderTest extends TestCase
     {
         AttachedStyles::attach($widget);
 
-        $this->assertFitsEveryWidth($widget);
+        self::assertFitsEveryWidth($widget);
     }
 
     /**

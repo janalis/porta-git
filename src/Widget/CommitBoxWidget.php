@@ -177,7 +177,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         }
 
         // Amending only the message needs no staged changes.
-        return CommitMode::Amend === $this->amend || null !== $this->stagedChangesProvider && ($this->stagedChangesProvider)();
+        return CommitMode::Amend === $this->amend || (null !== $this->stagedChangesProvider && ($this->stagedChangesProvider)());
     }
 
     /** The assembled commit message: summary, blank line, description. */

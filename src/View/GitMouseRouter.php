@@ -80,7 +80,7 @@ final class GitMouseRouter implements ViewPointer
      */
     public function continueDrag(MouseEvent $mouse): bool
     {
-        if (!$this->diffSelecting || !$mouse->isLeftDrag() && !$mouse->isLeftRelease()) {
+        if (!$this->diffSelecting || (!$mouse->isLeftDrag() && !$mouse->isLeftRelease())) {
             return false;
         }
         // Only genuine motion extends the range — a plain click's release

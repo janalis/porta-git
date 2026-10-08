@@ -90,7 +90,7 @@ final readonly class DiffDocument
     {
         $count = \count($lines);
         for ($i = 0; $i < $count; ++$i) {
-            if ('-' !== $lines[$i]->origin || $i > 0 && '-' === $lines[$i - 1]->origin) {
+            if ('-' !== $lines[$i]->origin || ($i > 0 && '-' === $lines[$i - 1]->origin)) {
                 continue; // only the start of a deletion run
             }
             $delStart = $i;
