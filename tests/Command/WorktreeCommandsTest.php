@@ -624,7 +624,7 @@ final class WorktreeCommandsTest extends TestCase
     /** A git that does $guard for some argument `$a`, and is the real git otherwise. */
     private function fakeGit(string $guard): string
     {
-        $script = "#!/bin/sh\nfor a in \"\$@\"; do\n    {$guard}\ndone\nexec '".(string) $this->whichGit()."' \"\$@\"\n";
+        $script = "#!/bin/sh\nfor a in \"\$@\"; do\n    {$guard}\ndone\nexec '".$this->whichGit()."' \"\$@\"\n";
         $this->fake = new TempProject(['git' => $script]);
         \chmod($this->fake->path('git'), permissions: 0o755);
 

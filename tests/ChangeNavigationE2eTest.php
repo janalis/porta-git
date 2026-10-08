@@ -19,7 +19,6 @@ use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\Toasts;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Tests\Support\Widgets;
-use Porta\Widget\CodeEditorWidget;
 use Symfony\Component\Tui\Tui;
 
 /**
@@ -49,7 +48,6 @@ final class ChangeNavigationE2eTest extends TestCase
             [
                 400 => function (Tui $tui, $terminal, Ide $ide): void {
                     $editor = Widgets::editor($tui);
-                    $this->assertInstanceOf(CodeEditorWidget::class, $editor, 'the editor is the code editor');
                     $this->await(static fn (): bool => 2 === \count($editor->decorations->vcsMarks), what: 'the two changes to be marked');
                     $commands = Services::resolve($ide, CommandRegistry::class);
                     $line = static fn (): int => $editor->getDocument()->cursorLine;
@@ -93,7 +91,6 @@ final class ChangeNavigationE2eTest extends TestCase
                 },
                 700 => function (Tui $tui, $terminal, Ide $ide): void {
                     $editor = Widgets::editor($tui);
-                    $this->assertInstanceOf(CodeEditorWidget::class, $editor, 'the editor is the code editor');
                     $commands = Services::resolve($ide, CommandRegistry::class);
 
                     // The buffer moved on from the disk the hunks describe: no revert.
@@ -151,7 +148,6 @@ final class ChangeNavigationE2eTest extends TestCase
             [
                 400 => function (Tui $tui, $terminal, Ide $ide): void {
                     $editor = Widgets::editor($tui);
-                    $this->assertInstanceOf(CodeEditorWidget::class, $editor, 'the editor is the code editor');
                     $this->await(static fn (): bool => [] !== $editor->decorations->vcsMarks, what: 'the deletion to be marked');
                     $this->assertSame([0], \array_keys($editor->decorations->vcsMarks), 'on the line above it');
 

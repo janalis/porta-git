@@ -107,7 +107,7 @@ final class GitFlowsE2eTest extends TestCase
         if (!\is_dir($project->path('.porta'))) {
             \mkdir($project->path('.porta'), permissions: 0o777, recursive: true);
         }
-        \file_put_contents($project->path('.porta/layout.json'), \json_encode(['gitSidebarWidthPercent' => 25]));
+        \file_put_contents($project->path('.porta/layout.json'), \json_encode(['gitSidebarWidthPercent' => 25], \JSON_THROW_ON_ERROR));
 
         $this->runIde(
             $project,
@@ -129,7 +129,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertSame(51, Widgets::byId($tui, 'git-changes', ChangesListWidget::class)->width(), 'the drag resized the sidebar');
                     $this->assertSame(51, Widgets::byId($tui, 'git-tabs', GitTabsWidget::class)->width(), 'the tab strip follows');
                     $this->assertSame(51, Widgets::byId($tui, 'git-commit', CommitBoxWidget::class)->width(), 'the commit box follows');
-                    $layout = \json_decode((string) \file_get_contents($project->path('.porta/layout.json')), associative: true);
+                    $layout = \json_decode((string) \file_get_contents($project->path('.porta/layout.json')), associative: true, flags: \JSON_THROW_ON_ERROR);
                     $this->assertSame(41, $layout['viewSidebarWidthPercent']['git'], 'saved as a share of the window (round(51/124))');
                     $this->assertArrayNotHasKey('gitSidebarWidthPercent', $layout, 'and the pre-move key is not rewritten');
                 },
@@ -888,7 +888,7 @@ final class GitFlowsE2eTest extends TestCase
         // The two diff toggles are plugin SETTINGS now, not layout prefs:
         // neither is a size, and they were in `.porta/layout.json` only
         // because the git view had no store of its own.
-        $porta = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true);
+        $porta = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true, flags: \JSON_THROW_ON_ERROR);
         $this->assertTrue($porta['plugins']['git']['diffSplit'], 'the split preference persisted');
         $this->assertTrue($porta['plugins']['git']['diffHideWhitespace'], 'the whitespace preference persisted');
     }

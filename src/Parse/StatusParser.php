@@ -23,8 +23,7 @@ final class StatusParser
             if (\strlen($token) < 4 || ' ' !== $token[2]) {
                 continue; // trailing empty token or malformed record
             }
-            $index = $token[0];
-            $worktree = $token[1];
+            [$index, $worktree] = \str_split(\substr($token, offset: 0, length: 2));
             $path = \substr($token, offset: 3);
 
             $renamedFrom = null;

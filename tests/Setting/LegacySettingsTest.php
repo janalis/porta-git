@@ -34,7 +34,7 @@ final class LegacySettingsTest extends TestCase
         // checks that: `seed()` returning `gitShowBranch` would silently give
         // every reader the default forever. This also pins the map itself —
         // the pre-move spellings are the upgrade contract.
-        $project = new TempProject(['.porta.json' => (string) \json_encode(['settings' => ['gitShowBranch' => false, 'gitRefreshInterval' => 9, 'gitPath' => '/opt/git']])]);
+        $project = new TempProject(['.porta.json' => (string) \json_encode(['settings' => ['gitShowBranch' => false, 'gitRefreshInterval' => 9, 'gitPath' => '/opt/git']], \JSON_THROW_ON_ERROR)]);
         $legacy = LegacySettings::forProject($project->dir);
 
         $settings = new GitSettings($legacy->seed($this->defaults()));

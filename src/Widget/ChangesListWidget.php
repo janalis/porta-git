@@ -213,11 +213,9 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
 
             return;
         }
-        if ($kb->matches($data, 'discard')) {
-            if (null !== $this->selectedEntry()) {
-                $this->confirmDiscard = $this->list->selected();
-                $this->invalidate();
-            }
+        if ($kb->matches($data, 'discard') && null !== $this->selectedEntry()) {
+            $this->confirmDiscard = $this->list->selected();
+            $this->invalidate();
         }
     }
 

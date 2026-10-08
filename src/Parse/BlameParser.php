@@ -32,12 +32,12 @@ final class BlameParser
 
                 continue;
             }
-            if (\str_starts_with($line, 'author ') && '' !== $sha) {
+            if ('' !== $sha && \str_starts_with($line, 'author ')) {
                 $authors[$sha] = \substr($line, offset: 7);
 
                 continue;
             }
-            if (\str_starts_with($line, 'author-time ') && '' !== $sha) {
+            if ('' !== $sha && \str_starts_with($line, 'author-time ')) {
                 $times[$sha] = (int) \substr($line, offset: 12);
             }
         }
