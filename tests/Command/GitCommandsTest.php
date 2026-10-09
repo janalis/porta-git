@@ -702,7 +702,7 @@ final class GitCommandsTest extends TestCase
                 function (string $path, string $repeat): void {
                     $this->opened[] = $path;
                 },
-                fn (): string => null === $this->worktreeFolder ? '' : $this->worktreeFolder->dir,
+                fn (): string => $this->worktreeFolder->dir ?? '',
                 $this->project->dir,
             ),
         );
