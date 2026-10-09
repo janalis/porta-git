@@ -30,13 +30,10 @@ final readonly class DiffCharSelection
     /** This selection ordered top-left → bottom-right, or null when degenerate. */
     public function normalized(): ?self
     {
-        if ($this->isDegenerate()) {
-            return null;
-        }
-        if ($this->fromRow > $this->toRow || ($this->fromRow === $this->toRow && $this->fromCol > $this->toCol)) {
-            return new self($this->toRow, $this->toCol, $this->fromRow, $this->fromCol, $this->side);
-        }
-
-        return $this;
+        return match (true) {
+            $this->isDegenerate() => null,
+            $this->fromRow > $this->toRow || ($this->fromRow === $this->toRow && $this->fromCol > $this->toCol) => new self($this->toRow, $this->toCol, $this->fromRow, $this->fromCol, $this->side),
+            default => $this,
+        };
     }
 }

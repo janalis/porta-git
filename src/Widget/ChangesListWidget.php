@@ -38,6 +38,7 @@ use Porta\Widget\Support\PanelWidth;
 use Porta\Widget\Support\WheelScrollable;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Input\Key;
+use Symfony\Component\Tui\Input\Keybindings;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Style\Style;
 use Symfony\Component\Tui\Widget\AbstractWidget;
@@ -187,36 +188,22 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
             return;
         }
 
-        if ($this->handleGitPaneKey($data, $kb)) {
-            return;
+        if (!$this->handleGitPaneKey($data, $kb)) {
+            $this->handleListKey($data, $kb);
         }
-        if (ListNavigation::handleKey($data, $kb, $this->list, \count($this->entries), page: $this->lastPage)) {
-            $this->fireSelect();
-            $this->invalidate();
+    }
 
-            return;
-        }
-        if ($kb->matches($data, 'toggle_stage')) {
-            if (null !== ($entry = $this->selectedEntry())) {
-                $this->events?->dispatch(new GitChangeStageToggleRequested($entry));
-            }
-
-            return;
-        }
-        if ($kb->matches($data, 'stage_all')) {
-            $this->stageAll();
-
-            return;
-        }
-        if ($kb->matches($data, 'show_history')) {
-            $this->events?->dispatch(new GitViewModeRequested(GitViewMode::History));
-
-            return;
-        }
-        if ($kb->matches($data, 'discard') && null !== $this->selectedEntry()) {
-            $this->confirmDiscard = $this->list->selected();
-            $this->invalidate();
-        }
+    /** A key the list itself answers: navigation, staging, the History tab, the discard prompt. */
+    private function handleListKey(string $data, Keybindings $kb): void
+    {
+        match (true) {
+            ListNavigation::handleKey($data, $kb, $this->list, \count($this->entries), page: $this->lastPage) => $this->selectionMoved(),
+            $kb->matches($data, 'toggle_stage') => $this->requestStageToggle(),
+            $kb->matches($data, 'stage_all') => $this->stageAll(),
+            $kb->matches($data, 'show_history') => $this->showHistory(),
+            $kb->matches($data, 'discard') => $this->armDiscardSelected(),
+            default => null,
+        };
     }
 
     /** A right-click landed on a row: select it (like a left click) and return its entry. */
@@ -227,8 +214,7 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
             return null;
         }
         $this->list->select($index);
-        $this->fireSelect();
-        $this->invalidate();
+        $this->selectionMoved();
 
         return $this->entries[$index];
     }
@@ -236,10 +222,27 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     /** Context-menu trigger: toggle the selected entry's staging (same path as Space). */
     public function toggleStageSelected(): void
     {
-        if (null !== ($entry = $this->selectedEntry())) {
-            $this->events?->dispatch(new GitChangeStageToggleRequested($entry));
+        if ($this->requestStageToggle()) {
             $this->invalidate();
         }
+    }
+
+    /** Ask for the selected entry's staging to flip; false when nothing is selected. */
+    private function requestStageToggle(): bool
+    {
+        $entry = $this->selectedEntry();
+        if (null !== $entry) {
+            $this->events?->dispatch(new GitChangeStageToggleRequested($entry));
+        }
+
+        return null !== $entry;
+    }
+
+    /** The selection moved: say so, and redraw. */
+    private function selectionMoved(): void
+    {
+        $this->fireSelect();
+        $this->invalidate();
     }
 
     /** Context-menu trigger: arm the selected entry's two-press discard confirmation. */
@@ -275,18 +278,8 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     public function handleClick(int $relRow, int $relCol): void
     {
         $armed = $this->confirmDiscard;
-        if (null !== $armed) {
-            $choice = $this->confirmChoiceAt($relRow, $relCol);
-            $entry = $this->entries[$armed] ?? null;
-            $question = ($this->rowOwner[$relRow] ?? null) === $armed;
-            $this->confirmDiscard = null;
-            $this->invalidate();
-            if ('discard' === $choice && null !== $entry) {
-                $this->events?->dispatch(new GitChangeDiscardRequested($entry));
-            }
-            if (null !== $choice || $question) {
-                return;
-            }
+        if (null !== $armed && $this->answerDiscardClick($armed, $relRow, $relCol)) {
+            return;
         }
         // The header's box, with the same target around it as a row's.
         if (0 === $relRow && $relCol <= (FieldBox::CHECKBOX_WIDTH + 1)) {
@@ -294,21 +287,37 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
 
             return;
         }
+        $this->clickRow($relRow, $relCol);
+    }
+
+    /** Disarm the $armed discard for a click; true when the click was its answer (a button, or the question). */
+    private function answerDiscardClick(int $armed, int $relRow, int $relCol): bool
+    {
+        $choice = $this->confirmChoiceAt($relRow, $relCol);
+        $entry = $this->entries[$armed] ?? null;
+        $question = ($this->rowOwner[$relRow] ?? null) === $armed;
+        $this->confirmDiscard = null;
+        $this->invalidate();
+        if ('discard' === $choice && null !== $entry) {
+            $this->events?->dispatch(new GitChangeDiscardRequested($entry));
+        }
+
+        return null !== $choice || $question;
+    }
+
+    private function clickRow(int $relRow, int $relCol): void
+    {
         $index = $this->rowIndexAt($relRow);
         if (null === $index) {
             return;
         }
         $this->list->select($index);
-        $entry = $this->entries[$index];
         // The bar, the box and the gap after it: a target a column wider
         // each side of `[✓]`, since the path beside it is a link of its own.
-        if ($relCol <= (FieldBox::CHECKBOX_WIDTH + 1)) {
-            $this->events?->dispatch(new GitChangeStageToggleRequested($entry));
-            $this->invalidate();
-
-            return;
-        }
-        $this->fireSelect();
+        match (true) {
+            $relCol <= (FieldBox::CHECKBOX_WIDTH + 1) => $this->events?->dispatch(new GitChangeStageToggleRequested($this->entries[$index])),
+            default => $this->fireSelect(),
+        };
         $this->invalidate();
     }
 
@@ -375,12 +384,10 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
             );
         }
         $index = $this->rowIndexAt($row);
-        if (null === $index || $index === $this->confirmDiscard) {
-            return null;
-        }
-        $key = ShortcutFormatter::format($this->getKeybindings()->getBindings('toggle_stage')[0] ?? '');
 
-        return ChangeTooltip::of($this->entries[$index], $row, $col, $this->drawnWidth, $key, $this->translator);
+        return null === $index || $index === $this->confirmDiscard
+            ? null
+            : ChangeTooltip::of($this->entries[$index], $row, $col, $this->drawnWidth, ShortcutFormatter::format($this->getKeybindings()->getBindings('toggle_stage')[0] ?? ''), $this->translator);
     }
 
     private function rowIndexAt(int $relRow): ?int
@@ -395,13 +402,8 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         if (null === $buttons || $relRow < $buttons['rows'][0] || $relRow >= $buttons['rows'][1]) {
             return null;
         }
-        foreach (['discard', 'keep'] as $name) {
-            if ($relCol >= $buttons[$name][0] && $relCol < $buttons[$name][1]) {
-                return $name;
-            }
-        }
 
-        return null;
+        return \array_find(['discard', 'keep'], static fn (string $name): bool => $relCol >= $buttons[$name][0] && $relCol < $buttons[$name][1]);
     }
 
     private function fireSelect(): void

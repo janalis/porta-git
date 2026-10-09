@@ -21,10 +21,16 @@ final class IntralineDiff
      */
     public static function changedRanges(string $old, string $new): ?array
     {
-        if ($old === $new) {
-            return null;
-        }
+        return $old === $new ? null : self::differingRanges($old, $new);
+    }
 
+    /**
+     * changedRanges() for two lines known to differ.
+     *
+     * @return array{array{int, int}, array{int, int}}|null
+     */
+    private static function differingRanges(string $old, string $new): ?array
+    {
         $prefix = 0;
         $max = \min(\strlen($old), \strlen($new));
         while ($prefix < $max && $old[$prefix] === $new[$prefix]) {

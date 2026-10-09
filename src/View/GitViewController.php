@@ -473,26 +473,19 @@ final class GitViewController implements ContributedView
             $this->host->invalidate();
         };
 
-        if ($entry->isUntracked()) {
-            $this->shownSide = DiffSide::Untracked;
-            $this->git->untrackedFileDiff($abs, $show);
-
-            return;
-        }
-        if ($entry->isUnmerged()) {
-            $this->shownSide = DiffSide::Worktree;
-            $this->git->conflictFileDiff($abs, $show, self::CONTEXT_STEPS[$this->contextStep]);
-
-            return;
-        }
-        if (' ' !== $entry->worktreeStatus) {
-            $this->shownSide = DiffSide::Worktree;
-            $this->git->worktreeFileDiff($abs, $show, self::CONTEXT_STEPS[$this->contextStep], $this->hideWhitespace ? WhitespaceMode::Hidden : WhitespaceMode::Shown);
-
-            return;
-        }
-        $this->shownSide = DiffSide::Cached;
-        $this->git->cachedFileDiff($abs, $show, self::CONTEXT_STEPS[$this->contextStep], $this->hideWhitespace ? WhitespaceMode::Hidden : WhitespaceMode::Shown);
+        $context = self::CONTEXT_STEPS[$this->contextStep];
+        $whitespace = $this->hideWhitespace ? WhitespaceMode::Hidden : WhitespaceMode::Shown;
+        $this->shownSide = match (true) {
+            $entry->isUntracked() => DiffSide::Untracked,
+            $entry->isUnmerged(), ' ' !== $entry->worktreeStatus => DiffSide::Worktree,
+            default => DiffSide::Cached,
+        };
+        match (true) {
+            $entry->isUntracked() => $this->git->untrackedFileDiff($abs, $show),
+            $entry->isUnmerged() => $this->git->conflictFileDiff($abs, $show, $context),
+            DiffSide::Worktree === $this->shownSide => $this->git->worktreeFileDiff($abs, $show, $context, $whitespace),
+            default => $this->git->cachedFileDiff($abs, $show, $context, $whitespace),
+        };
     }
 
     /** ctrl+c in the diff pane: selected plain-code lines onto the clipboard. */

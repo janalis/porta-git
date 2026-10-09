@@ -43,20 +43,41 @@ final readonly class GitContextMenus implements ViewMenuSource
     {
         $rel = $this->hit->hit($this->changes, $row, $col);
         if (null !== $rel) {
-            $entry = $this->changes->selectRowAt($rel['row']);
-            if (null === $entry) {
-                return null;
-            }
-            $this->host->focus($this->changes);
-
-            return $this->changeItems($entry);
+            return $this->changeItemsAtRow($rel['row']);
         }
 
         $rel = $this->hit->hit($this->history, $row, $col);
-        if (null === $rel) {
+
+        return null === $rel ? null : $this->commitItemsAtRow($rel['row']);
+    }
+
+    public function focusedContextMenu(): ?ViewContextMenu
+    {
+        $focus = $this->host->focused();
+
+        return match (true) {
+            $focus === $this->changes => $this->changesContextMenu(),
+            $focus === $this->history => $this->historyContextMenu(),
+            default => null,
+        };
+    }
+
+    /** @return list<MenuItem>|null */
+    private function changeItemsAtRow(int $row): ?array
+    {
+        $entry = $this->changes->selectRowAt($row);
+        if (null === $entry) {
             return null;
         }
-        $commit = $this->history->selectCommitAt($rel['row']);
+        $this->host->focus($this->changes);
+
+        return $this->changeItems($entry);
+    }
+
+    /** @return list<MenuItem>|null */
+    private function commitItemsAtRow(int $row): ?array
+    {
+        $commit = $this->history->selectCommitAt($row);
         if (null === $commit) {
             return null;
         }
@@ -65,20 +86,18 @@ final readonly class GitContextMenus implements ViewMenuSource
         return $this->commitItems($commit);
     }
 
-    public function focusedContextMenu(): ?ViewContextMenu
+    private function changesContextMenu(): ?ViewContextMenu
     {
-        $focus = $this->host->focused();
-        if ($focus === $this->changes) {
-            $entry = $this->changes->selectedEntry();
-            $rect = $this->hit->rect($this->changes);
+        $entry = $this->changes->selectedEntry();
+        $rect = $this->hit->rect($this->changes);
 
-            return null === $entry || null === $rect
-                ? null
-                : new ViewContextMenu($this->changeItems($entry), $rect->row + $this->changes->selectedRow() + 1, $rect->col + 2);
-        }
-        if ($focus !== $this->history) {
-            return null;
-        }
+        return null === $entry || null === $rect
+            ? null
+            : new ViewContextMenu($this->changeItems($entry), $rect->row + $this->changes->selectedRow() + 1, $rect->col + 2);
+    }
+
+    private function historyContextMenu(): ?ViewContextMenu
+    {
         $commit = $this->history->selectedCommit();
         $rect = $this->hit->rect($this->history);
 

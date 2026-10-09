@@ -34,6 +34,7 @@ use Porta\Widget\Support\WheelScrollable;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Input\Key;
+use Symfony\Component\Tui\Input\Keybindings;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 use Symfony\Component\Tui\Widget\FocusableInterface;
@@ -205,29 +206,31 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         }
         $kb = $this->getKeybindings();
 
-        if ($this->handleGitPaneKey($data, $kb)) {
-            return;
-        }
-        if ($kb->matches($data, 'show_changes')) {
-            $this->events?->dispatch(new GitViewModeRequested(GitViewMode::Changes));
+        match (true) {
+            $this->handleGitPaneKey($data, $kb) => null,
+            $kb->matches($data, 'show_changes') => $this->events?->dispatch(new GitViewModeRequested(GitViewMode::Changes)),
+            $kb->matches($data, 'switch_list') => $this->switchList(),
+            $this->filesFocused => $this->navigateFiles($data, $kb),
+            default => $this->navigateCommits($data, $kb),
+        };
+    }
 
-            return;
-        }
-        if ($kb->matches($data, 'switch_list')) {
-            $this->filesFocused = !$this->filesFocused && [] !== $this->files;
+    private function switchList(): void
+    {
+        $this->filesFocused = !$this->filesFocused && [] !== $this->files;
+        $this->invalidate();
+    }
+
+    private function navigateFiles(string $data, Keybindings $kb): void
+    {
+        if (ListNavigation::handleKey($data, $kb, $this->fileList, \count($this->files), page: self::FILE_ROWS)) {
+            $this->fireSelectFile();
             $this->invalidate();
-
-            return;
         }
+    }
 
-        if ($this->filesFocused) {
-            if (ListNavigation::handleKey($data, $kb, $this->fileList, \count($this->files), page: self::FILE_ROWS)) {
-                $this->fireSelectFile();
-                $this->invalidate();
-            }
-
-            return;
-        }
+    private function navigateCommits(string $data, Keybindings $kb): void
+    {
         // The commit list owns only the middle of this pane: a title, then the
         // commits, then the Files header and its eight rows. Paging by the pane
         // height therefore jumped TEN commits further than the screen showed —
@@ -279,11 +282,8 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
     public function selectCommitAt(int $relRow): ?LogEntry
     {
         $commitRows = $this->commitRowCount();
-        if ($relRow < 1 || $relRow >= (1 + $commitRows)) {
-            return null;
-        }
         $index = $this->commitList->scroll() + $relRow - 1;
-        if (!\array_key_exists($index, $this->commits)) {
+        if ($relRow < 1 || $relRow >= (1 + $commitRows) || !\array_key_exists($index, $this->commits)) {
             return null;
         }
         $this->filesFocused = false;

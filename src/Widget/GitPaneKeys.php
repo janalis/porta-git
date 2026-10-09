@@ -33,25 +33,18 @@ trait GitPaneKeys
     /** Handle a key shared by the git list panes; true when it consumed the key. */
     private function handleGitPaneKey(string $data, Keybindings $kb): bool
     {
-        foreach (GitRemoteOperation::cases() as $operation) {
-            if (!$kb->matches($data, $operation->value)) {
-                continue;
-            }
+        $operation = \array_find(GitRemoteOperation::cases(), static fn (GitRemoteOperation $operation): bool => $kb->matches($data, $operation->value));
+        if (null !== $operation) {
             $this->events?->dispatch(new GitRemoteRequested($operation));
 
             return true;
         }
-        if ($kb->matches($data, 'exit_view')) {
-            $this->fire($this->onExit);
-
-            return true;
-        }
-        if ($kb->matches($data, 'focus_next_pane')) {
-            $this->fire($this->onFocusNext);
-
-            return true;
+        $exit = $kb->matches($data, 'exit_view');
+        $handled = $exit || $kb->matches($data, 'focus_next_pane');
+        if ($handled) {
+            $this->fire($exit ? $this->onExit : $this->onFocusNext);
         }
 
-        return false;
+        return $handled;
     }
 }

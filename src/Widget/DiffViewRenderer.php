@@ -77,14 +77,11 @@ final readonly class DiffViewRenderer
     /** The cursor/range background applied to a rendered diff row. */
     private function decorateRowLine(int $rowIndex, string $line): string
     {
-        if ($this->focused && $rowIndex === $this->cursor) {
-            return $this->styles->of(Role::HeaderBar)->apply($line);
-        }
-        if ($this->inRange($rowIndex)) {
-            return $this->styles->of(Role::RowHighlightBg)->apply($line);
-        }
-
-        return $line;
+        return match (true) {
+            $this->focused && $rowIndex === $this->cursor => $this->styles->of(Role::HeaderBar)->apply($line),
+            $this->inRange($rowIndex) => $this->styles->of(Role::RowHighlightBg)->apply($line),
+            default => $line,
+        };
     }
 
     /** Whether $rowIndex sits inside the armed `v` range. */
@@ -111,9 +108,13 @@ final readonly class DiffViewRenderer
             return $line;
         }
         $target = self::lineAtRow($this->document, $row, $sel->side);
-        if (null === $target) {
-            return $line;
-        }
+
+        return null === $target ? $line : $this->tintSelectedSpan($sel, $target, $rowIndex, $line, $width);
+    }
+
+    /** applyCharSelectionTint() for a row inside $sel whose selected side shows $target. */
+    private function tintSelectedSpan(DiffCharSelection $sel, DiffLine $target, int $rowIndex, string $line, int $width): string
+    {
         $textStart = DiffGeometry::textStart($sel->side, $width);
         $segEnd = DiffColumn::Old === $sel->side ? DiffGeometry::splitBoundary($width) : $width;
         $fromCol = $rowIndex === $sel->fromRow ? $sel->fromCol : 0;
@@ -137,13 +138,11 @@ final readonly class DiffViewRenderer
      */
     private function withEmphasis(string $rendered, DiffLine $line, string $bg): string
     {
-        if (null === $line->changedRange) {
+        $range = $line->changedRange;
+        if (null === $range || $range[0] >= $range[1]) {
             return $rendered;
         }
-        [$from, $to] = $line->changedRange;
-        if ($from >= $to) {
-            return $rendered;
-        }
+        [$from, $to] = $range;
         // Both ends measured from column 0: a tab's width depends on where it starts.
         $startCol = self::columns(\substr($line->text, offset: 0, length: $from));
         $endCol = self::columns(\substr($line->text, offset: 0, length: $to));
@@ -156,22 +155,30 @@ final readonly class DiffViewRenderer
     {
         $hunk = $this->document->hunks[$row['hunk']];
 
-        if (DiffRowKind::Hunk === $row['kind']) {
-            return $this->styles->of(Role::Hunk)->apply(AnsiText::truncate(' '.$hunk->header(), $width, pad: true));
-        }
-        if (DiffRowKind::Pair === $row['kind']) {
-            $leftW = DiffGeometry::splitBoundary($width);
-            $rightW = $width - 1 - $leftW;
+        return match ($row['kind']) {
+            DiffRowKind::Hunk => $this->styles->of(Role::Hunk)->apply(AnsiText::truncate(' '.$hunk->header(), $width, pad: true)),
+            DiffRowKind::Pair => $this->renderPair($row, $width),
+            DiffRowKind::Line => $this->renderLine($hunk->lines[$row['line'] ?? -1], $row['hunk'].':'.($row['line'] ?? -1), $width),
+        };
+    }
 
-            return (
-                $this->renderHalf($row['hunk'], $row['left'] ?? -1, $leftW, DiffColumn::Old)
-                .$this->styles->of(Role::Gutter)->apply(Glyphs::DIFF_COLUMN)
-                .$this->renderHalf($row['hunk'], $row['right'] ?? -1, $rightW, DiffColumn::New)
-                .Sgr::RESET
-            );
-        }
+    /** @param Row $row */
+    private function renderPair(array $row, int $width): string
+    {
+        $leftW = DiffGeometry::splitBoundary($width);
+        $rightW = $width - 1 - $leftW;
 
-        $line = $hunk->lines[$row['line'] ?? -1];
+        return (
+            $this->renderHalf($row['hunk'], $row['left'] ?? -1, $leftW, DiffColumn::Old)
+            .$this->styles->of(Role::Gutter)->apply(Glyphs::DIFF_COLUMN)
+            .$this->renderHalf($row['hunk'], $row['right'] ?? -1, $rightW, DiffColumn::New)
+            .Sgr::RESET
+        );
+    }
+
+    /** A unified body row: both line numbers, the marker and the scrolled text, keyed "hunk:line" for its highlight. */
+    private function renderLine(DiffLine $line, string $key, int $width): string
+    {
         // Built plain and measured, then styled: the gutter is eleven fixed
         // columns and the marker one more, so a pane narrower than thirteen
         // cannot seat a row at all. `max(1, $width - 12)` bounded the TEXT and
@@ -185,15 +192,20 @@ final readonly class DiffViewRenderer
             .' '
             .Glyphs::DIFF_COLUMN;
         $body = $width - AnsiUtils::visibleWidth($gutter) - 1;
-        if ($body < 1) {
-            // Clipped BEFORE it is styled, never after: re-slicing an already
-            // styled string cuts escape sequences in half.
-            return $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::RESET;
-        }
 
-        [$marker, $text] = $this->lineBody($line, $row['hunk'].':'.($row['line'] ?? -1));
+        // Clipped BEFORE it is styled, never after: re-slicing an already
+        // styled string cuts escape sequences in half.
+        return $body < 1
+            ? $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::RESET
+            : $this->styles->of(Role::Gutter)->apply($gutter).$this->markedText($line, $key, $body).Sgr::RESET;
+    }
 
-        return $this->styles->of(Role::Gutter)->apply($gutter).$marker.$this->scrolledText($text, $body).Sgr::RESET;
+    /** The ± marker and the scrolled styled text of $line, $inner columns of text. */
+    private function markedText(DiffLine $line, string $key, int $inner): string
+    {
+        [$marker, $text] = $this->lineBody($line, $key);
+
+        return $marker.$this->scrolledText($text, $inner);
     }
 
     /**
@@ -270,12 +282,9 @@ final readonly class DiffViewRenderer
         // of a split pane is half as wide, so this side reaches the case first.
         $gutter = \str_pad(null === $no ? '' : (string) $no, length: 4, pad_string: ' ', pad_type: \STR_PAD_LEFT).' ';
         $body = $width - AnsiUtils::visibleWidth($gutter) - 1;
-        if ($body < 1) {
-            return $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::DEFAULT_FG;
-        }
 
-        [$marker, $text] = $this->lineBody($line, $hunkIndex.':'.$lineIndex);
-
-        return $this->styles->of(Role::Gutter)->apply($gutter).$marker.$this->scrolledText($text, $body).Sgr::DEFAULT_FG;
+        return $body < 1
+            ? $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::DEFAULT_FG
+            : $this->styles->of(Role::Gutter)->apply($gutter).$this->markedText($line, $hunkIndex.':'.$lineIndex, $body).Sgr::DEFAULT_FG;
     }
 }

@@ -115,6 +115,30 @@ final class ChangesListWidgetTest extends TestCase
         $this->assertSame('src/a.php', $toggled);
     }
 
+    /** A key the list has no binding for stages nothing and moves nothing. */
+    public function testAnUnboundKeyLeavesTheListAlone(): void
+    {
+        $events = new EventDispatcher();
+        $widget = new ChangesListWidget(new Translator('en'), events: $events);
+        $widget->setFocused(true);
+        $widget->setEntries($this->entries());
+        $heard = [];
+        GitWidgetEvents::wire(
+            $events,
+            onSelect: static function (ChangeEntry $entry) use (&$heard): void {
+                $heard[] = 'select '.$entry->path;
+            },
+            onToggleStage: static function (ChangeEntry $entry) use (&$heard): void {
+                $heard[] = 'toggle '.$entry->path;
+            },
+        );
+
+        $widget->handleInput('x');
+
+        $this->assertSame([], $heard);
+        $this->assertSame('src/a.php', $widget->selectedEntry()?->path);
+    }
+
     /**
      * The armed discard asks like a browser dialog: the question, a
      * double-bordered Discard button and a Keep beside it, both clickable. A

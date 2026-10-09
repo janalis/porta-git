@@ -118,6 +118,19 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertStringNotContainsString('[scrolled', $lines[0]);
     }
 
+    /** A key the diff has no binding for moves no cursor and scrolls nothing. */
+    public function testAnUnboundKeyLeavesTheViewAlone(): void
+    {
+        $widget = $this->widget();
+        $widget->setFocused(true);
+        $before = $this->plainLines($widget, 80, 4);
+
+        $widget->handleInput('x');
+
+        $this->assertSame($before, $this->plainLines($widget, 80, 4));
+        $this->assertSame(0, $widget->hScroll());
+    }
+
     public function testSpaceOnAHunkHeaderSelectsTheWholeHunk(): void
     {
         $events = new EventDispatcher();

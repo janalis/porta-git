@@ -50,15 +50,15 @@ final readonly class GitStagingService
      */
     public function stageSelection(ChangeEntry $entry, DiffDocument $document, DiffSide $side, WhitespaceMode $whitespace, array $selected, \Closure $onApplied): void
     {
-        if (DiffSide::Untracked === $side) {
-            $this->notifier->flash($this->translator->trans('Untracked: stage the whole file with Space in the changes list'));
-
-            return;
-        }
-        if (WhitespaceMode::Hidden === $whitespace) {
+        $refusal = match (true) {
+            DiffSide::Untracked === $side => $this->translator->trans('Untracked: stage the whole file with Space in the changes list'),
             // A -w diff's hunks omit whitespace-only lines, so a patch built
             // from them no longer matches the preimage — git apply would balk.
-            $this->notifier->flash($this->translator->trans('Show whitespace changes to stage lines (w)'));
+            WhitespaceMode::Hidden === $whitespace => $this->translator->trans('Show whitespace changes to stage lines (w)'),
+            default => null,
+        };
+        if (null !== $refusal) {
+            $this->notifier->flash($refusal);
 
             return;
         }

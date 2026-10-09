@@ -29,6 +29,7 @@ use Porta\Widget\Support\InputHook;
 use Porta\Widget\Support\PanelWidth;
 use Porta\Widget\Support\StylesDefault;
 use Symfony\Component\Tui\Input\Key;
+use Symfony\Component\Tui\Input\Keybindings;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 use Symfony\Component\Tui\Widget\FocusableInterface;
@@ -261,48 +262,50 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         }
         $kb = $this->getKeybindings();
 
-        if ($kb->matches($data, 'exit_view')) {
-            $this->fire($this->onExit);
+        match (true) {
+            $kb->matches($data, 'exit_view') => $this->fire($this->onExit),
+            $kb->matches($data, 'commit') => $this->submit(),
+            $kb->matches($data, 'toggle_amend') => $this->toggleAmend(),
+            $kb->matches($data, 'next_field') => $this->nextField(),
+            $kb->matches($data, 'prev_field') => $this->previousField(),
+            default => $this->typeIntoField($data, $kb),
+        };
+    }
+
+    /**
+     * Summary, description, then the checkbox — skipped while it is
+     * disabled, the way a browser's Tab passes a disabled control.
+     */
+    private function nextField(): void
+    {
+        $last = $this->amendable ? self::AMEND_FIELD : 1;
+        if ($this->activeField < $last) {
+            ++$this->activeField;
+            $this->invalidate();
 
             return;
         }
-        if ($kb->matches($data, 'commit')) {
-            $this->submit();
-
-            return;
+        if (null !== $this->onFocusNext) {
+            $this->activeField = 0;
+            ($this->onFocusNext)();
         }
-        if ($kb->matches($data, 'toggle_amend')) {
-            $this->toggleAmend();
+    }
 
-            return;
+    /**
+     * Shift+Tab walks back — amend, description, summary — and stops at
+     * the summary: no pane hook names the one before this box.
+     */
+    private function previousField(): void
+    {
+        if ($this->activeField > 0) {
+            --$this->activeField;
+            $this->invalidate();
         }
-        if ($kb->matches($data, 'next_field')) {
-            // Summary, description, then the checkbox — skipped while it is
-            // disabled, the way a browser's Tab passes a disabled control.
-            $last = $this->amendable ? self::AMEND_FIELD : 1;
-            if ($this->activeField < $last) {
-                ++$this->activeField;
-                $this->invalidate();
+    }
 
-                return;
-            }
-            if (null !== $this->onFocusNext) {
-                $this->activeField = 0;
-                ($this->onFocusNext)();
-            }
-
-            return;
-        }
-        // Shift+Tab walks back — amend, description, summary — and stops at
-        // the summary: no pane hook names the one before this box.
-        if ($kb->matches($data, 'prev_field')) {
-            if ($this->activeField > 0) {
-                --$this->activeField;
-                $this->invalidate();
-            }
-
-            return;
-        }
+    /** Any other key goes to the active field. */
+    private function typeIntoField(string $data, Keybindings $kb): void
+    {
         if (self::AMEND_FIELD === $this->activeField) {
             if ($kb->matches($data, 'toggle_checkbox')) {
                 $this->toggleAmend();
@@ -311,24 +314,19 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
             return; // a checkbox takes no text
         }
 
-        if (0 === $this->activeField) {
-            if ($kb->matches($data, 'delete_char_backward')) {
-                if ($this->summary->backspace()) {
-                    $this->invalidate();
-                }
-
-                return;
-            }
-            if ($this->summary->editKey($data, $kb) || $this->summary->insert($data)) {
-                $this->invalidate();
-            }
-
-            return;
-        }
-
-        if ($this->description->handleKey($data, $kb)) {
+        $edited = 0 === $this->activeField
+            ? $this->editSummary($data, $kb)
+            : $this->description->handleKey($data, $kb);
+        if ($edited) {
             $this->invalidate();
         }
+    }
+
+    private function editSummary(string $data, Keybindings $kb): bool
+    {
+        return $kb->matches($data, 'delete_char_backward')
+            ? $this->summary->backspace()
+            : $this->summary->editKey($data, $kb) || $this->summary->insert($data);
     }
 
     /**

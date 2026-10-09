@@ -299,80 +299,42 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
         }
         $kb = $this->getKeybindings();
 
-        if ($kb->matches($data, 'exit_view')) {
-            $this->fire($this->onExit);
+        match (true) {
+            $kb->matches($data, 'exit_view') => $this->fire($this->onExit),
+            $kb->matches($data, 'focus_next_pane') => $this->fire($this->onFocusNext),
+            $kb->matches($data, 'cursor_up') => $this->moveCursor(-1),
+            $kb->matches($data, 'cursor_down') => $this->moveCursor(1),
+            $kb->matches($data, 'page_up') => $this->moveCursor(-$this->page()),
+            $kb->matches($data, 'page_down') => $this->moveCursor($this->page()),
+            $kb->matches($data, 'range_anchor') => $this->toggleRangeAnchor(),
+            $kb->matches($data, 'copy') => $this->fireCopy(),
+            $kb->matches($data, 'stage_selection') => $this->fireStageSelection(),
+            $kb->matches($data, 'cycle_context') => $this->requestContextCycle(),
+            $kb->matches($data, 'toggle_layout') => $this->toggleLayout(), // display-only: allowed in read-only mode too
+            $kb->matches($data, 'toggle_whitespace') => $this->events?->dispatch(new GitDiffWhitespaceToggleRequested()), // allowed in read-only mode too
+            $kb->matches($data, 'scroll_left') => $this->scrollHBy(-8),
+            $kb->matches($data, 'scroll_right') => $this->scrollHBy(8),
+            default => null,
+        };
+    }
 
-            return;
+    /**
+     * Arm or drop the `v` range anchor. Allowed in read-only mode too: the
+     * range doubles as a COPY selection there (staging stays blocked in
+     * fireStageSelection).
+     */
+    private function toggleRangeAnchor(): void
+    {
+        if ([] !== $this->rows) {
+            $this->anchor = null === $this->anchor ? $this->cursor : null;
+            $this->invalidate();
         }
-        if ($kb->matches($data, 'focus_next_pane')) {
-            $this->fire($this->onFocusNext);
+    }
 
-            return;
-        }
-        if ($kb->matches($data, 'cursor_up')) {
-            $this->moveCursor(-1);
-
-            return;
-        }
-        if ($kb->matches($data, 'cursor_down')) {
-            $this->moveCursor(1);
-
-            return;
-        }
-        if ($kb->matches($data, 'page_up')) {
-            $this->moveCursor(-$this->page());
-
-            return;
-        }
-        if ($kb->matches($data, 'page_down')) {
-            $this->moveCursor($this->page());
-
-            return;
-        }
-        if ($kb->matches($data, 'range_anchor')) {
-            // Allowed in read-only mode too: the range doubles as a COPY
-            // selection there (staging stays blocked in fireStageSelection).
-            if ([] !== $this->rows) {
-                $this->anchor = null === $this->anchor ? $this->cursor : null;
-                $this->invalidate();
-            }
-
-            return;
-        }
-        if ($kb->matches($data, 'copy')) {
-            $this->fireCopy();
-
-            return;
-        }
-        if ($kb->matches($data, 'stage_selection')) {
-            $this->fireStageSelection();
-
-            return;
-        }
-        if ($kb->matches($data, 'cycle_context')) {
-            if (!$this->readOnly && [] !== $this->rows) {
-                $this->events?->dispatch(new GitDiffContextCycleRequested());
-            }
-
-            return;
-        }
-        if ($kb->matches($data, 'toggle_layout')) {
-            $this->toggleLayout(); // display-only: allowed in read-only mode too
-
-            return;
-        }
-        if ($kb->matches($data, 'toggle_whitespace')) {
-            $this->events?->dispatch(new GitDiffWhitespaceToggleRequested()); // allowed in read-only mode too
-
-            return;
-        }
-        if ($kb->matches($data, 'scroll_left')) {
-            $this->scrollHBy(-8);
-
-            return;
-        }
-        if ($kb->matches($data, 'scroll_right')) {
-            $this->scrollHBy(8);
+    private function requestContextCycle(): void
+    {
+        if (!$this->readOnly && [] !== $this->rows) {
+            $this->events?->dispatch(new GitDiffContextCycleRequested());
         }
     }
 
@@ -533,26 +495,53 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
      */
     private function collectSelection(): array
     {
-        $selected = [];
         $row = $this->rows[$this->cursor];
-        if (null !== $this->anchor) {
-            [$from, $to] = $this->anchor <= $this->cursor ? [$this->anchor, $this->cursor] : [$this->cursor, $this->anchor];
-            for ($i = $from; $i <= $to; ++$i) {
-                $this->selectRowLines($this->rows[$i], $selected);
-            }
-            $this->anchor = null;
-            $this->invalidate();
 
-            return $selected;
-        }
-        if (DiffRowKind::Hunk === $row['kind']) {
-            \assert(null !== $this->document, description: 'document is loaded');
-            foreach (\array_keys($this->document->hunks[$row['hunk']]->lines) as $i) {
-                $selected[$row['hunk']][$i] = true;
-            }
+        return match (true) {
+            null !== $this->anchor => $this->consumeRange($this->anchor),
+            DiffRowKind::Hunk === $row['kind'] => $this->wholeHunk($row['hunk']),
+            default => $this->rowSelection($row),
+        };
+    }
 
-            return $selected;
+    /**
+     * Every line of the rows between $anchor and the cursor; the anchor is consumed.
+     *
+     * @return array<int, array<int, true>>
+     */
+    private function consumeRange(int $anchor): array
+    {
+        $selected = [];
+        [$from, $to] = $anchor <= $this->cursor ? [$anchor, $this->cursor] : [$this->cursor, $anchor];
+        for ($i = $from; $i <= $to; ++$i) {
+            $this->selectRowLines($this->rows[$i], $selected);
         }
+        $this->anchor = null;
+        $this->invalidate();
+
+        return $selected;
+    }
+
+    /** @return array<int, array<int, true>> */
+    private function wholeHunk(int $hunk): array
+    {
+        \assert(null !== $this->document, description: 'document is loaded');
+        $selected = [];
+        foreach (\array_keys($this->document->hunks[$hunk]->lines) as $i) {
+            $selected[$hunk][$i] = true;
+        }
+
+        return $selected;
+    }
+
+    /**
+     * @param array{kind: DiffRowKind, hunk: int, line?: int, left?: int, right?: int} $row
+     *
+     * @return array<int, array<int, true>>
+     */
+    private function rowSelection(array $row): array
+    {
+        $selected = [];
         $this->selectRowLines($row, $selected);
 
         return $selected;

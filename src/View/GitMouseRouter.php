@@ -56,22 +56,15 @@ final class GitMouseRouter implements ViewPointer
 
             return true;
         }
-        if (WheelAxis::Horizontal === $gesture->axis) {
-            return false; // only the diff pane scrolls sideways
-        }
-        // The lists scroll their selection, so the changes list reloads its
-        // diff on the way — the wheel is their arrow keys (ArrowScrollTrait).
-        foreach ([$this->changes, $this->history] as $list) {
-            if (null === $this->hit->hit($list, $mouse->row, $mouse->col)) {
-                continue;
-            }
+        // Only the diff pane scrolls sideways. The lists scroll their selection,
+        // so the changes list reloads its diff on the way — the wheel is their
+        // arrow keys (ArrowScrollTrait).
+        $list = WheelAxis::Horizontal === $gesture->axis
+            ? null
+            : \array_find([$this->changes, $this->history], fn (ChangesListWidget|HistoryListWidget $list): bool => null !== $this->hit->hit($list, $mouse->row, $mouse->col));
+        $list?->scrollBy($gesture->step);
 
-            $list->scrollBy($gesture->step);
-
-            return true;
-        }
-
-        return false;
+        return null !== $list;
     }
 
     /**
@@ -101,23 +94,14 @@ final class GitMouseRouter implements ViewPointer
     {
         // Which pane, then what a press does there — one method each, so
         // this stays the table of panes it reads as.
-        if (null !== ($rel = $this->hit->hit($this->tabs, $mouse->row, $mouse->col))) {
-            return $this->pressTabs($rel['col']);
-        }
-        if (null !== ($rel = $this->hit->hit($this->changes, $mouse->row, $mouse->col))) {
-            return $this->pressChanges($rel['row'], $rel['col']);
-        }
-        if (null !== ($rel = $this->hit->hit($this->history, $mouse->row, $mouse->col))) {
-            return $this->pressHistory($rel['row']);
-        }
-        if (null !== ($rel = $this->hit->hit($this->commitBox, $mouse->row, $mouse->col))) {
-            return $this->pressCommitBox($rel['row']);
-        }
-        if (null !== ($rel = $this->hit->hit($this->diff, $mouse->row, $mouse->col))) {
-            return $this->pressDiff($rel['row'], $rel['col']);
-        }
-
-        return false;
+        return match (true) {
+            null !== ($rel = $this->hit->hit($this->tabs, $mouse->row, $mouse->col)) => $this->pressTabs($rel['col']),
+            null !== ($rel = $this->hit->hit($this->changes, $mouse->row, $mouse->col)) => $this->pressChanges($rel['row'], $rel['col']),
+            null !== ($rel = $this->hit->hit($this->history, $mouse->row, $mouse->col)) => $this->pressHistory($rel['row']),
+            null !== ($rel = $this->hit->hit($this->commitBox, $mouse->row, $mouse->col)) => $this->pressCommitBox($rel['row']),
+            null !== ($rel = $this->hit->hit($this->diff, $mouse->row, $mouse->col)) => $this->pressDiff($rel['row'], $rel['col']),
+            default => false,
+        };
     }
 
     private function pressTabs(int $col): bool
