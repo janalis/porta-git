@@ -12,6 +12,7 @@ use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RunsIde;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
@@ -21,8 +22,7 @@ use Porta\Tests\Support\Widgets;
 use Porta\Widget\ContextMenu;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
-use Symfony\Component\Tui\Render\RenderContext;
-use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Render\LineBufferInterface;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
 
@@ -74,11 +74,18 @@ final class GitToolbarE2eTest extends TestCase
                     $tui->handleInput("\x1b\x04"); // open the git view
                 },
                 200 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
-                    // Read off the toolbar's own rows: a differential paint
-                    // need not write a cell run in one piece.
+                    // What the toolbar PAINTED: an ordinary frame, then its
+                    // render cache. Not render() — that skips the cache, and a
+                    // toolbar that kept its first, empty paint passed — and
+                    // not a forced frame, which re-renders everything.
                     $toolbar = Widgets::byId($tui, 'git-toolbar', GitToolbarWidget::class);
-                    $width = Widgets::rect(Services::resolve($ide, Renderer::class), $toolbar)->columns;
-                    $text = static fn (): string => AnsiUtils::stripAnsiCodes(\implode("\n", $toolbar->render(new RenderContext($width, 3))));
+                    $text = static function () use ($tui, $toolbar): string {
+                        $tui->requestRender();
+                        $tui->processRender();
+                        $painted = Probe::get($toolbar, 'renderCacheLines');
+
+                        return $painted instanceof LineBufferInterface ? AnsiUtils::stripAnsiCodes(\implode("\n", $painted->toArray())) : '';
+                    };
                     // The three answers land in any order; await the last of them.
                     $this->await(static fn (): bool => \str_contains($text(), 'Push ⇡1') && \str_contains($text(), '⑂ main'), what: 'the branch and its upstream');
                     $this->assertStringContainsString('⑂ main', $text(), 'the branch');

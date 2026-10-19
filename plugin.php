@@ -449,14 +449,15 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         // widgets; the flex values are what makes the diff pane take the slack
         // while the three stacked sidebar widgets keep their rendered height.
         $panes->changes->setId('git-changes')->setStyle(new Style(flex: 0));
-        // Flex 2: beside the commit details (flex 1) in History, the diff takes
-        // two thirds; alone in Changes, any weight takes the whole column.
-        $panes->diffView->setId('git-diff')->setStyle(new Style(flex: 2));
+        // Flex 3: beside the commit details (flex 2) in History, the diff takes
+        // three fifths — a third left the details too narrow to read a path in
+        // on a compact window. Alone in Changes, any weight takes the column.
+        $panes->diffView->setId('git-diff')->setStyle(new Style(flex: 3));
         $panes->commitBox->setId('git-commit');
         $panes->history->setId('git-history');
         $panes->tabs->setId('git-tabs')->setStyle(new Style(flex: 0));
         $panes->toolbar->setId('git-toolbar');
-        $panes->details->setId('git-commit-details')->setStyle(new Style(flex: 1));
+        $panes->details->setId('git-commit-details')->setStyle(new Style(flex: 2));
 
         $controller = new GitViewController(
             $git,

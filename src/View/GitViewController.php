@@ -176,8 +176,14 @@ final class GitViewController implements ContributedView
         $this->region->content()->add($this->panes->diffView);
         // GitHub Desktop's toolbar spans the window, flush under its title bar.
         $this->region->header()->add($this->panes->toolbar);
-        $this->repository?->onChange($this->host->invalidate(...));
-        // GitHub Desktop's middle column, in History only: a third of the
+        // The toolbar PULLS from the repository state, so an answer has to
+        // mark it stale itself: a frame alone repaints its cached first,
+        // empty render.
+        $this->repository?->onChange(function (): void {
+            $this->panes->toolbar->invalidate();
+            $this->host->invalidate();
+        });
+        // GitHub Desktop's middle column, in History only: two fifths of the
         // content, the diff the rest (the two widgets' flex weights).
         $this->historyRow = new ContainerWidget();
         $this->historyRow->setId('git-history-content');
@@ -388,7 +394,22 @@ final class GitViewController implements ContributedView
             EventLoop::cancel($this->poll);
         }
         $interval = (float) ($this->gitSettings->refreshInterval ?? 2);
-        $this->poll = EventLoop::repeat($interval, fn () => $this->refresh(RefreshMode::Quiet));
+        $this->poll = EventLoop::repeat($interval, function (): void {
+            $this->refresh(RefreshMode::Quiet);
+            $this->ageTimes();
+        });
+    }
+
+    /**
+     * "Last fetched 3 minutes ago" and "2 hours ago" are worked out when a
+     * widget paints, and a widget repaints only once marked stale — so the
+     * poll marks the two that say them, or they would read the same all day.
+     */
+    private function ageTimes(): void
+    {
+        $this->panes->toolbar->invalidate();
+        $this->panes->history->invalidate();
+        $this->host->invalidate();
     }
 
     public function close(): void

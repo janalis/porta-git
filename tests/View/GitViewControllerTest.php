@@ -1830,4 +1830,23 @@ final class GitViewControllerTest extends TestCase
         $this->assertStringContainsString("\x1b]52;c;".\base64_encode($commit->sha), $this->tui->getTerminal()->getOutput());
         $this->assertStringContainsString('Copied f00dfac', $this->statusRow($this->statusBar));
     }
+
+    /**
+     * "3 minutes ago" is worked out at paint time, and a widget repaints only
+     * once marked stale: each poll tick marks the toolbar and the commit list,
+     * or their times would never age.
+     */
+    public function testEachPollTickAgesTheRelativeTimes(): void
+    {
+        $controller = $this->controller();
+        $controller->open();
+        $this->await($controller->isOpen(...));
+        $toolbar = $this->toolbar->getRenderRevision();
+        $history = $this->history->getRenderRevision();
+
+        $this->pump(2.3); // past one tick of the default two-second poll
+
+        $this->assertGreaterThan($toolbar, $this->toolbar->getRenderRevision());
+        $this->assertGreaterThan($history, $this->history->getRenderRevision());
+    }
 }
