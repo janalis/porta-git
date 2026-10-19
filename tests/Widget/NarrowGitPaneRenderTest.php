@@ -133,7 +133,8 @@ final class NarrowGitPaneRenderTest extends TestCase
         }
 
         $missing = [];
-        foreach (\glob(\dirname(__DIR__, levels: 2).'/src/Widget/*.php') as $file) {
+        $found = \glob(\dirname(__DIR__, levels: 2).'/src/Widget/*.php');
+        foreach (false === $found ? [] : $found as $file) {
             $class = 'Porta\\GitPlugin\\Widget\\'.\basename($file, suffix: '.php');
             if (\class_exists($class) && \is_a($class, AbstractWidget::class, allow_string: true) && !\array_key_exists($class, $swept)) {
                 $missing[] = $class;
