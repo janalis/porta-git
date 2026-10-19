@@ -7,9 +7,11 @@ namespace Porta\GitPlugin\Tests\Widget;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Diff\DiffDocument;
+use Porta\GitPlugin\Event\GitDiffSettingsRequested;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\I18n\Translator;
+use Porta\Layout\DiffLayout;
 use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\Probe;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -401,57 +403,65 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame([0 => [1 => true, 2 => true, 3 => true]], $captured, 'the range unions every side in it');
     }
 
-    public function testToolbarTagTogglesByClickAndFiresThePersistenceHook(): void
+    /** GitHub Desktop's gear: a press asks for its menu; the keys still flip the layout and fire the persistence hook. */
+    public function testTheGearAsksForItsMenuAndTheKeysStillToggle(): void
     {
         $events = new EventDispatcher();
         $widget = $this->widget($events);
+        $asked = 0;
+        $events->addListener(GitDiffSettingsRequested::class, static function () use (&$asked): void {
+            ++$asked;
+        });
         $toggles = [];
         GitWidgetEvents::wire($events, onLayoutToggle: static function () use (&$toggles, $widget): void {
             $toggles[] = $widget->isSplit();
         });
-        $raw = $widget->render(new RenderContext(80, 12));
-        $this->assertStringNotContainsString("\x1b[48;5;31m", $raw[0], 'inactive tag renders dim');
+        $plain = AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(80, 12))[0]);
+        $this->assertMatchesRegularExpression('/^ src\/demo\.php +⚙ ▾  $/u', $plain, 'the title, then the gear at the end');
+        $anchor = $widget->settingsAnchor();
+        $this->assertSame([74, 1], $anchor, 'its first column, and the toolbar\'s height to hang a menu under');
 
-        // At 80 cols the tags start at col 58: ' S split ' spans 58-65.
-        $widget->handleClick(0, 60);
-        $this->assertTrue($widget->isSplit());
-        $this->assertSame([true], $toggles);
-        $raw = $widget->render(new RenderContext(80, 12));
-        $this->assertStringContainsString("\x1b[48;5;31m", $raw[0], 'active tag renders selected');
-        $plain = AnsiUtils::stripAnsiCodes($raw[0]);
-        $this->assertStringContainsString('[S split]  W hide-ws ', $plain, 'on is bracketed, off bare — the state reads without colour');
-        $this->assertSame(80, \mb_strwidth($plain), 'in the same width, so no zone moved');
-
-        $widget->handleClick(0, 5); // title text: not a button
-        $this->assertTrue($widget->isSplit());
+        $widget->handleClick(0, 75);
+        $this->assertSame(1, $asked);
+        $this->assertFalse($widget->isSplit(), 'the press opens a menu, it toggles nothing itself');
+        $widget->handleClick(0, 5); // the title: not a button
+        $this->assertSame(1, $asked);
 
         $widget->setFocused(true);
-        $widget->handleInput('s'); // keyboard path fires the hook too
+        $widget->handleInput('s'); // the key still flips, and fires the hook
+        $widget->chooseLayout(DiffLayout::Split); // the menu's pick of what is shown: nothing
+        $widget->chooseLayout(DiffLayout::Unified);
         $this->assertSame([true, false], $toggles);
     }
 
     /**
-     * On a roomy screen the toggles are boxes, the title on their middle row:
-     * a toggle answers on each of its three rows, and every body row sits
-     * three down — the cursor, the page and the scroll all count the header.
+     * On a roomy screen the gear is a box, the title on its middle row: it
+     * answers on each of its three rows, and every body row sits three down —
+     * the cursor, the page and the scroll all count the header.
      */
-    public function testARoomyToolbarBoxesItsTogglesAndTheBodyStartsBelowThem(): void
+    public function testARoomyToolbarBoxesItsGearAndTheBodyStartsBelowIt(): void
     {
         $events = new EventDispatcher();
         $widget = new DiffViewWidget(new Translator('en'), events: $events);
         $widget->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
         $widget->setFocused(true);
+        $asked = 0;
+        $events->addListener(GitDiffSettingsRequested::class, static function () use (&$asked): void {
+            ++$asked;
+        });
         $lines = $this->plainLines($widget);
 
-        $this->assertStringEndsWith('╭─────────╮ ╭───────────╮ ', $lines[0]);
-        $this->assertMatchesRegularExpression('/^ src\/demo\.php +│ S split │ │ W hide-ws │ $/u', $lines[1]);
+        $this->assertStringEndsWith('╭─────╮ ', $lines[0]);
+        $this->assertMatchesRegularExpression('/^ src\/demo\.php +│ ⚙ ▾ │ $/u', $lines[1]);
         $this->assertStringContainsString('@@ -3,3 +3,4 @@', $lines[3], 'the body starts below the three-row header');
+        $anchor = $widget->settingsAnchor();
+        $this->assertNotNull($anchor);
+        $this->assertSame(3, $anchor[1], 'its menu hangs under all three rows');
 
-        $widget->handleClick(0, 60); // the top border of S split
-        $this->assertTrue($widget->isSplit());
-        $widget->handleClick(2, 60); // and its bottom border
-        $this->assertFalse($widget->isSplit());
-        $this->assertTrue($widget->hoverHeader(2, 60), 'hover answers on the bottom row too');
+        $widget->handleClick(0, $anchor[0] + 1); // its top border
+        $widget->handleClick(2, $anchor[0] + 1); // and its bottom one
+        $this->assertSame(2, $asked);
+        $this->assertTrue($widget->hoverHeader(2, $anchor[0] + 1), 'hover answers on the bottom row too');
 
         $captured = null;
         GitWidgetEvents::wire($events, onStageSelection: static function (array $selected) use (&$captured): void {
@@ -462,19 +472,19 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame([0 => [1 => true]], $captured);
     }
 
-    /** A roomy pane too narrow for the boxes takes the one-row tags, and one too narrow for those the title alone. */
-    public function testANarrowRoomyToolbarFallsBackToTagsThenToTheTitle(): void
+    /** A roomy pane too narrow for the boxed gear takes the one-row one, and one too narrow for that the title alone. */
+    public function testANarrowRoomyToolbarFallsBackToTheTagThenToTheTitle(): void
     {
         $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
 
-        $tags = $this->plainLines($widget, 25, 8);
-        $this->assertStringEndsWith(' S split   W hide-ws  ', $tags[0], 'boxed, the toggles need 26 columns: the tags take 22');
-        $this->assertStringContainsString('@@ -3,3', $tags[1], 'a one-row header');
+        $tag = $this->plainLines($widget, 7, 8);
+        $this->assertSame(' ⚙ ▾  ', \mb_substr($tag[0], start: 1), 'boxed, the gear needs 8 columns: the tag takes 6');
+        $this->assertStringContainsString('@@', $tag[1], 'a one-row header');
 
-        $title = $this->plainLines($widget, 10, 8);
-        $this->assertSame(' src/demo…', $title[0]);
-        $this->assertStringContainsString('@@', $title[1]);
+        $title = $this->plainLines($widget, 5, 8);
+        $this->assertSame(' src…', $title[0]);
+        $this->assertNull($widget->settingsAnchor(), 'no gear drawn, none to hang a menu from');
     }
 
     public function testBodyClickMovesTheCursor(): void
@@ -521,7 +531,7 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertFalse($fired);
     }
 
-    public function testWhitespaceTagFiresTheHookAndMirrorsTheState(): void
+    public function testTheWhitespaceKeyFiresTheHookAndTheStateMirrorsTheController(): void
     {
         $events = new EventDispatcher();
         $widget = $this->widget($events);
@@ -529,24 +539,17 @@ final class DiffViewWidgetTest extends TestCase
         GitWidgetEvents::wire($events, onToggleWhitespace: static function () use (&$fired): void {
             ++$fired;
         });
-        $widget->render(new RenderContext(80, 12));
-
-        // ' W hide-ws ' spans cols 67-78 at 80 cols.
-        $widget->handleClick(0, 70);
-        $this->assertSame(1, $fired);
 
         $widget->setFocused(true);
         $widget->makeReadOnly();
         $widget->handleInput('w'); // allowed on read-only history diffs
-        $this->assertSame(2, $fired);
+        $this->assertSame(1, $fired);
 
-        // The tag reflects the controller-owned state.
-        $off = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringNotContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m[W hide-ws]", $off, 'inactive until the controller says so');
+        // The menu's check reads the controller-owned state.
+        $this->assertFalse($widget->isWhitespaceHidden(), 'off until the controller says so');
         $widget->hideWhitespace();
         $widget->hideWhitespace(); // idempotent
-        $on = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m[W hide-ws]", $on, 'active tag renders selected');
+        $this->assertTrue($widget->isWhitespaceHidden());
     }
 
     public function testLayoutAndWhitespaceSettersAreIdempotentBothWays(): void
@@ -561,12 +564,10 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertFalse($widget->isSplit());
 
         $widget->hideWhitespace();
-        $on = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m[W hide-ws]", $on);
+        $this->assertTrue($widget->isWhitespaceHidden());
         $widget->showWhitespace();
         $widget->showWhitespace(); // idempotent (already shown)
-        $off = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringNotContainsString("\x1b[38;5;231m\x1b[48;5;31m\x1b[1m[W hide-ws]", $off, 'tag clears once whitespace is shown again');
+        $this->assertFalse($widget->isWhitespaceHidden());
     }
 
     public function testHorizontalScrollSlidesTextUnderPinnedGutters(): void
@@ -636,8 +637,8 @@ final class DiffViewWidgetTest extends TestCase
         }
 
         $raw = $widget->render(new RenderContext(40, 6));
-        $this->assertStringContainsString("\x1b[48;5;88m", $raw[2], 'the deletion emphasis bg survived the slice');
-        $this->assertStringContainsString("\x1b[48;5;22m", $raw[3], 'the addition emphasis bg survived the slice');
+        $this->assertStringContainsString("\x1b[48;5;124m", $raw[2], 'the deletion emphasis bg survived the slice');
+        $this->assertStringContainsString("\x1b[48;5;28m", $raw[3], 'the addition emphasis bg survived the slice');
     }
 
     public function testCtrlCCopiesTheCursorRowRangesAndHunks(): void
@@ -773,7 +774,7 @@ final class DiffViewWidgetTest extends TestCase
             $this->assertStringNotContainsString("\t", $row, "row {$n} sends no raw tab");
             $this->assertSame(60, AnsiUtils::visibleWidth($row), "row {$n} is the pane's width");
         }
-        $this->assertSame(1, \preg_match('/\x1b\[48;5;22m(.*?)\x1b\[49m/s', $rows[3], $emphasis));
+        $this->assertSame(1, \preg_match('/\x1b\[48;5;28m(.*?)\x1b\[49m/s', $rows[3], $emphasis));
         $this->assertSame('NEW', AnsiUtils::stripAnsiCodes($emphasis[1]));
     }
 
@@ -891,45 +892,36 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertStringContainsString("\x1b[49m\x1b[48;5;24m", $row, 'a re-applied bg follows a reset inside the span');
     }
 
-    public function testTheToolbarToggleUnderThePointerTints(): void
+    public function testTheGearUnderThePointerTints(): void
     {
         $widget = $this->widget();
         $widget->render(new RenderContext(80, 12));
 
-        // ' S split ' spans cols 58-65, ' W hide-ws ' 67-78 at 80 cols.
-        $this->assertTrue($widget->hoverHeader(0, 60), 'the pointer landed on the split toggle');
-        $this->assertFalse($widget->hoverHeader(0, 61), 'still the same toggle → no change');
-        $this->assertTrue($widget->hoverHeader(0, 70), 'moved onto the whitespace toggle');
-        $this->assertTrue($widget->hoverHeader(0, 5), 'the title is not a toggle: the tint clears');
-        $this->assertFalse($widget->hoverHeader(0, 5), 'still no toggle → no change');
-        $this->assertTrue($widget->hoverHeader(0, 60), 'back onto a toggle');
-        $this->assertTrue($widget->hoverHeader(4, 60), 'the toolbar is row 0 only: a body row clears the tint');
-        $this->assertFalse($widget->hoverHeader(4, 60), 'still off the toolbar → no change');
-        $this->assertTrue($widget->hoverHeader(0, 60), 'back onto a toggle');
+        // ' ⚙ ▾ ' spans cols 74-78 at 80 cols.
+        $this->assertTrue($widget->hoverHeader(0, 75), 'the pointer landed on the gear');
+        $this->assertFalse($widget->hoverHeader(0, 76), 'still the gear → no change');
+        $this->assertTrue($widget->hoverHeader(0, 5), 'the title is not a control: the tint clears');
+        $this->assertFalse($widget->hoverHeader(0, 5), 'still none → no change');
+        $this->assertTrue($widget->hoverHeader(0, 75), 'back onto the gear');
+        $this->assertTrue($widget->hoverHeader(4, 75), 'the toolbar is row 0 only: a body row clears the tint');
+        $this->assertFalse($widget->hoverHeader(4, 75), 'still off the toolbar → no change');
+        $this->assertTrue($widget->hoverHeader(0, 75), 'back onto the gear');
         $this->assertTrue($widget->clearHeaderHover(), 'the pointer left the pane');
         $this->assertFalse($widget->clearHeaderHover(), 'nothing left to clear');
     }
 
-    public function testAnOffToggleTintsUnderThePointerAndAnOnOneKeepsItsSelection(): void
+    public function testTheGearTintsUnderThePointerInTheSameWidth(): void
     {
         $widget = $this->widget();
         $widget->render(new RenderContext(80, 12));
 
-        $widget->hoverHeader(0, 70); // the whitespace toggle, currently off
-        $off = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringContainsString("\x1b[48;5;236m", $off, 'an off toggle takes the hover tint');
-        $this->assertSame(80, AnsiUtils::visibleWidth($off), 'the tint does not change the toolbar width');
-
-        // An ON tag already carries the bright selection background, so the
-        // hover must not repaint it away.
-        $widget->hideWhitespace();
-        $on = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringContainsString("\x1b[48;5;31m", $on, 'the on toggle keeps its selection background under the pointer');
-        $this->assertStringContainsString("\x1b[4m", $on, 'and underlines, so the pointer over a lit toggle still shows');
-        $this->assertSame(80, AnsiUtils::visibleWidth($on));
+        $widget->hoverHeader(0, 75);
+        $hovered = $widget->render(new RenderContext(80, 12))[0];
+        $this->assertStringContainsString("\x1b[48;5;236m", $hovered, 'the gear takes the hover tint');
+        $this->assertSame(80, AnsiUtils::visibleWidth($hovered), 'the tint does not change the toolbar width');
 
         $widget->clearHeaderHover();
-        $this->assertStringNotContainsString("\x1b[4m", $widget->render(new RenderContext(80, 12))[0], 'the underline is the pointer, not the state');
+        $this->assertStringNotContainsString("\x1b[48;5;236m", $widget->render(new RenderContext(80, 12))[0]);
     }
 
     public function testATeamThemeSwitchRebuildsTheBakedRows(): void
@@ -946,5 +938,70 @@ final class DiffViewWidgetTest extends TestCase
 
         $this->assertSame($before, \implode("\n", $widget->render(new RenderContext(80, 20))), 'same theme, same rows — the rebuild is not a repaint bug');
         $this->assertStringContainsString('$new = 2;', AnsiUtils::stripAnsiCodes($before), 'and the rows survived the rebuild');
+    }
+
+    /** GitHub's bands: an added row runs green end to end, a deleted one red, a context row plain. */
+    public function testAddedAndDeletedRowsAreBandedEndToEnd(): void
+    {
+        $widget = $this->widget();
+        $raw = $widget->render(new RenderContext(60, 8));
+
+        $this->assertStringStartsWith("\x1b[48;5;52m", $raw[3], 'the deletion\'s band opens at its first column');
+        $this->assertStringStartsWith("\x1b[48;5;22m", $raw[4], 'and the addition\'s');
+        $this->assertStringNotContainsString("\x1b[48;5;22m", $raw[2], 'a context row has none');
+        $this->assertStringContainsString("\x1b[49m\x1b[48;5;22m", $raw[4], 'the band comes back after the emphasis inside closes');
+        $this->assertSame(60, AnsiUtils::visibleWidth($raw[4]));
+
+        $widget->useSplitView();
+        $split = $widget->render(new RenderContext(60, 8));
+        $this->assertStringStartsWith("\x1b[48;5;52m", $split[3], 'split: the old half red');
+        $this->assertStringContainsString("\x1b[48;5;22m", $split[3], 'and the new half green');
+    }
+
+    /** Where the user is wins over the band: the cursor row, a range and a mouse selection keep their own shade. */
+    public function testTheCursorARangeAndASelectionAreNotBanded(): void
+    {
+        $widget = $this->widget();
+        $widget->setFocused(true);
+        $widget->handleInput("\x1b[B");
+        $widget->handleInput("\x1b[B"); // the cursor on the deletion
+
+        $raw = $widget->render(new RenderContext(60, 8));
+        $this->assertStringNotContainsString("\x1b[48;5;52m", $raw[3], 'the cursor row');
+        $this->assertStringContainsString("\x1b[48;5;22m", $raw[4], 'the next row is still banded');
+
+        $widget->handleInput('v');
+        $widget->handleInput("\x1b[B"); // the range takes the addition too
+        $this->assertStringNotContainsString("\x1b[48;5;22m", $widget->render(new RenderContext(60, 8))[4], 'a ranged row');
+
+        $selected = $this->widget();
+        $selected->render(new RenderContext(60, 8));
+        $selected->handleClick(4, 14);
+        $selected->dragSelectTo(4, 18);
+        $this->assertStringNotContainsString("\x1b[48;5;22m", $selected->render(new RenderContext(60, 8))[4], 'a row under the mouse selection');
+    }
+
+    /** The mark before a hunk's header shows more of the file: a click there runs the context cycle, as `c` does. */
+    public function testTheHunkMarkCyclesTheContext(): void
+    {
+        $events = new EventDispatcher();
+        $widget = $this->widget($events);
+        $cycles = 0;
+        GitWidgetEvents::wire($events, onCycleContext: static function () use (&$cycles): void {
+            ++$cycles;
+        });
+        $rows = $this->plainLines($widget, 60, 8);
+        $this->assertStringStartsWith(' ⇕ @@ -3,3 +3,4 @@', $rows[1]);
+
+        $widget->handleClick(1, 1);
+        $this->assertSame(1, $cycles);
+        $widget->handleClick(1, 10); // the header text: the cursor moves, nothing cycles
+        $widget->handleClick(2, 1); // a body row's first columns: nothing cycles
+        $this->assertSame(1, $cycles);
+
+        $tip = $widget->tooltipAt(1, 1);
+        $this->assertSame('Show more of the file around the changes (c)', $tip?->text);
+        $this->assertNull($widget->tooltipAt(1, 10));
+        $this->assertNull($widget->tooltipAt(2, 1));
     }
 }

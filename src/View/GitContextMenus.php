@@ -10,6 +10,7 @@ use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\Widget\ChangesListWidget;
+use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
@@ -41,7 +42,22 @@ final readonly class GitContextMenus implements ViewMenuSource
         private Translator $translator,
         private ?GitToolbarWidget $toolbar = null,
         private ?BranchMenu $branchMenu = null,
+        private ?DiffViewWidget $diff = null,
     ) {}
+
+    /**
+     * Drop the diff's display settings under its ⚙.
+     *
+     * @param list<MenuItem> $items
+     */
+    public function openDiffSettings(array $items): void
+    {
+        $anchor = $this->diff?->settingsAnchor();
+        $rect = null === $this->diff ? null : $this->hit->rect($this->diff);
+        if (null !== $anchor && null !== $rect) {
+            $this->host->openMenu($items, $rect->row + $anchor[1], $rect->col + $anchor[0]);
+        }
+    }
 
     /**
      * Drop a toolbar cell's menu under it: the repository's worktrees, or the

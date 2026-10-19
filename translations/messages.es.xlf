@@ -10,14 +10,6 @@
         <source>History (%count%)</source>
         <target>Historial (%count%)</target>
       </trans-unit>
-      <trans-unit id="4">
-        <source> S split </source>
-        <target> S split </target>
-      </trans-unit>
-      <trans-unit id="5">
-        <source> W hide-ws </source>
-        <target> W hide-ws </target>
-      </trans-unit>
       <trans-unit id="6">
         <source>Commit failed (nothing staged?)</source>
         <target>Error al confirmar (¿nada preparado?)</target>
@@ -466,10 +458,6 @@
         <source>Side-by-side diff</source>
         <target>Diff en paralelo</target>
       </trans-unit>
-      <trans-unit id="118">
-        <source>Hide whitespace-only changes</source>
-        <target>Ocultar cambios solo de espacios</target>
-      </trans-unit>
       <trans-unit id="119">
         <source>Write a summary first</source>
         <target>Escriba primero un resumen</target>
@@ -753,6 +741,34 @@
       <trans-unit id="189">
         <source>Copy the full commit hash</source>
         <target>Copiar el hash completo del commit</target>
+      </trans-unit>
+      <trans-unit id="190">
+        <source>Diff settings: %layout%, %whitespace%</source>
+        <target>Ajustes del diff: %layout%, %whitespace%</target>
+      </trans-unit>
+      <trans-unit id="191">
+        <source>Hide whitespace changes</source>
+        <target>Ocultar cambios de espacios en blanco</target>
+      </trans-unit>
+      <trans-unit id="192">
+        <source>Show more of the file around the changes (c)</source>
+        <target>Mostrar más del archivo alrededor de los cambios (c)</target>
+      </trans-unit>
+      <trans-unit id="193">
+        <source>Unified</source>
+        <target>Unificado</target>
+      </trans-unit>
+      <trans-unit id="194">
+        <source>Unified diff</source>
+        <target>Diff unificado</target>
+      </trans-unit>
+      <trans-unit id="195">
+        <source>whitespace changes hidden</source>
+        <target>cambios de espacios ocultos</target>
+      </trans-unit>
+      <trans-unit id="196">
+        <source>whitespace changes shown</source>
+        <target>cambios de espacios visibles</target>
       </trans-unit>
     </body>
   </file>

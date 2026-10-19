@@ -114,22 +114,25 @@ final class GitTooltipsTest extends TestCase
         $this->assertNull($list->tooltipAt(0, 1));
     }
 
-    public function testTheDiffTogglesSayWhatTheyDoAndWhetherTheyAreOn(): void
+    public function testTheGearSaysWhatTheDiffShows(): void
     {
         $diff = new DiffViewWidget(new Translator('en'));
-        $rows = \explode("\n", $this->plain($diff->render(new RenderContext(80, 10))));
-        $captions = (int) \array_key_first(\array_filter($rows, static fn (string $r): bool => \str_contains($r, 'split')));
-        $split = (int) \mb_strpos($rows[$captions], needle: 'split');
-        $ws = (int) \mb_strpos($rows[$captions], needle: 'hide-ws');
+        $diff->render(new RenderContext(80, 10));
+        $anchor = $diff->settingsAnchor();
+        $this->assertNotNull($anchor);
 
-        $tip = $diff->tooltipAt(0, $split);
-        $this->assertSame(['git:diff:split', 'Side-by-side diff · off', 0, 3], [$tip?->key, $tip?->text, $tip?->row, $tip?->rows], 'any row of a boxed toggle; the card spans all three');
-        $this->assertSame('Hide whitespace-only changes · off', $diff->tooltipAt($captions, $ws)?->text);
-        $this->assertNull($diff->tooltipAt($captions, 2), 'the title');
-        $this->assertNull($diff->tooltipAt(5, $split), 'below the toolbar');
+        $tip = $diff->tooltipAt(0, $anchor[0] + 1);
+        $this->assertSame(
+            ['git:diff:settings', 'Diff settings: Unified diff, whitespace changes shown', 0, 3],
+            [$tip?->key, $tip?->text, $tip?->row, $tip?->rows],
+            'any row of the boxed gear; the card spans all three',
+        );
+        $this->assertNull($diff->tooltipAt(1, 2), 'the title');
+        $this->assertNull($diff->tooltipAt(5, $anchor[0] + 1), 'below the toolbar');
 
-        $diff->handleClick($captions, $split);
-        $this->assertSame('Side-by-side diff · on', $diff->tooltipAt($captions, $split)?->text);
+        $diff->useSplitView();
+        $diff->hideWhitespace();
+        $this->assertSame('Diff settings: Side-by-side diff, whitespace changes hidden', $diff->tooltipAt(1, $anchor[0] + 1)?->text);
     }
 
     public function testADisabledCommitButtonSaysWhy(): void

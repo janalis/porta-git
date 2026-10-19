@@ -10,14 +10,6 @@
         <source>History (%count%)</source>
         <target>היסטוריה (%count%)</target>
       </trans-unit>
-      <trans-unit id="4">
-        <source> S split </source>
-        <target> S split </target>
-      </trans-unit>
-      <trans-unit id="5">
-        <source> W hide-ws </source>
-        <target> W hide-ws </target>
-      </trans-unit>
       <trans-unit id="6">
         <source>Commit failed (nothing staged?)</source>
         <target>הקומיט נכשל (שום דבר לא הועלה?)</target>
@@ -466,10 +458,6 @@
         <source>Side-by-side diff</source>
         <target>השוואה זה לצד זה</target>
       </trans-unit>
-      <trans-unit id="118">
-        <source>Hide whitespace-only changes</source>
-        <target>הסתרת שינויי רווחים בלבד</target>
-      </trans-unit>
       <trans-unit id="119">
         <source>Write a summary first</source>
         <target>יש לכתוב תקציר תחילה</target>
@@ -753,6 +741,34 @@
       <trans-unit id="189">
         <source>Copy the full commit hash</source>
         <target>להעתיק את גיבוב הקומיט המלא</target>
+      </trans-unit>
+      <trans-unit id="190">
+        <source>Diff settings: %layout%, %whitespace%</source>
+        <target>הגדרות diff: %layout%, %whitespace%</target>
+      </trans-unit>
+      <trans-unit id="191">
+        <source>Hide whitespace changes</source>
+        <target>להסתיר שינויי רווחים</target>
+      </trans-unit>
+      <trans-unit id="192">
+        <source>Show more of the file around the changes (c)</source>
+        <target>להציג עוד מהקובץ סביב השינויים (c)</target>
+      </trans-unit>
+      <trans-unit id="193">
+        <source>Unified</source>
+        <target>מאוחד</target>
+      </trans-unit>
+      <trans-unit id="194">
+        <source>Unified diff</source>
+        <target>diff מאוחד</target>
+      </trans-unit>
+      <trans-unit id="195">
+        <source>whitespace changes hidden</source>
+        <target>שינויי רווחים מוסתרים</target>
+      </trans-unit>
+      <trans-unit id="196">
+        <source>whitespace changes shown</source>
+        <target>שינויי רווחים מוצגים</target>
       </trans-unit>
     </body>
   </file>

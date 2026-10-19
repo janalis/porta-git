@@ -30,6 +30,9 @@ use Symfony\Component\Tui\Ansi\AnsiUtils;
  */
 final readonly class DiffViewRenderer
 {
+    /** On a hunk row, before its header: a click there shows more of the file around it. Checked narrow: East Asian Neutral, no emoji presentation. */
+    public const string EXPAND = '⇕';
+
     /**
      * @param array<string, string> $highlighted syntax-highlighted body text keyed by "hunk:line"
      * @param ?DiffCharSelection     $charSel     the normalized char selection, or null
@@ -52,7 +55,38 @@ final readonly class DiffViewRenderer
      */
     public function row(int $rowIndex, array $row, int $width): string
     {
-        return $this->decorateRowLine($rowIndex, $this->applyCharSelectionTint($rowIndex, $row, $this->renderRow($row, $width), $width));
+        // GitHub's green and red bands — but a row the cursor, a range or a
+        // mouse selection is on keeps that shade alone, or the band would
+        // paint over what says where the user is.
+        $banded = (!$this->focused || $rowIndex !== $this->cursor) && !$this->inRange($rowIndex) && !$this->inCharSelection($rowIndex);
+
+        return $this->decorateRowLine($rowIndex, $this->applyCharSelectionTint($rowIndex, $row, $this->renderRow($row, $width, $banded), $width));
+    }
+
+    private function inCharSelection(int $rowIndex): bool
+    {
+        return null !== $this->charSel && $rowIndex >= $this->charSel->fromRow && $rowIndex <= $this->charSel->toRow;
+    }
+
+    /**
+     * $rendered, $width columns of an added or deleted line, under its band:
+     * the background re-armed after every reset inside, the emphasis's
+     * included, so the band runs the whole row.
+     */
+    // @mago-expect lint:no-boolean-flag-parameter -- whether the row's band shows is the one fact a cursor or a selection on it changes, not a second job.
+    private function banded(string $rendered, DiffLine $line, int $width, bool $banded): string
+    {
+        $role = match ($line->origin) {
+            '+' => Role::AddedRowBg,
+            '-' => Role::DeletedRowBg,
+            default => null,
+        };
+        if (!$banded || null === $role) {
+            return $rendered;
+        }
+        $band = $this->styles->of($role)->getAnsiRestore();
+
+        return '' === $band ? $rendered : LineDecorator::apply($rendered, 0, $width, $band, Sgr::DEFAULT_BG, $band);
     }
 
     /**
@@ -151,33 +185,34 @@ final readonly class DiffViewRenderer
     }
 
     /** @param Row $row */
-    private function renderRow(array $row, int $width): string
+    private function renderRow(array $row, int $width, bool $banded): string
     {
         $hunk = $this->document->hunks[$row['hunk']];
 
         return match ($row['kind']) {
-            DiffRowKind::Hunk => $this->styles->of(Role::Hunk)->apply(AnsiText::truncate(' '.$hunk->header(), $width, pad: true)),
-            DiffRowKind::Pair => $this->renderPair($row, $width),
-            DiffRowKind::Line => $this->renderLine($hunk->lines[$row['line'] ?? -1], $row['hunk'].':'.($row['line'] ?? -1), $width),
+            // The expand mark first: a click on it shows more of the file around the hunk.
+            DiffRowKind::Hunk => $this->styles->of(Role::Hunk)->apply(AnsiText::truncate(' '.self::EXPAND.' '.$hunk->header(), $width, pad: true)),
+            DiffRowKind::Pair => $this->renderPair($row, $width, $banded),
+            DiffRowKind::Line => $this->renderLine($hunk->lines[$row['line'] ?? -1], $row['hunk'].':'.($row['line'] ?? -1), $width, $banded),
         };
     }
 
     /** @param Row $row */
-    private function renderPair(array $row, int $width): string
+    private function renderPair(array $row, int $width, bool $banded): string
     {
         $leftW = DiffGeometry::splitBoundary($width);
         $rightW = $width - 1 - $leftW;
 
         return (
-            $this->renderHalf($row['hunk'], $row['left'] ?? -1, $leftW, DiffColumn::Old)
+            $this->renderHalf($row['hunk'], $row['left'] ?? -1, $leftW, DiffColumn::Old, $banded)
             .$this->styles->of(Role::Gutter)->apply(Glyphs::DIFF_COLUMN)
-            .$this->renderHalf($row['hunk'], $row['right'] ?? -1, $rightW, DiffColumn::New)
+            .$this->renderHalf($row['hunk'], $row['right'] ?? -1, $rightW, DiffColumn::New, $banded)
             .Sgr::RESET
         );
     }
 
     /** A unified body row: both line numbers, the marker and the scrolled text, keyed "hunk:line" for its highlight. */
-    private function renderLine(DiffLine $line, string $key, int $width): string
+    private function renderLine(DiffLine $line, string $key, int $width, bool $banded): string
     {
         // Built plain and measured, then styled: the gutter is eleven fixed
         // columns and the marker one more, so a pane narrower than thirteen
@@ -197,7 +232,7 @@ final readonly class DiffViewRenderer
         // styled string cuts escape sequences in half.
         return $body < 1
             ? $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::RESET
-            : $this->styles->of(Role::Gutter)->apply($gutter).$this->markedText($line, $key, $body).Sgr::RESET;
+            : $this->banded($this->styles->of(Role::Gutter)->apply($gutter).$this->markedText($line, $key, $body), $line, $width, $banded).Sgr::RESET;
     }
 
     /** The ± marker and the scrolled styled text of $line, $inner columns of text. */
@@ -271,7 +306,7 @@ final readonly class DiffViewRenderer
      * $width columns; -1 (no line on this side) renders blank. Colors reset
      * to the default foreground at the end so nothing bleeds past the divider.
      */
-    private function renderHalf(int $hunkIndex, int $lineIndex, int $width, DiffColumn $side): string
+    private function renderHalf(int $hunkIndex, int $lineIndex, int $width, DiffColumn $side, bool $banded): string
     {
         if ($lineIndex < 0) {
             return AnsiText::blank($width);
@@ -285,6 +320,6 @@ final readonly class DiffViewRenderer
 
         return $body < 1
             ? $this->styles->of(Role::Gutter)->apply(AnsiText::truncate($gutter, $width, pad: true)).Sgr::DEFAULT_FG
-            : $this->styles->of(Role::Gutter)->apply($gutter).$this->markedText($line, $hunkIndex.':'.$lineIndex, $body).Sgr::DEFAULT_FG;
+            : $this->banded($this->styles->of(Role::Gutter)->apply($gutter).$this->markedText($line, $hunkIndex.':'.$lineIndex, $body), $line, $width, $banded).Sgr::DEFAULT_FG;
     }
 }

@@ -16,6 +16,7 @@ use Porta\GitPlugin\Event\GitCommitSelected;
 use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
 use Porta\GitPlugin\Event\GitDiffCopyRequested;
 use Porta\GitPlugin\Event\GitDiffLayoutToggled;
+use Porta\GitPlugin\Event\GitDiffSettingsRequested;
 use Porta\GitPlugin\Event\GitDiffStagingRequested;
 use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
 use Porta\GitPlugin\Event\GitFileHistoryRequested;
@@ -60,6 +61,7 @@ final class GitWiring
         GitDiffContextCycleRequested::class => 'onDiffContextCycled',
         GitDiffCopyRequested::class => 'onDiffTextCopied',
         GitDiffLayoutToggled::class => 'onDiffLayoutToggled',
+        GitDiffSettingsRequested::class => 'onDiffSettingsRequested',
         GitDiffStagingRequested::class => 'onDiffLinesStaged',
         GitDiffWhitespaceToggleRequested::class => 'onDiffWhitespaceToggled',
         GitFileHistoryRequested::class => 'onFileHistoryRequested',

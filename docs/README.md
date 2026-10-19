@@ -78,15 +78,18 @@ header's own box stands for them all: `[✓]` every change staged, `[ ]` none,
 
 ### Diff pane
 
-Unified (dual gutters) or side-by-side.
+Unified (dual gutters) or side-by-side, added rows on a green band and deleted
+ones on a red one, the changed words a shade stronger. The ⚙ at the end of its
+toolbar drops the display settings — *Hide whitespace changes*, *Unified*,
+*Split* — and the ⇕ before a hunk's header shows more of the file around it.
 
 | Key | Action |
 | --- | --- |
 | `v`, then `Space` | Select a line range, then stage just those lines |
 | `Space` | Stage the hunk/selection |
-| `c` | Cycle diff context (git default → ±10 lines → whole file) |
-| `s` | Toggle unified / side-by-side (persisted); the `[S split]` tag is bracketed while on |
-| `w` | Toggle hide-whitespace (`-w`, persisted); `[W hide-ws]` while on |
+| `c` (or click ⇕) | Cycle diff context (git default → ±10 lines → whole file) |
+| `s` | Toggle unified / side-by-side (persisted); the ⚙ menu checks the one shown |
+| `w` | Toggle hide-whitespace (`-w`, persisted); checked in the ⚙ menu while on |
 | `Ctrl+C` | Copy the selected code lines |
 
 ### Commit box

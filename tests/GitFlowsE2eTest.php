@@ -28,6 +28,7 @@ use Porta\Tests\Support\ViewWindowCells;
 use Porta\Tests\Support\Widgets;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\ContextMenu;
+use Porta\Workbench\Menu\MenuItem;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -880,11 +881,13 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1bd");
                     $this->assertSame([], Toasts::all($ide), 'Alt+D dismissed the copy toast');
                     $this->frame($tui); // its click box goes with the next frame
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -20));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -20, release: true));
-                    $this->assertTrue(Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->isSplit(), 'the split tag switched to side-by-side');
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -10));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -10, release: true));
+                    // The gear, the toolbar's last control, drops the display
+                    // settings; each pick flips its own and persists it.
+                    $this->pickFromTheGear($tui, $ide, 'Split');
+                    $this->assertTrue(Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->isSplit(), 'Split switched to side-by-side');
+                    $this->frame($tui);
+                    $this->pickFromTheGear($tui, $ide, 'Hide whitespace changes');
+                    $this->assertTrue(Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->isWhitespaceHidden(), 'and whitespace changes are hidden');
                     $tui->handleInput("\x1b");
                 },
             ],
@@ -898,6 +901,18 @@ final class GitFlowsE2eTest extends TestCase
         $porta = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true, flags: \JSON_THROW_ON_ERROR);
         $this->assertTrue($porta['plugins']['git']['diffSplit'], 'the split preference persisted');
         $this->assertTrue($porta['plugins']['git']['diffHideWhitespace'], 'the whitespace preference persisted');
+    }
+
+    /** Press the diff's gear — its toolbar's last control — and pick $label from the menu it drops. */
+    private function pickFromTheGear(Tui $tui, Ide $ide, string $label): void
+    {
+        $menu = Services::resolve($ide, ContextMenu::class);
+        $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -4));
+        $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -4, release: true));
+        $this->assertTrue($menu->isOpen(), 'the gear dropped its menu');
+        $labels = \array_map(static fn (MenuItem $item): string => $item->label, Probe::get($menu, 'items'));
+        $this->assertSame(['Hide whitespace changes', '', 'Unified', 'Split'], $labels);
+        $menu->runItem((int) \array_search($label, $labels, strict: true));
     }
 
     public function testGitViewHistoryTabBrowsesCommits(): void

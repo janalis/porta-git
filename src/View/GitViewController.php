@@ -26,6 +26,7 @@ use Porta\GitPlugin\Event\GitCommitSelected;
 use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
 use Porta\GitPlugin\Event\GitDiffCopyRequested;
 use Porta\GitPlugin\Event\GitDiffLayoutToggled;
+use Porta\GitPlugin\Event\GitDiffSettingsRequested;
 use Porta\GitPlugin\Event\GitDiffStagingRequested;
 use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
 use Porta\GitPlugin\Event\GitFileHistoryRequested;
@@ -46,6 +47,7 @@ use Porta\I18n\Translator;
 use Porta\Layout\DiffLayout;
 use Porta\Layout\ViewRegion;
 use Porta\Support\ProjectPaths;
+use Porta\Workbench\Menu\MenuItem;
 use Porta\Workbench\Menu\ViewMenuSource;
 use Porta\Workbench\View\ContributedView;
 use Porta\Workbench\View\ViewHost;
@@ -829,6 +831,21 @@ final class GitViewController implements ContributedView
     public function onDiffContextCycled(GitDiffContextCycleRequested $event): void
     {
         $this->cycleContext();
+    }
+
+    /**
+     * The diff's ⚙: whitespace hidden or shown, and unified or split — each
+     * item runs what its key (w, s) runs, and is checked while it holds.
+     */
+    public function onDiffSettingsRequested(GitDiffSettingsRequested $event): void
+    {
+        $diff = $this->panes->diffView;
+        $this->menus->openDiffSettings([
+            new MenuItem($this->translator->trans('Hide whitespace changes'), 'W', $this->toggleWhitespace(...), isChecked: $diff->isWhitespaceHidden(...)),
+            MenuItem::separator(),
+            new MenuItem($this->translator->trans('Unified'), 'S', static fn () => $diff->chooseLayout(DiffLayout::Unified), isChecked: static fn (): bool => !$diff->isSplit()),
+            new MenuItem($this->translator->trans('Split'), 'S', static fn () => $diff->chooseLayout(DiffLayout::Split), isChecked: $diff->isSplit(...)),
+        ]);
     }
 
     public function onDiffLayoutToggled(GitDiffLayoutToggled $event): void
