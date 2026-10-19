@@ -1004,4 +1004,23 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertNull($widget->tooltipAt(1, 10));
         $this->assertNull($widget->tooltipAt(2, 1));
     }
+
+    /** A read-only diff — a commit's, a comparison's — has no context to cycle: no mark, no click, no tip. */
+    public function testAReadOnlyDiffOffersNoHunkMark(): void
+    {
+        $events = new EventDispatcher();
+        $widget = $this->widget($events);
+        $widget->makeReadOnly();
+        $cycles = 0;
+        GitWidgetEvents::wire($events, onCycleContext: static function () use (&$cycles): void {
+            ++$cycles;
+        });
+
+        $rows = $this->plainLines($widget, 60, 8);
+        $widget->handleClick(1, 1);
+
+        $this->assertStringStartsWith(' @@ -3,3 +3,4 @@', $rows[1]);
+        $this->assertSame(0, $cycles);
+        $this->assertNull($widget->tooltipAt(1, 1));
+    }
 }

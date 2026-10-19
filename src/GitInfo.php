@@ -87,19 +87,21 @@ final readonly class GitInfo
     }
 
     /**
-     * Where the repository lives: the working tree's top folder and git's
-     * COMMON directory, both absolute — the common one, because a linked
-     * worktree's own git directory has no FETCH_HEAD; the fetch writes it in
-     * the main one. Both null when git could not say.
+     * Where the repository lives, all absolute: the working tree's top
+     * folder, git's COMMON directory (the main worktree's `.git`, which names
+     * the repository), and this worktree's own FETCH_HEAD — per worktree, so
+     * a linked one's is under `.git/worktrees/<name>/`. All null when git
+     * could not say.
      *
-     * @param callable(?string, ?string): void $onDone (top, common)
+     * @param callable(?Locations): void $onDone
      */
     public function locations(callable $onDone): void
     {
-        $this->runner->runStatus(['rev-parse', '--path-format=absolute', '--show-toplevel', '--git-common-dir'], static function (int $code, string $out) use ($onDone): void {
+        $this->runner->runStatus(['rev-parse', '--path-format=absolute', '--show-toplevel', '--git-common-dir', '--git-path', 'FETCH_HEAD'], static function (int $code, string $out) use (
+            $onDone,
+        ): void {
             $lines = \explode("\n", \trim($out));
-            $unknown = null;
-            0 === $code && 2 === \count($lines) ? $onDone($lines[0], $lines[1]) : $onDone($unknown, $unknown);
+            $onDone(0 === $code && 3 === \count($lines) ? new Locations($lines[0], $lines[1], $lines[2]) : null);
         });
     }
 

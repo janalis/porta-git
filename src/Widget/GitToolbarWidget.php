@@ -156,7 +156,7 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
             ToolbarCell::Remote => $this->remoteTip(),
         };
 
-        return new Tooltip('git:toolbar:'.$cell->name, $text, $row, $span[0], $span[1] - $span[0]);
+        return new Tooltip('git:toolbar:'.$cell->name, $text, $row, $span[0], $span[1]);
     }
 
     /** What the remote button does now: pull what is behind first, then push what is ahead, else fetch. */
@@ -291,9 +291,10 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
             [ToolbarCell::Branch, ' '.self::BRANCH.' ', $bold->apply($this->branchName()), ('' === $badge ? '' : ' '.$badge).' '.Glyphs::SELECT_ARROW.' '],
             [
                 ToolbarCell::Remote,
-                ' '.self::REMOTE.' ',
-                $bold->apply($this->remoteLabel()),
-                ('' === $this->counts() ? '' : ' '.$this->counts()).(null === $when ? '' : ' · '.$this->time->short($when, ($this->clock)())).' ',
+                // What the button does and what it moves stay; the time gives way first.
+                ' '.self::REMOTE.' '.$bold->apply($this->remoteLabel()).('' === $this->counts() ? '' : ' '.$this->counts()).(null === $when ? '' : ' · '),
+                null === $when ? '' : $this->time->short($when, ($this->clock)()),
+                ' ',
             ],
         ];
         $room = \max(1, \intdiv($width, num2: 3) - 1);

@@ -14,7 +14,6 @@ use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
-use Porta\Ui\Glyphs;
 use Porta\Ui\ListNavigation;
 use Porta\Ui\ListSelection;
 use Porta\Ui\Role;
@@ -477,10 +476,9 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         // Lit, the box is untinted: the underline's close would cut the tint.
         $lit = $index === $this->hoveredBox;
         $checkbox = $this->litBox($entry->stagedState()->checkbox($lit || $this->list->isSelected($index) ? null : $this->styles), $index);
-        $renamed = null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '';
         $box = ' '.$checkbox.' ';
         // GitHub Desktop's row: the box, the path with its folder dim, the status flush right.
-        $file = FileRow::render($entry->path, $entry->displayStatus(), \max(0, $width - AnsiUtils::visibleWidth($box)), $this->styles, $renamed);
+        $file = FileRow::render($entry->path, $entry->displayStatus(), \max(0, $width - AnsiUtils::visibleWidth($box)), $this->styles, $entry->renamedFrom);
 
         $selected = $this->list->isSelected($index);
 

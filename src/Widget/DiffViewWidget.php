@@ -366,8 +366,8 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             $index = IntMath::clamp($this->scroll + $relRow - $this->headerRows, 0, \count($this->rows) - 1);
             // A hunk row's expand mark (its first columns) shows more of the
             // file around the hunks: the context cycle `c` runs.
-            if (DiffRowKind::Hunk === $this->rows[$index]['kind'] && $relCol <= self::EXPAND_COLUMNS) {
-                $this->events?->dispatch(new GitDiffContextCycleRequested());
+            if (!$this->readOnly && DiffRowKind::Hunk === $this->rows[$index]['kind'] && $relCol <= self::EXPAND_COLUMNS) {
+                $this->requestContextCycle();
 
                 return;
             }
@@ -666,7 +666,17 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
             return $lines;
         }
 
-        $renderer = new DiffViewRenderer($this->document, $this->highlighted, $this->hScroll, $this->cursor, $this->anchor, $this->focused, $this->normalizedCharSel(), $this->styles);
+        $renderer = new DiffViewRenderer(
+            $this->document,
+            $this->highlighted,
+            $this->hScroll,
+            $this->cursor,
+            $this->anchor,
+            $this->focused,
+            $this->normalizedCharSel(),
+            $this->styles,
+            expandable: !$this->readOnly,
+        );
         foreach (\array_slice($this->rows, $this->scroll, \max(0, $rows - $this->headerRows)) as $i => $row) {
             $lines[] = $renderer->row($this->scroll + $i, $row, $width);
         }
@@ -766,7 +776,7 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     private function expandTip(int $row, int $col): ?Tooltip
     {
         $index = $this->scroll + $row - $this->headerRows;
-        $onMark = $row >= $this->headerRows && $col <= self::EXPAND_COLUMNS && DiffRowKind::Hunk === ($this->rows[$index]['kind'] ?? null);
+        $onMark = !$this->readOnly && $row >= $this->headerRows && $col <= self::EXPAND_COLUMNS && DiffRowKind::Hunk === ($this->rows[$index]['kind'] ?? null);
 
         return $onMark ? new Tooltip('git:diff:expand', $this->translator->trans('Show more of the file around the changes (c)'), $row, 1, 2) : null;
     }

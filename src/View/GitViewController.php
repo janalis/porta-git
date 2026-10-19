@@ -122,6 +122,11 @@ final class GitViewController implements ContributedView
 
     private int $contextStep = 0;
 
+    /** Poll ticks between two toolbar re-reads: about ten seconds at the default interval. */
+    private const int REREAD_TICKS = 5;
+
+    private int $ticks = 0;
+
     /** Runs the index-mutating verbs (stage/unstage/discard/commit) for this view. */
     private readonly GitStagingService $staging;
 
@@ -276,6 +281,10 @@ final class GitViewController implements ContributedView
         }
 
         $this->open = true;
+        // The toolbar is the repository's: back after a comparison took it down.
+        if ([] === $this->region->header()->all()) {
+            $this->region->header()->add($this->panes->toolbar);
+        }
         // The (global, full-width) menu bar stays put; just drop any open
         // dropdown so its tracked hit region cannot go stale across the swap.
         $this->host->show($this->region, $this->viewId());
@@ -316,6 +325,9 @@ final class GitViewController implements ContributedView
         $this->forgetInFlight();
         $this->onComparisonClosed = $onClosed;
         $this->open = true;
+        // Two files, likely outside any repository: no branch, nothing to
+        // fetch or push, so no toolbar offering to.
+        $this->region->header()->clear();
         $this->host->show($this->region, $this->viewId());
         if (GitViewMode::Changes !== $this->mode) {
             $this->switchMode(GitViewMode::Changes);
@@ -407,6 +419,11 @@ final class GitViewController implements ContributedView
      */
     private function ageTimes(): void
     {
+        // And every few ticks, ask git again: a checkout, a fetch or a push
+        // run in the terminal moves the toolbar without telling the view.
+        if (0 === (++$this->ticks % self::REREAD_TICKS)) {
+            $this->repository?->refresh();
+        }
         $this->panes->toolbar->invalidate();
         $this->panes->history->invalidate();
         $this->host->invalidate();
@@ -581,7 +598,9 @@ final class GitViewController implements ContributedView
     /** `c` in the diff pane: reload with the next context size in the cycle. */
     private function cycleContext(): void
     {
-        if (null === $this->shownEntry) {
+        // The working tree's diff only: History's pane shows a commit, and
+        // shownEntry is still the last file Changes opened.
+        if (null === $this->shownEntry || GitViewMode::History === $this->mode) {
             return;
         }
         if (DiffSide::Untracked === $this->shownSide) {
@@ -966,11 +985,14 @@ final class GitViewController implements ContributedView
     {
         $this->shownCommit = $commit;
         $this->shownCommitPath = $path;
+        // The newest ask wins: arrowing through files starts a diff per step,
+        // and a large file answering last would show beside the wrong one.
+        $generation = ++$this->diffGeneration;
         $this->git->commitFileDiff(
             $commit->sha,
             $path,
-            function (string $raw) use ($path): void {
-                if (!$this->open || GitViewMode::History !== $this->mode) {
+            function (string $raw) use ($path, $generation): void {
+                if (!$this->open || GitViewMode::History !== $this->mode || $generation !== $this->diffGeneration) {
                     return;
                 }
                 $document = DiffDocument::parse($raw);

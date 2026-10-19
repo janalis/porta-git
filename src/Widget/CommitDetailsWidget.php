@@ -308,7 +308,7 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
     public function tooltipAt(int $row, int $col): ?Tooltip
     {
         if ($row === $this->shaRow && null !== $this->copyZone && $col >= $this->copyZone[0] && $col < $this->copyZone[1]) {
-            return new Tooltip('git:details:copy', $this->translator->trans('Copy the full commit hash'), $row, $this->copyZone[0], 1);
+            return new Tooltip('git:details:copy', $this->translator->trans('Copy the full commit hash'), $row, $this->copyZone[0], $this->copyZone[1]);
         }
         $tip = $this->tips[$row] ?? null;
 

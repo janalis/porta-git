@@ -39,7 +39,8 @@ final readonly class PullRequestLookup
             return;
         }
         $process = new AsyncProcess(
-            [$gh, 'pr', 'view', '--json', 'number', '--jq', '.number'],
+            // gh falls back to a merged or closed one for the branch: only an open one counts.
+            [$gh, 'pr', 'view', '--json', 'number,state', '--jq', 'select(.state == "OPEN") | .number'],
             $this->rootDir,
             // Never a prompt: no terminal is there to answer it.
             env: [...\getenv(), 'GH_PROMPT_DISABLED' => '1', 'GH_NO_UPDATE_NOTIFIER' => '1'],

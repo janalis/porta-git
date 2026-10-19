@@ -46,6 +46,8 @@ final readonly class DiffViewRenderer
         private bool $focused,
         private ?DiffCharSelection $charSel,
         private Styles $styles,
+        // A read-only diff — a commit's, a comparison's — has no context to cycle, so no mark to offer it.
+        private bool $expandable = true,
     ) {}
 
     /**
@@ -191,7 +193,7 @@ final readonly class DiffViewRenderer
 
         return match ($row['kind']) {
             // The expand mark first: a click on it shows more of the file around the hunk.
-            DiffRowKind::Hunk => $this->styles->of(Role::Hunk)->apply(AnsiText::truncate(' '.self::EXPAND.' '.$hunk->header(), $width, pad: true)),
+            DiffRowKind::Hunk => $this->styles->of(Role::Hunk)->apply(AnsiText::truncate(' '.($this->expandable ? self::EXPAND.' ' : '').$hunk->header(), $width, pad: true)),
             DiffRowKind::Pair => $this->renderPair($row, $width, $banded),
             DiffRowKind::Line => $this->renderLine($hunk->lines[$row['line'] ?? -1], $row['hunk'].':'.($row['line'] ?? -1), $width, $banded),
         };

@@ -12,6 +12,7 @@ use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
+use Porta\GitPlugin\Widget\FileRow;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\AttachedStyles;
 use Porta\Tests\Support\RendersWidget;
@@ -239,5 +240,14 @@ final class CommitDetailsWidgetTest extends TestCase
         $widget->setMenuOverlay([['row' => 0, 'col' => 0, 'width' => 10, 'segment' => \str_repeat('M', times: 10)]]);
 
         $this->assertStringStartsWith('MMMMMMMMMM', AnsiUtils::stripAnsiCodes($this->painted($widget, new RenderContext(40, 3))[0]));
+    }
+
+    /** A renamed file's old path is the repository's to name too: shown, never obeyed. */
+    public function testARenamedFilesOldPathIsInert(): void
+    {
+        $row = FileRow::render('new.php', 'R', 40, Styles::dark(), "old\x1b]52;c;eA==\x07.php");
+
+        $this->assertStringNotContainsString("\x1b]52", $row);
+        $this->assertSame(40, AnsiUtils::visibleWidth($row));
     }
 }

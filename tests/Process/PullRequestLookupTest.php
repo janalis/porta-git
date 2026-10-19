@@ -35,7 +35,9 @@ final class PullRequestLookupTest extends TestCase
     public function testGhIsAskedForTheBranchsPullRequestWithoutAPrompt(): void
     {
         // The script answers with what it was asked and how, so the test sees both.
-        $project = new TempProject(['gh' => "#!/bin/sh\n[ \"\$GH_PROMPT_DISABLED\" = 1 ] || exit 3\n[ \"\$*\" = 'pr view --json number --jq .number' ] || exit 4\necho 446\n"]);
+        $project = new TempProject([
+            'gh' => "#!/bin/sh\n[ \"\$GH_PROMPT_DISABLED\" = 1 ] || exit 3\n[ \"\$*\" = 'pr view --json number,state --jq select(.state == \"OPEN\") | .number' ] || exit 4\necho 446\n",
+        ]);
         \chmod($project->path('gh'), permissions: 0o755);
 
         $this->assertSame(446, $this->ask($project));

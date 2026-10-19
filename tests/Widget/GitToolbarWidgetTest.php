@@ -229,4 +229,25 @@ final class GitToolbarWidgetTest extends TestCase
 
         $this->assertSame("Branch main — no upstream branch\nClick to switch, create or delete a branch", $toolbar->tooltipAt(0, $span[0])?->text);
     }
+
+    /** A tooltip's span is the cell's own columns, so the card centres on the cell. */
+    public function testATipSpansItsCell(): void
+    {
+        $toolbar = $this->toolbar($this->repository('main', new Tracking(0, 0)));
+        self::plain($toolbar);
+        $span = $toolbar->span(ToolbarCell::Branch);
+        $this->assertNotNull($span);
+
+        $tip = $toolbar->tooltipAt(0, $span[0]);
+        $this->assertSame([$span[0], $span[1]], [$tip?->colStart, $tip?->colEnd]);
+    }
+
+    /** Narrow, the remote button keeps saying what it would do and move; the time gives way. */
+    public function testANarrowRemoteCellKeepsItsLabelOverItsTime(): void
+    {
+        $line = self::plain($this->toolbar($this->repository('feature', new Tracking(1, 2), lastFetched: self::NOW - 18_000), CompactScreen::density()), 45)[0];
+
+        $this->assertStringContainsString('⟳ Pull ⇣2 ⇡1 · ', $line);
+        $this->assertStringNotContainsString('5h', $line);
+    }
 }

@@ -34,6 +34,13 @@ final class RepositoryState
     /** The branch the pull request number was last asked for, so a refresh asks again only when it moved. */
     private ?string $askedFor = null;
 
+    /**
+     * Issue order for refreshes: a pull and a branch switch can each start
+     * one while another is out, and their answers come back in any order —
+     * an older one landing last would paint a stale branch or count.
+     */
+    private int $generation = 0;
+
     /** @var \Closure(): void */
     private \Closure $repaint;
 
@@ -58,7 +65,11 @@ final class RepositoryState
      */
     public function refresh(RefreshScope $scope = RefreshScope::Local): void
     {
-        $this->git->branch(function (?string $branch) use ($scope): void {
+        $generation = ++$this->generation;
+        $this->git->branch(function (?string $branch) use ($scope, $generation): void {
+            if ($generation !== $this->generation) {
+                return; // a newer refresh is out
+            }
             $this->branch = $branch;
             $this->branchRead = true;
             if (RefreshScope::Remote === $scope || $branch !== $this->askedFor) {
@@ -66,29 +77,39 @@ final class RepositoryState
             }
             ($this->repaint)();
         });
-        $this->git->tracking(function (?Tracking $tracking): void {
+        $this->git->tracking(function (?Tracking $tracking) use ($generation): void {
+            if ($generation !== $this->generation) {
+                return;
+            }
             $this->tracking = $tracking;
             ($this->repaint)();
         });
-        $this->git->locations(function (?string $top, ?string $common): void {
-            if (null === $top || null === $common) {
-                return;
+        $this->git->locations(function (?Locations $at) use ($generation): void {
+            if (null !== $at && $generation === $this->generation) {
+                $this->located($at);
             }
-            // The main worktree's folder names the repository, as GitHub
-            // Desktop does: a linked worktree is a checkout OF it.
-            $this->name = '.git' === \basename($common) ? \basename(\dirname($common)) : \basename($top);
-            $fetchHead = $common.'/FETCH_HEAD';
-            \clearstatcache(true, $fetchHead);
-            $fetched = \is_file($fetchHead) ? \filemtime($fetchHead) : false;
-            $this->lastFetched = false === $fetched ? null : $fetched;
-            ($this->repaint)();
         });
+    }
+
+    private function located(Locations $at): void
+    {
+        // The main worktree's folder names the repository, as GitHub
+        // Desktop does: a linked worktree is a checkout OF it.
+        $this->name = '.git' === \basename($at->common) ? \basename(\dirname($at->common)) : \basename($at->top);
+        \clearstatcache(clear_realpath_cache: true, filename: $at->fetchHead);
+        $fetched = \is_file($at->fetchHead) ? \filemtime($at->fetchHead) : false;
+        $this->lastFetched = false === $fetched ? null : $fetched;
+        ($this->repaint)();
     }
 
     private function askPullRequest(?string $branch): void
     {
+        // A new branch's number is not the old one's; the same branch keeps
+        // its badge while gh is asked again, rather than blanking for the call.
+        if ($branch !== $this->askedFor) {
+            $this->pullRequest = null;
+        }
         $this->askedFor = $branch;
-        $this->pullRequest = null;
         if (null === $branch) {
             return; // a detached HEAD has no pull request
         }

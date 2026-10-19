@@ -120,13 +120,19 @@ final class RepositoryStateTest extends TestCase
         $this->assertSame(1_700_000_000, $state->lastFetched());
     }
 
-    /** A linked worktree is a checkout of the repository: the main folder names it, and its fetch is the main one's. */
+    /**
+     * A linked worktree is a checkout of the repository, so the main folder
+     * names it — but a fetch there writes its OWN FETCH_HEAD, under
+     * `.git/worktrees/<name>/`, and that is the one that dates it.
+     */
     public function testALinkedWorktreeIsNamedForItsRepository(): void
     {
         $linked = $this->project->path('elsewhere');
         $this->project->git('worktree', 'add', '-q', '-b', 'side', $linked);
         $this->project->write('.git/FETCH_HEAD', '');
-        \touch($this->project->path('.git/FETCH_HEAD'), mtime: 1_700_000_000);
+        \touch($this->project->path('.git/FETCH_HEAD'), mtime: 1_600_000_000);
+        $this->project->write('.git/worktrees/elsewhere/FETCH_HEAD', '');
+        \touch($this->project->path('.git/worktrees/elsewhere/FETCH_HEAD'), mtime: 1_700_000_000);
         $state = $this->state(root: $linked);
 
         $this->settle($state);
@@ -199,6 +205,54 @@ final class RepositoryStateTest extends TestCase
 
         $this->assertSame('feature', $state->branch());
         $this->assertSame(222, $state->pullRequest(), 'the slow answer for main did not overwrite it');
+    }
+
+    /** A fetch asks gh again, and the badge stays up while it does: gh can take seconds, or fail. */
+    public function testTheBadgeStaysWhileAFetchAsksAgain(): void
+    {
+        $state = $this->state('446');
+        $this->settle($state);
+        $this->project->write('bin/slow', "#!/bin/sh\nsleep 1\necho 512\n");
+        \chmod($this->project->path('bin/slow'), permissions: 0o755);
+        \rename($this->project->path('bin/slow'), $this->project->path('bin/gh'));
+
+        $state->refresh(RefreshScope::Remote);
+        $lane = $this->lane;
+        $this->await(static fn (): bool => 1 === $lane->inFlight(), what: 'gh asked again');
+        $this->assertSame(446, $state->pullRequest(), 'still the old number while gh is out');
+
+        $this->await(static fn (): bool => 512 === $state->pullRequest(), what: 'the new answer');
+        $this->addToAssertionCount(1);
+    }
+
+    /** Two refreshes out at once — a pull and a branch switch — and the older answers last: the newer stand. */
+    public function testAnOlderRefreshLandingLastIsDropped(): void
+    {
+        // Asks git at once, answers a second later: the answer is the state BEFORE the switch.
+        $asked = $this->project->path('asked');
+        $this->project->write('bin/slow-git', "#!/bin/sh\nout=\$(git \"\$@\")\nrc=\$?\necho x >> '{$asked}'\nsleep 1\nprintf '%s\\n' \"\$out\"\nexit \$rc\n");
+        \chmod($this->project->path('bin/slow-git'), permissions: 0o755);
+        $git = $this->project->path('bin/slow-git');
+        $state = new RepositoryState(
+            new GitInfo($this->project->dir, gitPath: static function () use (&$git): string {
+                return $git;
+            }),
+            new PullRequestLookup($this->project->dir, static fn (): ?string => null, $this->lane),
+            $this->project->dir,
+        );
+        $state->refresh(); // slow: still on main when asked
+        $this->await(static function () use ($asked): bool {
+            $lines = \is_file($asked) ? \file($asked) : false;
+
+            return false !== $lines && 3 === \count($lines);
+        }, what: 'the slow refresh to have asked git');
+
+        $git = (string) $this->whichGit();
+        $this->project->git('checkout', '-q', '-b', 'feature');
+        $this->settle($state);
+        $this->pump(1.5); // past the slow answers
+
+        $this->assertSame('feature', $state->branch());
     }
 
     /** Leaving the branch for a detached HEAD drops its pull request: there is no branch to have one. */

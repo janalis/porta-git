@@ -64,8 +64,9 @@ the three cells share one bar row.
 
 ### Changes
 
-Each row is `[✓] M path` — the checkbox mirrors the staged state, and the
-header's own box stands for them all: `[✓]` every change staged, `[ ]` none,
+Each row is `[✓] folder/name … M` — the folder dimmed, the status letter flush
+right, the checkbox mirroring the staged state. The header's own box stands
+for them all: `[✓]` every change staged, `[ ]` none,
 `[–]` a mix.
 
 | Key | Action |

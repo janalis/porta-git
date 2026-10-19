@@ -33,14 +33,15 @@ final class FileRow
     }
 
     /**
-     * $path then $suffix, the status letter at the end, in exactly $width
-     * columns. A path too long gives up the start of its folder first, then
-     * the end of its name — never the letter.
+     * $path — then `← $renamedFrom` for a rename — the status letter at the
+     * end, in exactly $width columns. A path too long gives up the start of
+     * its folder first, then the end of its name — never the letter.
      */
-    public static function render(string $path, string $status, int $width, Styles $styles, string $suffix = ''): string
+    public static function render(string $path, string $status, int $width, Styles $styles, ?string $renamedFrom = null): string
     {
         // A path is the repository's to name, control bytes and all: shown, never obeyed.
         $path = AnsiText::oneLine($path);
+        $suffix = null === $renamedFrom ? '' : ' '.Glyphs::RENAME_FROM.' '.AnsiText::oneLine($renamedFrom);
         $letter = ' '.self::status($status, $styles).' ';
         $room = $width - AnsiUtils::visibleWidth($letter);
         if ($room < 1) {
