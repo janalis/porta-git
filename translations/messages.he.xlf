@@ -662,6 +662,98 @@
         <source>%branch% is checked out in another worktree</source>
         <target>%branch% פעיל ב־worktree אחר</target>
       </trans-unit>
+      <trans-unit id="166">
+        <source>%ahead% ahead, %behind% behind its upstream</source>
+        <target>%ahead% לפני, %behind% אחרי ה־upstream שלו</target>
+      </trans-unit>
+      <trans-unit id="167">
+        <source>%count% day ago|%count% days ago</source>
+        <target>לפני יום %count%|לפני %count% ימים</target>
+      </trans-unit>
+      <trans-unit id="168">
+        <source>%count% hour ago|%count% hours ago</source>
+        <target>לפני שעה %count%|לפני %count% שעות</target>
+      </trans-unit>
+      <trans-unit id="169">
+        <source>%count% minute ago|%count% minutes ago</source>
+        <target>לפני דקה %count%|לפני %count% דקות</target>
+      </trans-unit>
+      <trans-unit id="170">
+        <source>%count%d</source>
+        <target>%count% י׳</target>
+      </trans-unit>
+      <trans-unit id="171">
+        <source>%count%h</source>
+        <target>%count% ש׳</target>
+      </trans-unit>
+      <trans-unit id="172">
+        <source>%count%m</source>
+        <target>%count% ד׳</target>
+      </trans-unit>
+      <trans-unit id="173">
+        <source>Branch %branch% — %state%</source>
+        <target>ענף %branch% — %state%</target>
+      </trans-unit>
+      <trans-unit id="174">
+        <source>Click to switch, create or delete a branch</source>
+        <target>לחצו כדי להחליף, ליצור או למחוק ענף</target>
+      </trans-unit>
+      <trans-unit id="175">
+        <source>Current branch</source>
+        <target>ענף נוכחי</target>
+      </trans-unit>
+      <trans-unit id="176">
+        <source>Current repository</source>
+        <target>מאגר נוכחי</target>
+      </trans-unit>
+      <trans-unit id="177">
+        <source>Detached HEAD</source>
+        <target>HEAD מנותק</target>
+      </trans-unit>
+      <trans-unit id="178">
+        <source>Fetch: ask the remote what changed, without touching this branch</source>
+        <target>Fetch: לשאול את המרוחק מה השתנה, בלי לגעת בענף הזה</target>
+      </trans-unit>
+      <trans-unit id="179">
+        <source>Last fetched %when%</source>
+        <target>נמשך לאחרונה %when%</target>
+      </trans-unit>
+      <trans-unit id="180">
+        <source>Never fetched</source>
+        <target>מעולם לא נמשך</target>
+      </trans-unit>
+      <trans-unit id="181">
+        <source>Publish this branch: push it and track it upstream</source>
+        <target>לפרסם את הענף: לדחוף אותו ולעקוב אחריו ב־upstream</target>
+      </trans-unit>
+      <trans-unit id="182">
+        <source>Pull request #%number%</source>
+        <target>בקשת משיכה ‎#%number%</target>
+      </trans-unit>
+      <trans-unit id="183">
+        <source>Pull the commits the upstream has and this branch does not</source>
+        <target>למשוך את הקומיטים שיש ב־upstream ואין בענף הזה</target>
+      </trans-unit>
+      <trans-unit id="184">
+        <source>Push the commits this branch has and the upstream does not</source>
+        <target>לדחוף את הקומיטים שיש בענף הזה ואין ב־upstream</target>
+      </trans-unit>
+      <trans-unit id="185">
+        <source>Repository %name% — click for its worktrees</source>
+        <target>מאגר %name% — לחצו לעצי העבודה שלו</target>
+      </trans-unit>
+      <trans-unit id="186">
+        <source>just now</source>
+        <target>זה עתה</target>
+      </trans-unit>
+      <trans-unit id="187">
+        <source>no upstream branch</source>
+        <target>אין ענף upstream</target>
+      </trans-unit>
+      <trans-unit id="188">
+        <source>now</source>
+        <target>עכשיו</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

@@ -72,6 +72,38 @@ final readonly class GitInfo
     }
 
     /**
+     * How far the branch has drifted from its upstream: the commits only here
+     * (ahead) and the ones only there (behind) — null when it has no upstream,
+     * which git reports as a failure.
+     *
+     * @param callable(?Tracking): void $onDone
+     */
+    public function tracking(callable $onDone): void
+    {
+        $this->runner->runStatus(['rev-list', '--left-right', '--count', 'HEAD...@{upstream}'], static function (int $code, string $out) use ($onDone): void {
+            $counts = [];
+            $onDone(0 === $code && 1 === \preg_match('/^(\d+)\s+(\d+)$/', \trim($out), $counts) ? new Tracking((int) $counts[1], (int) $counts[2]) : null);
+        });
+    }
+
+    /**
+     * Where the repository lives: the working tree's top folder and git's
+     * COMMON directory, both absolute — the common one, because a linked
+     * worktree's own git directory has no FETCH_HEAD; the fetch writes it in
+     * the main one. Both null when git could not say.
+     *
+     * @param callable(?string, ?string): void $onDone (top, common)
+     */
+    public function locations(callable $onDone): void
+    {
+        $this->runner->runStatus(['rev-parse', '--path-format=absolute', '--show-toplevel', '--git-common-dir'], static function (int $code, string $out) use ($onDone): void {
+            $lines = \explode("\n", \trim($out));
+            $unknown = null;
+            0 === $code && 2 === \count($lines) ? $onDone($lines[0], $lines[1]) : $onDone($unknown, $unknown);
+        });
+    }
+
+    /**
      * Compute change marks for a file relative to HEAD.
      *
      * @param callable(array<int, string>): void $onDone 0-based line => 'added'|'modified'|'deleted'

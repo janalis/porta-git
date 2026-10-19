@@ -8,6 +8,7 @@ use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
+use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\Input\HitTester;
 use Porta\Input\MouseEvent;
@@ -38,6 +39,7 @@ final class GitMouseRouter implements ViewPointer
         private readonly CommitBoxWidget $commitBox,
         private readonly HistoryListWidget $history,
         private readonly GitTabsWidget $tabs,
+        private readonly ?GitToolbarWidget $toolbar = null,
     ) {} // the region's divider is core's to tint and to drag, as for every view
 
     /** Clear the diff-drag arming on a fresh press (mirrors the other drag resets). */
@@ -95,6 +97,7 @@ final class GitMouseRouter implements ViewPointer
         // Which pane, then what a press does there — one method each, so
         // this stays the table of panes it reads as.
         return match (true) {
+            null !== $this->toolbar && null !== ($rel = $this->hit->hit($this->toolbar, $mouse->row, $mouse->col)) => $this->pressToolbar($this->toolbar, $rel['col']),
             null !== ($rel = $this->hit->hit($this->tabs, $mouse->row, $mouse->col)) => $this->pressTabs($rel['col']),
             null !== ($rel = $this->hit->hit($this->changes, $mouse->row, $mouse->col)) => $this->pressChanges($rel['row'], $rel['col']),
             null !== ($rel = $this->hit->hit($this->history, $mouse->row, $mouse->col)) => $this->pressHistory($rel['row']),
@@ -102,6 +105,14 @@ final class GitMouseRouter implements ViewPointer
             null !== ($rel = $this->hit->hit($this->diff, $mouse->row, $mouse->col)) => $this->pressDiff($rel['row'], $rel['col']),
             default => false,
         };
+    }
+
+    private function pressToolbar(GitToolbarWidget $toolbar, int $col): bool
+    {
+        $toolbar->handleClick($col);
+        $this->host->invalidate();
+
+        return true;
     }
 
     private function pressTabs(int $col): bool
@@ -177,7 +188,11 @@ final class GitMouseRouter implements ViewPointer
         $diffRel = $this->hit->hit($this->diff, $mouse->row, $mouse->col);
         $diffChanged = null !== $diffRel ? $this->diff->hoverHeader($diffRel['row'], $diffRel['col']) : $this->diff->clearHeaderHover();
 
-        if ($changed || $boxChanged || $tabsChanged || $diffChanged) {
+        // The toolbar's cells are buttons: the one under the pointer tints.
+        $toolbarRel = null === $this->toolbar ? null : $this->hit->hit($this->toolbar, $mouse->row, $mouse->col);
+        $toolbarChanged = $this->toolbar?->hoverAt($toolbarRel['col'] ?? null) ?? false;
+
+        if ($changed || $boxChanged || $tabsChanged || $diffChanged || $toolbarChanged) {
             $this->host->invalidate();
         }
     }

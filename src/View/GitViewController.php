@@ -6,6 +6,7 @@ namespace Porta\GitPlugin\View;
 
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
+use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\CommitMode;
 use Porta\GitPlugin\Command\GitRemoteCommands;
@@ -30,9 +31,12 @@ use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitStageAllRequested;
+use Porta\GitPlugin\Event\GitToolbarMenuRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\RefreshScope;
+use Porta\GitPlugin\RepositoryState;
 use Porta\GitPlugin\Setting\DiffPrefs;
 use Porta\GitPlugin\Setting\GitSettings;
 use Porta\GitPlugin\StagedState;
@@ -153,6 +157,7 @@ final class GitViewController implements ContributedView
         private readonly ?GitRemoteCommands $remoteCommands = null,
         private readonly int $historyPageSize = 200,
         private readonly ?GitSettings $gitSettings = null,
+        private readonly ?RepositoryState $repository = null,
     ) {
         // The region arrives already minted, on ViewServices: core mints it for
         // the id this view registered under, BEFORE calling the factory, so
@@ -160,8 +165,9 @@ final class GitViewController implements ContributedView
         // diff pane is fixed, so it goes in once.
         $this->region = $region;
         $this->region->content()->add($this->panes->diffView);
-        // The diff's toolbar sits flush under the window's title bar.
-        $this->region->flushContentTop();
+        // GitHub Desktop's toolbar spans the window, flush under its title bar.
+        $this->region->header()->add($this->panes->toolbar);
+        $this->repository?->onChange($this->host->invalidate(...));
         // How this sidebar resizes. Four stacked widgets each render their own
         // width, so a drag fans the new one out to all of them; core sees a
         // container and cannot know that.
@@ -255,6 +261,7 @@ final class GitViewController implements ContributedView
         $this->contextStep = 0;
         $this->applyPrefs();
         $this->refresh();
+        $this->repository?->refresh();
         $this->armPoll();
         $this->host->invalidate();
     }
@@ -596,7 +603,15 @@ final class GitViewController implements ContributedView
 
     private function commit(string $message, CommitMode $mode = CommitMode::Fresh): void
     {
-        $this->staging->commit($message, $mode, fn () => $this->dispatcher->dispatch(new GitCommitted()), $this->refresh(...));
+        $this->staging->commit(
+            $message,
+            $mode,
+            function (): void {
+                $this->dispatcher->dispatch(new GitCommitted());
+                $this->repository?->refresh(); // one more commit ahead of the upstream
+            },
+            $this->refresh(...),
+        );
     }
 
     /** Swap the left pane between the Changes and History tabs. */
@@ -801,9 +816,28 @@ final class GitViewController implements ContributedView
 
     public function onRemoteCompleted(GitRemoteCompleted $event): void
     {
+        if ($this->open) {
+            // A fetch moves what the toolbar says: behind, last fetched, and
+            // maybe a pull request opened on the server since.
+            $this->repository?->refresh(RefreshScope::Remote);
+        }
         if ($this->open && GitViewMode::History === $this->mode) {
             $this->reloadHistory(HistoryReload::KeepSelection);
         }
+    }
+
+    /** A branch switch, a stash, a stage: the toolbar's branch and its distance may have moved. */
+    public function onWorkingTreeChanged(WorkingTreeChanged $event): void
+    {
+        if ($this->open) {
+            $this->repository?->refresh();
+        }
+    }
+
+    /** A toolbar cell that drops a menu was pressed: the repository's worktrees or the branch verbs. */
+    public function onToolbarMenuRequested(GitToolbarMenuRequested $event): void
+    {
+        $this->menus->openToolbarMenu($event->cell);
     }
 
     /** Pull the next page of history under the loaded commits. */

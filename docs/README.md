@@ -47,6 +47,21 @@ resizable, closed by Esc or a click beside it: a changes list + commit box on on
 Status re-reads on every action and polls every 2 s while open. Two tabs:
 **Changes** (`1`) and **History** (`2`); `Tab` cycles panes; `Esc` closes.
 
+### Toolbar
+
+Across the top, as in GitHub Desktop, three cells:
+
+| Cell | Shows | A click |
+| --- | --- | --- |
+| **Current repository** | the repository's folder (a linked worktree's main one) | drops *Worktrees…* · *New Worktree…* |
+| **Current branch** | the branch, and `#446` when `gh` finds an open pull request for it | drops *Switch* · *New* · *Delete Branch…* |
+| **Fetch** | *Pull ⇣2*, *Push ⇡1* or *Publish branch* when there is something to move, and when the last fetch was | runs that operation |
+
+The pull request number needs the [GitHub CLI](https://cli.github.com) on the
+`PATH`, logged in; without it the cell simply shows no number. It is asked in
+the background when the branch changes and after a fetch. On a short screen
+the three cells share one bar row.
+
 ### Changes
 
 Each row is `[✓] M path` — the checkbox mirrors the staged state, and the

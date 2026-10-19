@@ -10,6 +10,7 @@ use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
+use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\Ide;
 use Porta\Overlay\Presenter\ViewWindowPresenter;
 use Porta\Overlay\Region\ModalBox;
@@ -31,6 +32,7 @@ use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Render\WidgetRect;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
 
@@ -863,13 +865,18 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertSame('git-commit', $tui->getFocus()?->getId(), 'click focused the commit box');
                     // The diff toolbar tags sit at the right edge of the diff
                     // title row: ' S split ' then ' W hide-ws '. Clicking them
-                    // flips the modes and persists the prefs. The toolbar is
-                    // flush under the window's title bar, where the copy's
-                    // toast floats on this short screen: Alt+D dismisses it.
+                    // flips the modes and persists the prefs. The view's own
+                    // toolbar is flush under the window's title bar, where the
+                    // copy's toast floats on this short screen: Alt+D dismisses
+                    // it. The diff's toolbar starts right under the view's.
                     $box = Services::resolve($ide, ViewWindowPresenter::class)->box();
                     $this->assertInstanceOf(ModalBox::class, $box);
-                    $diffRect = Services::resolve($ide, Renderer::class)->getWidgetRect(Widgets::byId($tui, 'git-diff', DiffViewWidget::class));
-                    $this->assertSame($box->startRow + 1, $diffRect?->row, 'the diff toolbar is flush under the title bar');
+                    $renderer = Services::resolve($ide, Renderer::class);
+                    $toolbarRect = $renderer->getWidgetRect(Widgets::byId($tui, 'git-toolbar', GitToolbarWidget::class));
+                    $diffRect = $renderer->getWidgetRect(Widgets::byId($tui, 'git-diff', DiffViewWidget::class));
+                    $this->assertInstanceOf(WidgetRect::class, $toolbarRect);
+                    $this->assertSame($box->startRow + 1, $toolbarRect->row, 'the view toolbar is flush under the title bar');
+                    $this->assertSame($box->startRow + 1 + $toolbarRect->rows, $diffRect?->row, 'the diff toolbar is right under it');
                     $tui->handleInput("\x1bd");
                     $this->assertSame([], Toasts::all($ide), 'Alt+D dismissed the copy toast');
                     $this->frame($tui); // its click box goes with the next frame

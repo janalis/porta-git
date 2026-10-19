@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\GitPlugin\BranchMenu;
 use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\GitBranchSegment;
 use Porta\GitPlugin\GitInfo;
@@ -58,7 +59,13 @@ final class GitBranchSegmentTest extends TestCase
             $worktrees,
         );
 
-        return new GitBranchSegment($refresher, new GitSettings(['showBranch' => $showBranch]), $commands, GitDoubles::translate($translator), $worktrees, $worktree);
+        return new GitBranchSegment(
+            $refresher,
+            new GitSettings(['showBranch' => $showBranch]),
+            new BranchMenu($commands, $worktrees, GitDoubles::translate($translator)),
+            GitDoubles::translate($translator),
+            $worktree,
+        );
     }
 
     public function testTheSettingSuppressesTheCellEntirely(): void

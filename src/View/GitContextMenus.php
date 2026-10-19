@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\View;
 
+use Porta\GitPlugin\BranchMenu;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\Widget\ChangesListWidget;
+use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Input\HitTester;
@@ -37,7 +39,47 @@ final readonly class GitContextMenus implements ViewMenuSource
         private HistoryListWidget $history,
         private GitCommands $commands,
         private Translator $translator,
+        private ?GitToolbarWidget $toolbar = null,
+        private ?BranchMenu $branchMenu = null,
     ) {}
+
+    /**
+     * Drop a toolbar cell's menu under it: the repository's worktrees, or the
+     * branch verbs. The remote cell has none — it runs its operation.
+     */
+    public function openToolbarMenu(ToolbarCell $cell): void
+    {
+        $toolbar = $this->toolbar;
+        $items = match ($cell) {
+            ToolbarCell::Repository => $this->branchMenu?->worktrees(),
+            ToolbarCell::Branch => $this->branchMenu?->branches(),
+            ToolbarCell::Remote => null,
+        };
+        if (null === $toolbar || null === $items) {
+            return; // no menu there
+        }
+        $anchor = $this->anchorUnder($toolbar, $cell);
+        if (null !== $anchor) {
+            $this->host->openMenu($items, $anchor[0], $anchor[1]);
+        }
+    }
+
+    /**
+     * The screen cell under a toolbar cell's first column, or null when the
+     * toolbar or that cell was not drawn: nothing to hang from.
+     *
+     * @return array{int, int}|null
+     */
+    private function anchorUnder(GitToolbarWidget $toolbar, ToolbarCell $cell): ?array
+    {
+        $rect = $this->hit->rect($toolbar);
+        $span = $toolbar->span($cell);
+        if (null === $rect) {
+            return null;
+        }
+
+        return null === $span ? null : [$rect->row + $toolbar->drawnRows(), $rect->col + $span[0]];
+    }
 
     public function contextItemsAt(int $row, int $col): ?array
     {

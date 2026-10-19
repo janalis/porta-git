@@ -8,16 +8,22 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Diff\DiffDocument;
+use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\Tests\Support\GitDoubles;
+use Porta\GitPlugin\Tracking;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
+use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\AttachedStyles;
 use Porta\Tests\Support\CompactScreen;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RendersExactWidth;
+use Porta\Ui\ScreenDensity;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 
 /**
@@ -80,6 +86,16 @@ final class NarrowGitPaneRenderTest extends TestCase
         yield 'history list' => [$history];
 
         yield 'git tabs' => [new GitTabsWidget(new Translator('en'))];
+
+        // Both shapes: three labelled cells over a rule, and one bar row.
+        foreach (['toolbar (roomy)' => new ScreenDensity(), 'toolbar (compact)' => CompactScreen::density()] as $name => $density) {
+            $repository = GitDoubles::repository(new GitInfo(\sys_get_temp_dir()), '/work/porta');
+            Probe::set($repository, 'branch', 'feature/a-branch-name-long-enough-to-cut');
+            Probe::set($repository, 'tracking', new Tracking(1, 2));
+            Probe::set($repository, 'pullRequest', 446);
+            Probe::set($repository, 'lastFetched', 1_700_000_000);
+            yield $name => [new GitToolbarWidget(new Translator('en'), $repository, density: $density)];
+        }
 
         // The commit box is the one that carries a key-hint suffix in its
         // header, which is the piece that overflowed.

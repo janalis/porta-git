@@ -8,13 +8,14 @@ use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
+use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 
 /**
- * The five widgets the git view drives: the changes/history lists that share
- * the left column (via the tabs), the commit box beneath them, and the diff
- * pane. Bundled so {@see GitViewController} takes one pane group instead of
- * five separate widget arguments.
+ * The widgets the git view drives: the toolbar across the top, the
+ * changes/history lists that share the left column (via the tabs), the commit
+ * box beneath them, and the diff pane. Bundled so {@see GitViewController}
+ * takes one pane group instead of a widget argument each.
  */
 final readonly class GitPanes
 {
@@ -24,5 +25,6 @@ final readonly class GitPanes
         public CommitBoxWidget $commitBox,
         public HistoryListWidget $history,
         public GitTabsWidget $tabs,
+        public GitToolbarWidget $toolbar,
     ) {}
 }

@@ -11,6 +11,7 @@ use Porta\Editor\BufferManager;
 use Porta\Editor\EditorPanes;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
+use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\Command\GitRemoteCommands;
@@ -44,6 +45,7 @@ use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
+use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Input\HitTester;
@@ -135,6 +137,8 @@ final class GitViewControllerTest extends TestCase
     private CommitBoxWidget $commitBox;
     private HistoryListWidget $history;
     private GitTabsWidget $tabs;
+
+    private GitToolbarWidget $toolbar;
     private MenuBarWidget $menuBar;
     private ContainerWidget $gitLeft;
     private ViewRegion $region;
@@ -233,10 +237,12 @@ final class GitViewControllerTest extends TestCase
         $copy = new Clipboard($this->tui)->copy(...);
         $modals = GitDoubles::modals($this->editor);
 
+        $repository = GitDoubles::repository($this->git, $this->project->dir);
+        $this->toolbar = new GitToolbarWidget(new Translator('en'), $repository, events: $dispatcher);
         $controller = new GitViewController(
             $this->git,
             new ProjectPaths($this->project->dir),
-            new GitPanes($this->changes, $this->diffView, $this->commitBox, $this->history, $this->tabs),
+            new GitPanes($this->changes, $this->diffView, $this->commitBox, $this->history, $this->tabs, $this->toolbar),
             $region,
             $host,
             new GitMouseRouter(
@@ -278,6 +284,7 @@ final class GitViewControllerTest extends TestCase
             // only assert that nothing threw.
             new GitRemoteCommands(new GitRemote($this->project->dir), $flash, $trans, $dispatcher, $modals, $repaint),
             historyPageSize: $historyPageSize,
+            repository: $repository,
         );
         $views->register($controller);
         // PaneLayout fills the AREA at runtime; the region's two panes are
@@ -401,7 +408,7 @@ final class GitViewControllerTest extends TestCase
         $this->menuBar->open(0);
         $controller->toggle();
         $this->assertTrue($controller->isOpen());
-        $this->assertSame(['git-area'], $ids(), 'the region is in the window');
+        $this->assertSame(['git-header', 'git-area'], $ids(), 'the region is in the window, its toolbar row above it');
         $this->assertFalse($this->menuBar->isOpen(), 'an open dropdown closes as the window opens');
         $controller->open(); // idempotent
         $this->assertTrue($controller->isOpen());
@@ -1734,5 +1741,52 @@ final class GitViewControllerTest extends TestCase
         });
         $this->assertSame('fetch', $completed[0]->operation, 'the key press must reach GitRemoteCommands, not merely dispatch');
         $this->assertTrue($completed[0]->ok);
+    }
+
+    private function toolbarText(): string
+    {
+        return AnsiUtils::stripAnsiCodes(\implode("\n", $this->toolbar->render(new RenderContext(100, 3))));
+    }
+
+    /**
+     * The toolbar reads git when the view opens and again when the working
+     * tree moves under it — a branch switch from its own menu is one — but a
+     * closed view does not keep asking.
+     */
+    public function testTheToolbarFollowsTheBranchWhileTheViewIsOpen(): void
+    {
+        $controller = $this->controller();
+        $branch = \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD'));
+        $controller->open();
+        $this->await(fn (): bool => \str_contains($this->toolbarText(), $branch), what: 'the branch');
+
+        $this->project->git('checkout', '-q', '-b', 'feature');
+        $controller->onWorkingTreeChanged(new WorkingTreeChanged());
+        $this->await(fn (): bool => \str_contains($this->toolbarText(), 'feature'), what: 'the switched branch');
+
+        $controller->close();
+        $this->project->git('checkout', '-q', '-b', 'later');
+        $controller->onWorkingTreeChanged(new WorkingTreeChanged());
+        $this->pump(0.3);
+        $this->assertStringContainsString('feature', $this->toolbarText(), 'closed, it asks nothing');
+    }
+
+    /** A fetch moves what the toolbar says; so does a commit, one more ahead of the upstream. */
+    public function testAFetchAndACommitRecountTheUpstream(): void
+    {
+        $controller = $this->controller();
+        $controller->open();
+        $this->await(fn (): bool => \str_contains($this->toolbarText(), 'Publish branch'), what: 'no upstream yet');
+
+        $this->project->git('branch', 'base');
+        $this->project->git('branch', '--set-upstream-to=base');
+        $controller->onRemoteCompleted(new GitRemoteCompleted('fetch', true));
+        $this->await(fn (): bool => \str_contains($this->toolbarText(), 'Fetch'), what: 'the upstream after the fetch');
+
+        $this->project->write('a.txt', "ahead\ntwo\n");
+        $this->project->git('add', 'a.txt');
+        Probe::invoke($controller, 'commit', 'Ahead');
+        $this->await(fn (): bool => \str_contains($this->toolbarText(), '⇡1'), what: 'one commit ahead');
+        $this->assertStringContainsString('⟳ Push', $this->toolbarText(), 'and the remote button offers to push it');
     }
 }

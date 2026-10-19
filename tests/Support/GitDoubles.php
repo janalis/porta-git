@@ -8,6 +8,9 @@ use Porta\Editor\BufferManager;
 use Porta\Editor\EditorPanes;
 use Porta\GitPlugin\Command\WorktreeCommands;
 use Porta\GitPlugin\GitInfo;
+use Porta\GitPlugin\Process\ProcessLane;
+use Porta\GitPlugin\Process\PullRequestLookup;
+use Porta\GitPlugin\RepositoryState;
 use Porta\GitPlugin\Setting\DiffPrefs;
 use Porta\GitPlugin\Support\Flash;
 use Porta\GitPlugin\Support\Modals;
@@ -143,5 +146,14 @@ final class GitDoubles
             static fn (): string => '',
             $rootDir,
         );
+    }
+
+    /**
+     * The toolbar's repository state over a real git, with no `gh`: a test of
+     * the view wants the branch and the upstream, never a network call.
+     */
+    public static function repository(GitInfo $git, string $root): RepositoryState
+    {
+        return new RepositoryState($git, new PullRequestLookup($root, static fn (): ?string => null, new ProcessLane()), $root);
     }
 }

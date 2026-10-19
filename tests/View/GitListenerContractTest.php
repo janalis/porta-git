@@ -62,7 +62,7 @@ final class GitListenerContractTest extends TestCase
         }
     }
 
-    public function testTheSetIsNineteenReactionsAcrossTwoClasses(): void
+    public function testTheSetIsTwentyOneReactionsAcrossTwoClasses(): void
     {
         // A count as well as a map: it is the number to check the registration
         // against at a glance, and it makes "one of these was dropped" a
@@ -71,11 +71,13 @@ final class GitListenerContractTest extends TestCase
         // Nineteen before the move. The one that left is `onBufferSaved`:
         // `BufferSaved` carries a mutable `Buffer`, so it is not observable by
         // a plugin, and `PluginApi::onFileSaved()` is the sanctioned spelling.
-        // Back to nineteen with the changes list's stage-all box.
+        // Back to nineteen with the changes list's stage-all box; twenty-one
+        // with the toolbar, whose menu cells ask the controller and which
+        // follows the working tree moving under the open view.
         $total = \count(GitWiring::VIEW) + \count(GitWiring::VIEW_CORE) + \count(GitWiring::REFRESHER);
 
-        $this->assertSame(19, $total);
-        $this->assertCount(15, GitWiring::VIEW, 'the widget → controller set, on this plugin’s own dispatcher');
+        $this->assertSame(21, $total);
+        $this->assertCount(16, GitWiring::VIEW, 'the widget → controller set, on this plugin’s own dispatcher');
     }
 
     public function testOnlyPluginObservableEventsTravelThroughTheCoreBus(): void

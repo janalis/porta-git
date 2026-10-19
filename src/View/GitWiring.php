@@ -21,6 +21,7 @@ use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitStageAllRequested;
+use Porta\GitPlugin\Event\GitToolbarMenuRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\GitRefresher;
 
@@ -51,6 +52,7 @@ final class GitWiring
         GitChangeSelected::class => 'onChangeSelected',
         GitChangeStageToggleRequested::class => 'onChangeStageToggled',
         GitStageAllRequested::class => 'onStageAllRequested',
+        GitToolbarMenuRequested::class => 'onToolbarMenuRequested',
         GitCommitFileSelected::class => 'onCommitFileSelected',
         GitCommitSelected::class => 'onCommitSelected',
         GitDiffContextCycleRequested::class => 'onDiffContextCycled',
@@ -67,15 +69,16 @@ final class GitWiring
     /**
      * Core events the controller answers, through `PluginApi::on()`.
      *
-     * One entry, and it is the one that proves the split is real: a fetch
-     * finishing is a fact anything may observe, so it stays a core
-     * `PluginObservable` rather than moving onto this plugin's dispatcher with
-     * the fourteen above.
+     * Facts anything may observe, so they stay core `PluginObservable`s rather
+     * than moving onto this plugin's dispatcher with the widget events above:
+     * a fetch finishing, and the working tree moving under the view (a branch
+     * switch from the toolbar's own menu, a stash), which the toolbar answers.
      *
      * @var array<class-string, string>
      */
     public const array VIEW_CORE = [
         GitRemoteCompleted::class => 'onRemoteCompleted',
+        WorkingTreeChanged::class => 'onWorkingTreeChanged',
     ];
 
     /**
