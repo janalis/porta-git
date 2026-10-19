@@ -67,10 +67,11 @@ final class ChangesListWidgetTest extends TestCase
         $screen = $this->plain($widget->render(new RenderContext(44, 8)));
 
         $this->assertStringContainsString('4 changed files', $screen);
-        $this->assertStringContainsString('[ ] M src/a.php', $screen);
-        $this->assertStringContainsString('[✓] M src/b.php', $screen);
-        $this->assertStringContainsString('[ ] A c.txt', $screen, 'untracked shows as an unstaged addition');
-        $this->assertStringContainsString('[✓] R renamed.php ← old.php', $screen);
+        // GitHub Desktop's row: the box, the path, the status flush right.
+        $this->assertMatchesRegularExpression('/\\[ \\] src\\/a\\.php +M \\n/u', $screen);
+        $this->assertMatchesRegularExpression('/\\[✓\\] src\\/b\\.php +M \\n/u', $screen);
+        $this->assertMatchesRegularExpression('/\\[ \\] c\\.txt +A \\n/u', $screen, 'untracked shows as an unstaged addition');
+        $this->assertMatchesRegularExpression('/\\[✓\\] renamed\\.php ← old\\.php +R \\n/u', $screen);
     }
 
     public function testPartialStagingShowsTheMixedCheckbox(): void
@@ -78,7 +79,7 @@ final class ChangesListWidgetTest extends TestCase
         $widget = new ChangesListWidget(new Translator('en'));
         $widget->setEntries([new ChangeEntry('x.php', 'M', 'M')]);
 
-        $this->assertStringContainsString('[–] M x.php', $this->plain($widget->render(new RenderContext(44, 4))));
+        $this->assertMatchesRegularExpression('/\\[–\\] x\\.php +M /u', $this->plain($widget->render(new RenderContext(44, 4))));
     }
 
     public function testNavigationFiresOnSelect(): void

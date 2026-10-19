@@ -46,6 +46,7 @@ use Porta\GitPlugin\View\GitViewController;
 use Porta\GitPlugin\View\GitWiring;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
+use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
@@ -441,17 +442,21 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             new HistoryListWidget($s->translator, styles: $s->styles, events: $events),
             new GitTabsWidget($s->translator, styles: $s->styles, density: $s->density, events: $events),
             new GitToolbarWidget($s->translator, $repository, $s->styles, $s->density, $events),
+            new CommitDetailsWidget($s->translator, $s->styles, $events),
         );
         // The ids and flex styles the container used to apply from #[AsWidget].
         // The ids are how the renderer and every rect-reading test name these
         // widgets; the flex values are what makes the diff pane take the slack
         // while the three stacked sidebar widgets keep their rendered height.
         $panes->changes->setId('git-changes')->setStyle(new Style(flex: 0));
-        $panes->diffView->setId('git-diff')->setStyle(new Style(flex: 1));
+        // Flex 2: beside the commit details (flex 1) in History, the diff takes
+        // two thirds; alone in Changes, any weight takes the whole column.
+        $panes->diffView->setId('git-diff')->setStyle(new Style(flex: 2));
         $panes->commitBox->setId('git-commit');
         $panes->history->setId('git-history');
         $panes->tabs->setId('git-tabs')->setStyle(new Style(flex: 0));
         $panes->toolbar->setId('git-toolbar');
+        $panes->details->setId('git-commit-details')->setStyle(new Style(flex: 1));
 
         $controller = new GitViewController(
             $git,
@@ -459,7 +464,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             $panes,
             $s->region,
             $s->host,
-            new GitMouseRouter($s->hit, $s->host, $panes->changes, $panes->diffView, $panes->commitBox, $panes->history, $panes->tabs, $panes->toolbar),
+            new GitMouseRouter($s->hit, $s->host, $panes->changes, $panes->diffView, $panes->commitBox, $panes->history, $panes->tabs, $panes->toolbar, $panes->details),
             new GitContextMenus($s->hit, $s->host, $panes->changes, $panes->history, $commands, $s->translator, $panes->toolbar, $branchMenu),
             $flash,
             $s->translator,

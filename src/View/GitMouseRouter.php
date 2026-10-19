@@ -6,6 +6,7 @@ namespace Porta\GitPlugin\View;
 
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
+use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
@@ -40,6 +41,7 @@ final class GitMouseRouter implements ViewPointer
         private readonly HistoryListWidget $history,
         private readonly GitTabsWidget $tabs,
         private readonly ?GitToolbarWidget $toolbar = null,
+        private readonly ?CommitDetailsWidget $details = null,
     ) {} // the region's divider is core's to tint and to drag, as for every view
 
     /** Clear the diff-drag arming on a fresh press (mirrors the other drag resets). */
@@ -63,7 +65,10 @@ final class GitMouseRouter implements ViewPointer
         // arrow keys (ArrowScrollTrait).
         $list = WheelAxis::Horizontal === $gesture->axis
             ? null
-            : \array_find([$this->changes, $this->history], fn (ChangesListWidget|HistoryListWidget $list): bool => null !== $this->hit->hit($list, $mouse->row, $mouse->col));
+            : \array_find(
+                \array_filter([$this->changes, $this->history, $this->details]),
+                fn (ChangesListWidget|HistoryListWidget|CommitDetailsWidget $list): bool => null !== $this->hit->hit($list, $mouse->row, $mouse->col),
+            );
         $list?->scrollBy($gesture->step);
 
         return null !== $list;
@@ -101,6 +106,7 @@ final class GitMouseRouter implements ViewPointer
             null !== ($rel = $this->hit->hit($this->tabs, $mouse->row, $mouse->col)) => $this->pressTabs($rel['col']),
             null !== ($rel = $this->hit->hit($this->changes, $mouse->row, $mouse->col)) => $this->pressChanges($rel['row'], $rel['col']),
             null !== ($rel = $this->hit->hit($this->history, $mouse->row, $mouse->col)) => $this->pressHistory($rel['row']),
+            null !== ($at = $this->detailsAt($mouse)) => $this->pressDetails(...$at),
             null !== ($rel = $this->hit->hit($this->commitBox, $mouse->row, $mouse->col)) => $this->pressCommitBox($rel['row']),
             null !== ($rel = $this->hit->hit($this->diff, $mouse->row, $mouse->col)) => $this->pressDiff($rel['row'], $rel['col']),
             default => false,
@@ -147,6 +153,28 @@ final class GitMouseRouter implements ViewPointer
         return true;
     }
 
+    /**
+     * The commit details pane and the cell of it under the pointer, or null
+     * off it — and while History is not showing it.
+     *
+     * @return array{CommitDetailsWidget, int, int}|null
+     */
+    private function detailsAt(MouseEvent $mouse): ?array
+    {
+        $rel = null === $this->details ? null : $this->hit->hit($this->details, $mouse->row, $mouse->col);
+
+        return null === $rel || null === $this->details ? null : [$this->details, $rel['row'], $rel['col']];
+    }
+
+    private function pressDetails(CommitDetailsWidget $details, int $row, int $col): bool
+    {
+        $this->host->focus($details);
+        $details->handleClick($row, $col);
+        $this->host->invalidate();
+
+        return true;
+    }
+
     private function pressCommitBox(int $row): bool
     {
         $this->host->focus($this->commitBox);
@@ -175,7 +203,7 @@ final class GitMouseRouter implements ViewPointer
      */
     public function hover(MouseEvent $mouse): void
     {
-        $changed = $this->hit->hover($mouse->row, $mouse->col, $this->changes, $this->history, $this->commitBox);
+        $changed = $this->hit->hover($mouse->row, $mouse->col, ...\array_filter([$this->changes, $this->history, $this->commitBox, $this->details]));
         // A staging box is its own target apart from its row, so it answers the pointer too.
         $changesRel = $this->hit->hit($this->changes, $mouse->row, $mouse->col);
         $boxChanged = $this->changes->hoverBoxAt($changesRel['row'] ?? null, $changesRel['col'] ?? 0);

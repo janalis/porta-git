@@ -6,10 +6,6 @@
         <source>%count% changed file|%count% changed files</source>
         <target>%count% fichier modifié|%count% fichiers modifiés</target>
       </trans-unit>
-      <trans-unit id="2">
-        <source>Files (%count%)</source>
-        <target>Fichiers (%count%)</target>
-      </trans-unit>
       <trans-unit id="3">
         <source>History (%count%)</source>
         <target>Historique (%count%)</target>
@@ -753,6 +749,10 @@
       <trans-unit id="188">
         <source>now</source>
         <target>maintenant</target>
+      </trans-unit>
+      <trans-unit id="189">
+        <source>Copy the full commit hash</source>
+        <target>Copier le hash complet du commit</target>
       </trans-unit>
     </body>
   </file>

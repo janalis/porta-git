@@ -14,6 +14,7 @@ use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\Tracking;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
+use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
@@ -82,8 +83,13 @@ final class NarrowGitPaneRenderTest extends TestCase
         $history = new HistoryListWidget(new Translator('en'));
         $history->setFocused(true);
         $history->setCommits([new LogEntry('full1', 'aaa111', 'Alice', 1_700_000_100, 'Newest work')]);
-        $history->setFiles([['status' => 'M', 'path' => 'src/a.php']]);
         yield 'history list' => [$history];
+
+        $details = new CommitDetailsWidget(new Translator('en'));
+        $details->setFocused(true);
+        $details->setCommit(new LogEntry('full1', 'aaa111', 'Alice', 1_700_000_100, 'Newest work, with a subject long enough to wrap twice and be cut'));
+        $details->setFiles([['status' => 'M', 'path' => 'src/deep/folder/a.php'], ['status' => 'R', 'path' => 'b.php']]);
+        yield 'commit details' => [$details];
 
         yield 'git tabs' => [new GitTabsWidget(new Translator('en'))];
 

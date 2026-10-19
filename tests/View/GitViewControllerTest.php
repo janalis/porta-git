@@ -20,6 +20,7 @@ use Porta\GitPlugin\Event\GitChangeDiscardRequested;
 use Porta\GitPlugin\Event\GitChangeSelected;
 use Porta\GitPlugin\Event\GitChangeStageToggleRequested;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
+use Porta\GitPlugin\Event\GitCommitHashCopyRequested;
 use Porta\GitPlugin\Event\GitCommitSelected;
 use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
 use Porta\GitPlugin\Event\GitDiffCopyRequested;
@@ -32,6 +33,7 @@ use Porta\GitPlugin\Event\GitStageAllRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
+use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Process\GitRemote;
 use Porta\GitPlugin\Process\ProcessLane;
 use Porta\GitPlugin\StagedState;
@@ -43,6 +45,7 @@ use Porta\GitPlugin\View\GitViewController;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
+use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
@@ -139,6 +142,8 @@ final class GitViewControllerTest extends TestCase
     private GitTabsWidget $tabs;
 
     private GitToolbarWidget $toolbar;
+
+    private CommitDetailsWidget $details;
     private MenuBarWidget $menuBar;
     private ContainerWidget $gitLeft;
     private ViewRegion $region;
@@ -177,6 +182,8 @@ final class GitViewControllerTest extends TestCase
         $this->history->setId('git-history');
         $this->tabs = new GitTabsWidget(new Translator('en'), events: $dispatcher);
         $this->tabs->setId('git-tabs');
+        $this->details = new CommitDetailsWidget(new Translator('en'), events: $dispatcher);
+        $this->details->setId('git-commit-details');
         $this->menuBar = new MenuBarWidget();
         $this->menuBar->setId('menu');
         $editWidget = new ContainerWidget();
@@ -242,7 +249,7 @@ final class GitViewControllerTest extends TestCase
         $controller = new GitViewController(
             $this->git,
             new ProjectPaths($this->project->dir),
-            new GitPanes($this->changes, $this->diffView, $this->commitBox, $this->history, $this->tabs, $this->toolbar),
+            new GitPanes($this->changes, $this->diffView, $this->commitBox, $this->history, $this->tabs, $this->toolbar, $this->details),
             $region,
             $host,
             new GitMouseRouter(
@@ -1143,29 +1150,43 @@ final class GitViewControllerTest extends TestCase
         );
         $this->assertSame('second', $this->history->selectedCommit()?->subject);
         $this->assertTrue(Probe::get($this->diffView, 'readOnly'));
+        $this->assertSame(
+            ['git-history-content'],
+            \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->region->content()->all()),
+            'the content is GitHub Desktop\'s middle column and the diff',
+        );
+        $row = $this->region->content()->all()[0];
+        $this->assertInstanceOf(ContainerWidget::class, $row);
+        $this->assertSame([$this->details, $this->diffView], $row->all());
 
-        // The files of the newest commit load, and the FIRST file's patch
-        // shows immediately — no keyboard step needed to see a diff.
-        $this->await(fn (): bool => \str_contains($this->historyText(), 'M a.txt'));
+        // The files of the newest commit load beside it, and the FIRST file's
+        // patch shows immediately — no keyboard step needed to see a diff.
+        $this->await(fn (): bool => \str_contains($this->detailsText(), 'a.txt'));
+        $this->assertStringContainsString('second', $this->detailsText(), 'under the commit\'s own header');
         $this->await(fn (): bool => \str_contains($this->diffText(), '+three'), what: "the first file's patch auto-loads on commit selection");
 
-        // Keyboard file browsing still refires loads.
+        // Enter moves into the files, and browsing them still refires loads.
         $this->history->setFocused(true);
-        $this->history->handleInput("\r"); // into the file list
-        $this->history->handleInput("\x1b[B");
-        $this->history->handleInput("\x1b[A");
+        $this->history->handleInput("\r");
+        $this->assertSame($this->details, $this->tui->getFocus(), 'Enter hands the keys to the files');
+        $this->details->setFocused(true);
+        $this->details->handleInput("\x1b[B");
+        $this->details->handleInput("\x1b[A");
         $this->await(fn (): bool => \str_contains($this->diffText(), '+three'), what: 'the commit file patch renders');
+        $this->details->handleInput("\r");
+        $this->assertSame($this->history, $this->tui->getFocus(), 'and Enter hands them back');
 
         // Staged keys are inert in read-only mode.
         $this->diffView->setFocused(true);
         $this->diffView->handleInput(' ');
         $this->assertSame([], $this->porcelain(), 'nothing staged from history');
 
-        // Back to Changes: left pane restored, diff editable again.
+        // Back to Changes: left pane restored, the diff alone and editable again.
         $this->history->setFocused(true);
         $this->history->handleInput('1');
         $this->await(fn (): bool => 3 === \count($this->gitLeft->all()));
         $this->assertFalse(Probe::get($this->diffView, 'readOnly'));
+        $this->assertSame([$this->diffView], $this->region->content()->all());
     }
 
     public function testRightClickSelectsAHistoryCommitForItsContextMenu(): void
@@ -1182,17 +1203,17 @@ final class GitViewControllerTest extends TestCase
         $this->await(fn (): bool => null !== $this->history->selectedCommit());
         $this->history->render(new RenderContext(44, 20)); // set the row geometry
 
-        $commit = $this->history->selectCommitAt(1); // the newest commit row
+        $commit = $this->history->selectCommitAt(1); // the newest commit's subject row
         $this->assertSame('second', $commit?->subject, 'a right-click selects the commit under it');
-        $this->assertSame(1, $this->history->selectedCommitRow(), 'the newest commit sits on the first row');
+        $this->assertSame(2, $this->history->selectedCommitRow(), 'its menu opens under its second row');
 
-        // Selecting a different row moves the selection (and fires the callback).
-        $older = $this->history->selectCommitAt(2);
-        $this->assertNotSame('second', $older?->subject, 'the second row is an older commit');
-        $this->assertSame(2, $this->history->selectedCommitRow());
+        // Selecting a different commit moves the selection (and fires the callback).
+        $older = $this->history->selectCommitAt(4);
+        $this->assertNotSame('second', $older?->subject, 'the next entry is an older commit');
+        $this->assertSame(4, $this->history->selectedCommitRow());
 
         $this->assertNull($this->history->selectCommitAt(0), 'the header row is no commit');
-        $this->assertNull($this->history->selectCommitAt(3), 'an empty commit slot is no commit');
+        $this->assertNull($this->history->selectCommitAt(5), 'an empty commit slot is no commit');
         $this->assertNull($this->history->selectCommitAt(99), 'past the list is no commit');
     }
 
@@ -1224,12 +1245,15 @@ final class GitViewControllerTest extends TestCase
         $this->await(fn (): bool => 3 === \count($this->gitLeft->all()));
         $this->assertFalse(Probe::get($this->diffView, 'readOnly'));
 
-        // History-mode focus cycle: history <-> diff only.
+        // History-mode focus cycle: commits → files → diff → commits.
         $this->changes->setFocused(true);
         $this->changes->handleInput('2');
         $this->await(fn (): bool => 2 === \count($this->gitLeft->all()));
         $this->history->setFocused(true);
         $this->history->handleInput("\t");
+        $this->assertSame($this->details, $this->tui->getFocus());
+        $this->details->setFocused(true);
+        $this->details->handleInput("\t");
         $this->assertSame($this->diffView, $this->tui->getFocus());
         $this->diffView->setFocused(true);
         $this->diffView->handleInput("\t");
@@ -1287,12 +1311,12 @@ final class GitViewControllerTest extends TestCase
         $this->history->setFocused(true);
         $this->history->handleInput("\x1b[B");
         $this->await(fn (): bool => \str_contains($this->diffText(), '+.porta/'), what: "the older commit's first file loads");
-        $this->assertStringContainsString('.gitignore', $this->historyText());
+        $this->assertStringContainsString('.gitignore', $this->detailsText());
 
         // Into that commit's file list and down to a.txt: only
         // GitCommitFileSelected can swap the patch.
-        $this->history->handleInput("\r");
-        $this->history->handleInput("\x1b[B");
+        $this->details->setFocused(true);
+        $this->details->handleInput("\x1b[B");
         $this->await(fn (): bool => \str_contains($this->diffText(), '+two'), what: 'selecting a file loads that file');
         $this->assertStringNotContainsString('+.porta/', $this->diffText());
     }
@@ -1300,6 +1324,11 @@ final class GitViewControllerTest extends TestCase
     private function historyText(): string
     {
         return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->history->render(new RenderContext(44, 20))));
+    }
+
+    private function detailsText(): string
+    {
+        return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->details->render(new RenderContext(44, 20))));
     }
 
     /**
@@ -1615,7 +1644,7 @@ final class GitViewControllerTest extends TestCase
         // The reset emptied the files pane; it has to come back, or the patch
         // still on screen is one nothing in the list points at any more.
         $this->await(
-            fn (): bool => [] !== Probe::get($this->history, 'files'),
+            fn (): bool => null !== $this->details->selectedFile(),
             what: "the kept commit's files reloaded under it",
         );
         $this->assertStringContainsString('+alpha', $this->diffText(), 'and the patch under it is still its own');
@@ -1788,5 +1817,17 @@ final class GitViewControllerTest extends TestCase
         Probe::invoke($controller, 'commit', 'Ahead');
         $this->await(fn (): bool => \str_contains($this->toolbarText(), '⇡1'), what: 'one commit ahead');
         $this->assertStringContainsString('⟳ Push', $this->toolbarText(), 'and the remote button offers to push it');
+    }
+
+    /** The commit header's copy button puts the full sha on the clipboard and says the short one. */
+    public function testTheCommitHeaderCopiesTheFullSha(): void
+    {
+        $controller = $this->controller(Presence::Without);
+        $commit = new LogEntry('f00dfacecafebeef0123456789abcdef01234567', 'f00dfac', 'Alice', 1_700_000_000, 'Subject');
+
+        $controller->onCommitHashCopyRequested(new GitCommitHashCopyRequested($commit));
+
+        $this->assertStringContainsString("\x1b]52;c;".\base64_encode($commit->sha), $this->tui->getTerminal()->getOutput());
+        $this->assertStringContainsString('Copied f00dfac', $this->statusRow($this->statusBar));
     }
 }

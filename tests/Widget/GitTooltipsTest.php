@@ -9,6 +9,7 @@ use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
+use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
@@ -156,15 +157,23 @@ final class GitTooltipsTest extends TestCase
     {
         $history = new HistoryListWidget(new Translator('en'));
         $history->setCommits([new LogEntry('abcdef1234567890', 'abcdef1', 'Alice', 1_700_000_000, 'A subject long enough to be cut by the pane')]);
-        $history->setFiles([['status' => 'M', 'path' => 'src/a/deep/path/that/will/not/fit/in/the/pane.php'], ['status' => 'A', 'path' => 'x.php']]);
-        $rows = \explode("\n", $this->plain($history->render(new RenderContext(30, 14))));
+        $history->render(new RenderContext(30, 14));
 
         $commit = $history->tooltipAt(1, 3);
         $this->assertSame("abcdef1234567890\nA subject long enough to be cut by the pane\nAlice · ".\date('Y-m-d H:i', timestamp: 1_700_000_000), $commit?->text);
         $this->assertSame([1, 0, 30], [$commit?->row, $commit?->colStart, $commit?->colEnd]);
+    }
 
-        $cut = (int) \array_key_first(\array_filter($rows, static fn (string $r): bool => \str_contains($r, 'src/a/deep')));
-        $this->assertSame('src/a/deep/path/that/will/not/fit/in/the/pane.php', $history->tooltipAt($cut, 3)?->text);
-        $this->assertNull($history->tooltipAt($cut + 1, 3), 'x.php is drawn whole');
+    /** A commit's file whose path was cut says the path; one drawn whole says nothing. */
+    public function testACommitFileRowSaysACutPath(): void
+    {
+        $details = new CommitDetailsWidget(new Translator('en'));
+        $details->setCommit(new LogEntry('abcdef1234567890', 'abcdef1', 'Alice', 1_700_000_000, 'Short'));
+        $details->setFiles([['status' => 'M', 'path' => 'src/a/deep/path/that/will/not/fit/in/the/pane.php'], ['status' => 'A', 'path' => 'x.php']]);
+        $rows = \explode("\n", $this->plain($details->render(new RenderContext(30, 14))));
+
+        $cut = (int) \array_key_first(\array_filter($rows, static fn (string $r): bool => \str_contains($r, 'pane.php')));
+        $this->assertSame('src/a/deep/path/that/will/not/fit/in/the/pane.php', $details->tooltipAt($cut, 3)?->text);
+        $this->assertNull($details->tooltipAt($cut + 1, 3), 'x.php is drawn whole');
     }
 }

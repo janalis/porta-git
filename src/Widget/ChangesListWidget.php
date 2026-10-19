@@ -37,6 +37,7 @@ use Porta\Widget\Support\PanelRowStyle;
 use Porta\Widget\Support\PanelWidth;
 use Porta\Widget\Support\WheelScrollable;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Input\Key;
 use Symfony\Component\Tui\Input\Keybindings;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -65,15 +66,6 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     use MenuOverlayHostTrait;
     use PanelWidth;
     use PanelRowStyle;
-
-    /** @var array<string, Role> file-status char → color role */
-    private const array STATUS_ROLE = [
-        'A' => Role::Added,
-        'M' => Role::Modified,
-        'D' => Role::Deleted,
-        'R' => Role::Hunk,
-        'C' => Role::Hunk,
-    ];
 
     /** @var list<ChangeEntry> */
     private array $entries = [];
@@ -485,13 +477,14 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         // Lit, the box is untinted: the underline's close would cut the tint.
         $lit = $index === $this->hoveredBox;
         $checkbox = $this->litBox($entry->stagedState()->checkbox($lit || $this->list->isSelected($index) ? null : $this->styles), $index);
-        $status = $entry->displayStatus();
-        $statusText = \array_key_exists($status, self::STATUS_ROLE) ? $this->styles->of(self::STATUS_ROLE[$status])->apply($status) : $status;
-        $label = $entry->path.(null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '');
+        $renamed = null !== $entry->renamedFrom ? ' '.Glyphs::RENAME_FROM.' '.$entry->renamedFrom : '';
+        $box = ' '.$checkbox.' ';
+        // GitHub Desktop's row: the box, the path with its folder dim, the status flush right.
+        $file = FileRow::render($entry->path, $entry->displayStatus(), \max(0, $width - AnsiUtils::visibleWidth($box)), $this->styles, $renamed);
 
         $selected = $this->list->isSelected($index);
 
-        return $this->shadeRow($this->barred(AnsiText::truncate(' '.$checkbox.' '.$statusText.' '.$label, $width, pad: true), $selected), $selected, $index === $this->hoveredIndex);
+        return $this->shadeRow($this->barred(AnsiText::truncate($box.$file, $width, pad: true), $selected), $selected, $index === $this->hoveredIndex);
     }
 
     /**

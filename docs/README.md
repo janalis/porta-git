@@ -99,9 +99,12 @@ checkbox is dashed and says *No commit to amend*, and `Tab` passes it by.
 
 ### History
 
-The last 200 commits. Selecting a commit lists its files and shows the
-first file's patch; `Enter` switches between the commit list and the file
-list; the diff pane is read-only here. `1` returns to Changes.
+Three columns, as in GitHub Desktop: the commits, each its subject over
+`author · 5 hours ago`; the selected commit's subject, author and short sha
+(⧉ or `y` copies the full one) over the files it changed; and the diff,
+read-only here. Selecting a commit shows its first file's patch; `Enter` moves
+between the commits and the files, and `Tab` walks commits → files → diff.
+`1` returns to Changes.
 
 The view covers changes, staging (including line-level), commit/amend and
 history browsing. History loads 200 commits at a time — moving past the last
@@ -123,7 +126,8 @@ The view window `Ctrl+Alt+D` opens; `Tab` cycles panes and `Esc` closes.
 | `Ctrl+C` | Copy the selected diff lines |
 | `Ctrl+Enter` | Commit the staged changes |
 | `Alt+M` | Toggle amend, prefilling the last commit's message |
-| `Enter` | In History, switch between the commit list and its file list |
+| `Enter` | In History, move between the commits and the selected commit's files |
+| `y` | In a commit's files, copy the commit's full sha |
 | `f` / `p` / `Shift+P` | Fetch / pull / push |
 
 ## As git's difftool and mergetool

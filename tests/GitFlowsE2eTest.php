@@ -590,7 +590,7 @@ final class GitFlowsE2eTest extends TestCase
                     $screen = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->await(static fn (): bool => \str_contains($screen(), '+$a = 2;'), what: 'the diff pane to show the worktree change');
                     $this->assertStringContainsString('2 changed files', $screen());
-                    $this->assertStringContainsString('[ ] M src/A.php', $screen());
+                    $this->assertStringContainsString('[ ] src/A.php', $screen());
                     $tui->handleInput(' '); // stage src/A.php
                     // Await the app's git barrier, then the on-disk effect —
                     // a blocking porcelain poll would race the async add.
@@ -650,7 +650,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b\x04"); // ctrl+alt+d opens the git view
                 },
                 550 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
-                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '[ ] M src/A.php'));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '[ ] src/A.php'));
                     $renderer = Services::resolve($ide, Renderer::class);
                     $rect = Widgets::rect($renderer, $tui->getById('git-changes'));
 
@@ -739,7 +739,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertStringContainsString('gamma CHANGED', $project->git('diff'), 'gamma remains a worktree change');
                     // The post-apply refresh repaints the mixed checkbox; await
                     // it here instead of scraping after the loop stopped.
-                    $this->await(static fn (): bool => \str_contains($screen(), '[–] M f.txt'), what: 'partial staging to show the mixed checkbox');
+                    $this->await(static fn (): bool => \str_contains($screen(), '[–] f.txt'), what: 'partial staging to show the mixed checkbox');
                     $tui->handleInput("\x1b");
                 },
             ],
@@ -931,10 +931,11 @@ final class GitFlowsE2eTest extends TestCase
                     // commit's file list. Awaiting the first (History (2))
                     // left the second racing, which failed 2 runs in 30 under
                     // load — so await the LAST effect this step asserts on.
-                    $this->awaitPainted($tui, $terminal, 'M a.txt');
+                    // The commit's files sit beside it now, under a legend
+                    // that counts them.
+                    $this->awaitPainted($tui, $terminal, '1 changed file');
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertStringContainsString('second commit', $screen);
-                    $this->assertStringContainsString('M a.txt', $screen, 'the newest commit file list loads');
                     // Mouse: hover tints a commit row (no selection change),
                     // wheel over the history list, click the first commit
                     // row (the tab strip and the list's header sit above it).

@@ -6,10 +6,6 @@
         <source>%count% changed file|%count% changed files</source>
         <target>%count% 件の変更ファイル</target>
       </trans-unit>
-      <trans-unit id="2">
-        <source>Files (%count%)</source>
-        <target>ファイル (%count%)</target>
-      </trans-unit>
       <trans-unit id="3">
         <source>History (%count%)</source>
         <target>履歴 (%count%)</target>
@@ -753,6 +749,10 @@
       <trans-unit id="188">
         <source>now</source>
         <target>今</target>
+      </trans-unit>
+      <trans-unit id="189">
+        <source>Copy the full commit hash</source>
+        <target>コミットハッシュ全体をコピー</target>
       </trans-unit>
     </body>
   </file>

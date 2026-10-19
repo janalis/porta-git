@@ -17,32 +17,35 @@ use Porta\Tests\Support\PagesThroughRows;
 use Porta\Tests\Support\RendersWidget;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
-use Porta\Widget\Render\Rule;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 
+/**
+ * The History tab's commit list, GitHub Desktop's way: each commit two rows,
+ * its subject over who wrote it and how long ago.
+ */
 final class HistoryListWidgetTest extends TestCase
 {
     use PagesThroughRows;
     use RendersWidget;
 
+    private const int NOW = 1_700_000_000;
+
     /**
-     * The worst of the four. This pane gives the commit list only its middle:
-     * a title, the commits, the Files header and eight file rows. Paging by the
-     * pane height therefore moved TEN commits further than the screen showed,
-     * so on a twenty-row pane a page skipped a whole page.
+     * A page is the commits the pane SHOWS. Paging by its height in rows
+     * moved twice as far as the screen showed, now that a commit takes two.
      */
     public function testPagingDownShowsEveryCommit(): void
     {
-        $widget = new HistoryListWidget(new Translator('en'));
+        $widget = new HistoryListWidget(new Translator('en'), clock: static fn (): int => self::NOW);
         $widget->setFocused(true);
         $commits = [];
         $labels = [];
         for ($i = 0; $i < 60; ++$i) {
             $subject = \sprintf('Commit %02d', $i);
             $labels[] = $subject;
-            $commits[] = new LogEntry("full{$i}", \sprintf('sha%03d', $i), 'Alice', 1_700_000_000 - $i, $subject);
+            $commits[] = new LogEntry("full{$i}", \sprintf('sha%03d', $i), 'Alice', self::NOW - $i, $subject);
         }
         $widget->setCommits($commits);
 
@@ -55,167 +58,140 @@ final class HistoryListWidgetTest extends TestCase
 
     private function widget(?EventDispatcher $events = null): HistoryListWidget
     {
-        $widget = new HistoryListWidget(new Translator('en'), events: $events);
+        $widget = new HistoryListWidget(new Translator('en'), events: $events, clock: static fn (): int => self::NOW);
         $widget->setFocused(true);
         $widget->setCommits([
-            new LogEntry('full1', 'aaa111', 'Alice', 1_700_000_100, 'Newest work'),
-            new LogEntry('full2', 'bbb222', 'Bob', 1_700_000_000, 'Older work'),
-        ]);
-        $widget->setFiles([
-            ['status' => 'M', 'path' => 'src/a.php'],
-            ['status' => 'A', 'path' => 'new.txt'],
+            new LogEntry('full1', 'aaa111', 'Alice', self::NOW - 7_200, 'Newest work'),
+            new LogEntry('full2', 'bbb222', 'Bob', self::NOW - (3 * 86_400), 'Older work'),
         ]);
 
         return $widget;
     }
 
-    private function rendered(HistoryListWidget $widget): string
+    /** @return list<string> */
+    private static function rows(HistoryListWidget $widget, int $rows = 9): array
     {
-        return $this->plain($widget->render(new RenderContext(44, 16)));
+        return \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(44, $rows)));
     }
 
-    public function testRendersCommitsAndFiles(): void
+    public function testEachCommitIsItsSubjectOverWhoAndWhen(): void
     {
-        $screen = $this->rendered($this->widget());
+        $rows = self::rows($this->widget());
 
-        $this->assertStringContainsString('History (2)', $screen);
-        // With 16 rows and 2 files, filler rows pad the files section.
-        $this->assertGreaterThan(10, \substr_count($screen, needle: "\n"), 'padded to full height');
-        $this->assertStringContainsString('aaa111 Newest work  Alice', $screen);
+        $this->assertCount(9, $rows, 'padded to the full height');
+        $this->assertStringStartsWith(' History (2)', $rows[0]);
+        $this->assertSame(['▌Newest work', '▌Alice · 2 hours ago', ' Older work', ' Bob · 3 days ago'], \array_map(\rtrim(...), \array_slice($rows, offset: 1, length: 4)));
         $styles = Styles::dark();
-        $this->assertStringContainsString(
-            $styles->of(Role::Modified)->apply('aaa111').' Newest work'.$styles->of(Role::Dim)->apply('  Alice'),
-            \implode("\n", $this->widget()->render(new RenderContext(44, 16))),
-            'the sha modified-coloured, the author dim',
-        );
-        $this->assertStringContainsString('Files (2)', $screen);
-        $this->assertStringContainsString('M src/a.php', $screen);
+        $raw = $this->widget()->render(new RenderContext(44, 9));
+        $this->assertStringContainsString($styles->of(Role::Emphasis)->withBold()->apply('Older work'), $raw[3], 'the subject bold');
+        $this->assertStringContainsString($styles->of(Role::Dim)->apply('Bob · 3 days ago'), $raw[4], 'who and when dim');
     }
 
-    /**
-     * A selected row keeps the selection's foreground past the sha's tint,
-     * whose close is a default-colour reset: without re-arming it the subject
-     * drew in the terminal's default instead of bright-on-blue. The parked
-     * sub-list's selection (the files, while the commits hold the keys) wears
-     * the unfocused shade.
-     */
-    public function testASelectedCommitKeepsItsForegroundPastTheSha(): void
+    /** The repository names its commits; a control byte in one is shown, never obeyed. */
+    public function testASubjectsControlBytesAreNotPassedToTheTerminal(): void
+    {
+        $widget = new HistoryListWidget(new Translator('en'), clock: static fn (): int => self::NOW);
+        $widget->setCommits([new LogEntry('s', 'aaa111', "Eve\x1b]52;c;x\x07", self::NOW, "Fix\x1b[2J it")]);
+
+        $joined = \implode('', $widget->render(new RenderContext(44, 5)));
+
+        $this->assertStringNotContainsString("\x1b[2J", $joined);
+        $this->assertStringNotContainsString("\x1b]52", $joined);
+    }
+
+    /** A selected commit's two rows are both shaded, the subject keeping the selection's foreground. */
+    public function testASelectedCommitShadesBothRows(): void
     {
         $widget = $this->widget();
         AttachedStyles::attach($widget);
-        $lines = $widget->render(new RenderContext(44, 16));
+        $lines = $widget->render(new RenderContext(44, 9));
 
-        $this->assertStringContainsString("\x1b[39m\x1b[38;5;231m Newest work", $lines[1]);
-        $parked = \implode("\n", \array_filter($lines, static fn (string $line): bool => \str_contains($line, 'src/a.php')));
-        $this->assertStringContainsString("\x1b[48;5;237m", $parked, 'the files sub-list is parked: its selection is the unfocused shade');
-        $this->assertStringNotContainsString("\x1b[48;5;31m", $parked);
+        $this->assertStringContainsString("\x1b[48;5;31m", $lines[1], 'the focused selection uses the focus rule');
+        $this->assertStringContainsString("\x1b[48;5;31m", $lines[2], 'on both of its rows');
+        $this->assertStringNotContainsString("\x1b[48;5;31m", $lines[3]);
+
+        $widget->setFocused(false);
+        $lines = $widget->render(new RenderContext(44, 9));
+        $this->assertStringContainsString("\x1b[48;5;237m", $lines[1], 'unfocused, the shared unfocused shade');
+        $this->assertSame('▎', \mb_substr(AnsiUtils::stripAnsiCodes($lines[1]), start: 0, length: 1), 'and the quarter bar');
     }
 
-    public function testCommitNavigationFiresAndEnterSwitchesToFiles(): void
+    public function testNavigationFiresAndEnterMovesToTheFiles(): void
     {
         $bus = new EventDispatcher();
         $widget = $this->widget($bus);
         $events = [];
-        GitWidgetEvents::wire(
-            $bus,
-            onSelectCommit: static function (LogEntry $c) use (&$events): void {
-                $events[] = 'commit:'.$c->shortSha;
-            },
-            onSelectFile: static function (LogEntry $c, string $path) use (&$events): void {
-                $events[] = 'file:'.$path;
-            },
-        );
+        GitWidgetEvents::wire($bus, onSelectCommit: static function (LogEntry $c) use (&$events): void {
+            $events[] = 'commit:'.$c->shortSha;
+        });
+        $widget->onFocusNext(static function () use (&$events): void {
+            $events[] = 'next';
+        });
 
         $widget->handleInput("\x1b[B"); // second commit
-        $widget->handleInput("\r"); // into the file list
-        $widget->handleInput("\x1b[B"); // second file
+        $widget->handleInput("\r"); // into its files, the column beside
 
-        $this->assertSame(['commit:bbb222', 'file:new.txt'], $events);
+        $this->assertSame(['commit:bbb222', 'next'], $events);
         $this->assertSame('full2', $widget->selectedCommit()?->sha);
     }
 
-    public function testEnterWithNoFilesLoadedStaysOnCommits(): void
-    {
-        $widget = new HistoryListWidget(new Translator('en'));
-        $widget->setFocused(true);
-        $widget->setCommits([
-            new LogEntry('s1', 'aaa111', 'A', 1_700_000_100, 'one'),
-            new LogEntry('s2', 'bbb222', 'B', 1_700_000_000, 'two'),
-        ]);
-        // No setFiles() call: the files list is empty.
-
-        $widget->handleInput("\r"); // must not switch focus away from the commit list
-        $widget->handleInput("\x1b[B"); // if it had switched, this would target the (empty) file list instead
-        $this->assertSame('s2', $widget->selectedCommit()?->sha, 'the down-arrow still moved the commit selection');
-    }
-
-    public function testHoverTintsCommitAndFileRowsWithoutSelecting(): void
+    public function testHoverTintsACommitsTwoRowsWithoutSelecting(): void
     {
         $events = new EventDispatcher();
         $widget = $this->widget($events);
-        $widget->render(new RenderContext(44, 16)); // commitRowCount = 6, Files header row 7
+        $widget->render(new RenderContext(44, 9));
         $fired = 0;
-        GitWidgetEvents::wire(
-            $events,
-            onSelectCommit: static function () use (&$fired): void {
-                ++$fired;
-            },
-            onSelectFile: static function () use (&$fired): void {
-                ++$fired;
-            },
-        );
+        GitWidgetEvents::wire($events, onSelectCommit: static function () use (&$fired): void {
+            ++$fired;
+        });
 
-        $this->assertTrue($widget->hoverRow(2), 'second commit row tints');
-        $this->assertFalse($widget->hoverRow(2), 'same row: no repaint');
-        $rendered = $widget->render(new RenderContext(44, 16));
-        $this->assertStringContainsString("\x1b[48;5;236m", $rendered[2]);
+        $this->assertTrue($widget->hoverRow(4), 'the second commit\'s second row');
+        $this->assertFalse($widget->hoverRow(3), 'its first row is the same commit: no repaint');
+        $rendered = $widget->render(new RenderContext(44, 9));
+        $this->assertStringContainsString("\x1b[48;5;236m", $rendered[3]);
+        $this->assertStringContainsString("\x1b[48;5;236m", $rendered[4]);
         $this->assertSame('full1', $widget->selectedCommit()?->sha, 'selection untouched');
 
-        $this->assertTrue($widget->hoverRow(9), 'second file row tints');
-        $rendered = $widget->render(new RenderContext(44, 16));
-        $this->assertStringContainsString("\x1b[48;5;236m", $rendered[9]);
-        $this->assertStringNotContainsString("\x1b[48;5;236m", $rendered[2], 'the commit tint moved away');
-
-        $this->assertTrue($widget->hoverRow(7), 'the Files header clears both tints');
+        $this->assertTrue($widget->hoverRow(0), 'the title clears the tint');
         $this->assertFalse($widget->clearHover(), 'already clear');
+        $this->assertFalse($widget->hoverRow(7), 'nor is there a commit past the last');
         $this->assertTrue($widget->hoverRow(1));
         $this->assertTrue($widget->clearHover());
-        $this->assertSame(0, $fired, 'hover fires no selection callbacks');
+        $this->assertSame(0, $fired, 'hover fires no selection');
 
         $widget->hoverRow(1);
-        $widget->setCommits([new LogEntry('x', 'ccc333', 'Cara', 1_700_000_200, 'Reset')]);
+        $widget->setCommits([new LogEntry('x', 'ccc333', 'Cara', self::NOW, 'Reset')]);
         $this->assertFalse($widget->clearHover(), 'setCommits already dropped the tint');
-
-        $widget->setFiles([['status' => 'M', 'path' => 'z.txt']]);
-        $widget->render(new RenderContext(44, 16));
-        $widget->hoverRow(8);
-        $widget->setFiles([['status' => 'M', 'path' => 'z.txt']]);
-        $this->assertFalse($widget->clearHover(), 'setFiles already dropped the file tint');
     }
 
-    public function testClickRoutesToCommitOrFileRows(): void
+    public function testAClickOnEitherRowSelectsTheCommitOnce(): void
     {
         $bus = new EventDispatcher();
         $widget = $this->widget($bus);
         $events = [];
-        GitWidgetEvents::wire(
-            $bus,
-            onSelectCommit: static function (LogEntry $c) use (&$events): void {
-                $events[] = 'commit:'.$c->shortSha;
-            },
-            onSelectFile: static function (LogEntry $c, string $path) use (&$events): void {
-                $events[] = 'file:'.$path;
-            },
-        );
-        $widget->render(new RenderContext(44, 16)); // teach it its height
+        GitWidgetEvents::wire($bus, onSelectCommit: static function (LogEntry $c) use (&$events): void {
+            $events[] = $c->shortSha;
+        });
+        $widget->render(new RenderContext(44, 9)); // teach it its height
 
-        $widget->handleClick(2); // second commit row
-        // With 16 rows: commits occupy rows 1..6, files header row 7, files from row 8.
-        $widget->handleClick(9); // second file row
+        $widget->handleClick(4); // the second commit's second row
+        $widget->handleClick(3); // its first row: already selected, no reload
+        $widget->handleClick(0); // the title
+        $widget->handleClick(8); // past the commits
 
-        $this->assertSame(['commit:bbb222', 'file:new.txt'], $events);
-        $widget->handleClick(0); // header: ignored
-        $this->assertCount(2, $events);
+        $this->assertSame(['bbb222'], $events);
+    }
+
+    /** A right-click selects the commit under it and hands it to the menu. */
+    public function testARightClickSelectsTheCommitForItsMenu(): void
+    {
+        $widget = $this->widget();
+        $widget->render(new RenderContext(44, 9));
+
+        $this->assertSame('full2', $widget->selectCommitAt(3)?->sha);
+        $this->assertSame(4, $widget->selectedCommitRow(), 'the menu opens under the entry\'s last row');
+        $this->assertNull($widget->selectCommitAt(0), 'not on the title');
+        $this->assertSame('full2', $widget->selectCommitAt(4)?->sha, 'the same commit again: still its entry');
     }
 
     public function testShowChangesHookAndHousekeeping(): void
@@ -245,7 +221,7 @@ final class HistoryListWidgetTest extends TestCase
         $this->assertSame(['changes', 'next', 'exit'], $events);
 
         $this->assertTrue($widget->expandVertically(false)->isVerticallyExpanded());
-        $widget->setCommits([]); // reset clears files and focus
+        $widget->setCommits([]);
         $this->assertNull($widget->selectedCommit());
     }
 
@@ -307,63 +283,16 @@ final class HistoryListWidgetTest extends TestCase
         $this->assertSame([GitRemoteOperation::Pull, GitRemoteOperation::Push], $operations);
     }
 
-    public function testSelectionShadesFollowTheListElementRules(): void
-    {
-        // The focused sub-list resolves .list::selected:focus (bg 31); the
-        // parked one shows the shared unfocused shade (bg 237) — visible in
-        // every theme, including Monochrome's reverse video.
-        $widget = $this->widget();
-        AttachedStyles::attach($widget);
-
-        $lines = $widget->render(new RenderContext(44, 16));
-        $joined = \implode("\n", $lines);
-        $this->assertStringContainsString("\x1b[48;5;31m", $joined, 'the focused commit selection uses the focus rule');
-        $this->assertStringContainsString("\x1b[48;5;237m", $joined, 'the parked files selection shows the unfocused shade');
-
-        $widget->handleInput("\r"); // Enter → focus moves to the files sub-list
-        $lines = $widget->render(new RenderContext(44, 16));
-        $commitRow = AnsiUtils::stripAnsiCodes($lines[1]);
-        $this->assertStringContainsString('aaa111', $commitRow, 'row 1 is the selected commit');
-        $this->assertStringContainsString("\x1b[48;5;237m", $lines[1], 'the commit selection dims when the files own the focus');
-    }
-
-    /**
-     * Which sub-list holds the keys is a shape as well as a shade: the full
-     * bar on the one that does, the quarter bar on the parked one, swapped by
-     * Enter and by losing the pane's focus altogether.
-     */
-    public function testEachSubListsCursorBarSaysWhetherItHoldsTheKeys(): void
+    /** Either row of a commit says it in full, and to the minute. */
+    public function testEitherRowOfACommitSaysItInFull(): void
     {
         $widget = $this->widget();
-        $first = static function (HistoryListWidget $widget): array {
-            $lines = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(44, 16)));
-            $commit = \array_find($lines, static fn (string $line): bool => \str_contains($line, 'aaa111')) ?? '';
-            $file = \array_find($lines, static fn (string $line): bool => \str_contains($line, 'src/a.php')) ?? '';
+        $widget->render(new RenderContext(44, 9));
 
-            return [\mb_substr($commit, start: 0, length: 1), \mb_substr($file, start: 0, length: 1)];
-        };
-
-        $this->assertSame(['▌', '▎'], $first($widget), 'the commits hold the keys');
-        $widget->handleInput("\r");
-        $this->assertSame(['▎', '▌'], $first($widget), 'Enter hands them to the files');
-        $widget->setFocused(false);
-        $this->assertSame(['▎', '▎'], $first($widget), 'and a pane without focus holds none');
-    }
-
-    public function testTheFilesSubHeaderIsALegendSetIntoARule(): void
-    {
-        $widget = $this->widget();
-        $lines = $widget->render(new RenderContext(44, 16));
-        foreach ($lines as $line) {
-            if (!\str_contains(AnsiUtils::stripAnsiCodes($line), 'Files (2)')) {
-                continue;
-            }
-
-            $this->assertSame(Rule::horizontal(44, Styles::dark(), 'Files (2)'), $line, 'a heading inside the pane is a rule legend, as the settings groups are');
-
-            return;
-        }
-        $this->fail('the Files sub-header row was not rendered');
+        $tip = $widget->tooltipAt(3, 5);
+        $this->assertSame($tip?->text, $widget->tooltipAt(4, 5)?->text);
+        $this->assertSame("full2\nOlder work\nBob · ".\date('Y-m-d H:i', self::NOW - (3 * 86_400)), $tip?->text);
+        $this->assertNull($widget->tooltipAt(0, 5), 'the title says nothing');
     }
 
     /**

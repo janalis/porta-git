@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Widget;
 
-use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitSelected;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\Support\RelativeTime;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
 use Porta\Ui\ListNavigation;
 use Porta\Ui\ListSelection;
-use Porta\Ui\Markup\MarkupParser;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Ui\Tooltip;
@@ -23,7 +22,6 @@ use Porta\Widget\HoverableList;
 use Porta\Widget\Render\HeaderRenderer;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
-use Porta\Widget\Render\Rule;
 use Porta\Widget\Render\SelectionBar;
 use Porta\Widget\Support\ArrowScrollTrait;
 use Porta\Widget\Support\FillsPaneTrait;
@@ -32,7 +30,6 @@ use Porta\Widget\Support\PanelRowStyle;
 use Porta\Widget\Support\PanelWidth;
 use Porta\Widget\Support\WheelScrollable;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Input\Key;
 use Symfony\Component\Tui\Input\Keybindings;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -43,10 +40,10 @@ use Symfony\Component\Tui\Widget\KeybindingsTrait;
 use Symfony\Component\Tui\Widget\VerticallyExpandableInterface;
 
 /**
- * The history tab's left column: recent commits on top, the selected
- * commit's files below. Tab toggles between the two lists; selecting a
- * file drives the read-only diff pane. Selection changes fire onSelectCommit
- * / onSelectFile so the controller can load `git show` data.
+ * The history tab's left column: the commits, GitHub Desktop's way — two rows
+ * each, the subject over `author · 5 hours ago`. Selecting one fires
+ * {@see GitCommitSelected}; its files are {@see CommitDetailsWidget}'s, the
+ * column beside this one, which `Enter` moves to.
  */
 final class HistoryListWidget extends AbstractWidget implements FocusableInterface, HoverableList, MenuOverlayHost, TooltipProvider, VerticallyExpandableInterface, WheelScrollable
 {
@@ -60,19 +57,20 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
     use PanelRowStyle;
     use PanelWidth;
 
-    private const int FILE_ROWS = 8;
+    /** Each commit takes two rows: its subject, then who and when. */
+    private const int ENTRY_ROWS = 2;
 
     /** @var list<LogEntry> */
     private array $commits = [];
-    /** @var list<array{status: string, path: string}> */
-    private array $files = [];
     private readonly ListSelection $commitList;
-    private readonly ListSelection $fileList;
-    private bool $filesFocused = false;
-    /** Rows tinted under the mouse pointer; visual only, never the selection. */
+    /** The commit tinted under the mouse pointer; visual only, never the selection. */
     private ?int $hoveredCommit = null;
-    private ?int $hoveredFile = null;
     private int $lastRows = 12;
+
+    private readonly RelativeTime $time;
+
+    /** @var \Closure(): int */
+    private readonly \Closure $clock;
 
     /**
      * What each drawn row could not fit, from the last render, keyed by
@@ -91,18 +89,21 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
     /** Latch: one load-more in flight at a time. */
     private bool $loadingMore = false;
 
+    /** @param (\Closure(): int)|null $clock now, as a Unix timestamp; the real clock by default */
     public function __construct(
         private readonly Translator $translator,
         int $width = 44,
         ?Styles $styles = null,
         ?EventDispatcherInterface $events = null,
+        ?\Closure $clock = null,
     ) {
         $this->events = $events;
-        $this->addStyleClass('list'); // the theme's .list::selected(:focus) rules style the focused sub-list
+        $this->addStyleClass('list'); // the theme's .list::selected(:focus) rules style the selection
         $this->width = $width;
         $this->initStyles($styles);
         $this->commitList = new ListSelection();
-        $this->fileList = new ListSelection();
+        $this->time = new RelativeTime($translator);
+        $this->clock = $clock ?? \time(...);
     }
 
     /** @param list<LogEntry> $commits */
@@ -111,11 +112,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         $this->loadingMore = false;
         $this->commits = $commits;
         $this->commitList->reset();
-        $this->hoveredFile = null;
         $this->hoveredCommit = null;
-        $this->files = [];
-        $this->fileList->reset();
-        $this->filesFocused = false;
         $this->invalidate();
     }
 
@@ -155,15 +152,6 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         return \count($this->commits);
     }
 
-    /** @param list<array{status: string, path: string}> $files */
-    public function setFiles(array $files): void
-    {
-        $this->files = $files;
-        $this->fileList->reset();
-        $this->hoveredFile = null;
-        $this->invalidate();
-    }
-
     public function selectedCommit(): ?LogEntry
     {
         return $this->commits[$this->commitList->selected()] ?? null;
@@ -176,9 +164,9 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
      * filter), and the reset has already left the selection on the first
      * commit, which is the only honest fallback.
      *
-     * The files pane stays as setCommits() left it, empty. The caller reloads
-     * it for whichever commit ends up selected, because a file list belonging
-     * to the PREVIOUSLY selected commit is worse than none.
+     * The caller reloads the files for whichever commit ends up selected,
+     * because a file list belonging to the PREVIOUSLY selected commit is worse
+     * than none.
      */
     public function selectSha(string $sha): void
     {
@@ -193,10 +181,10 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         }
     }
 
-    /** The screen-relative row of the selected commit (1-based; the header is row 0). */
+    /** The widget-relative LAST row of the selected commit's entry (the header is row 0): a menu opens under it. */
     public function selectedCommitRow(): int
     {
-        return $this->commitList->selected() - $this->commitList->scroll() + 1;
+        return (($this->commitList->selected() - $this->commitList->scroll()) * self::ENTRY_ROWS) + self::ENTRY_ROWS;
     }
 
     public function handleInput(string $data): void
@@ -209,32 +197,17 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         match (true) {
             $this->handleGitPaneKey($data, $kb) => null,
             $kb->matches($data, 'show_changes') => $this->events?->dispatch(new GitViewModeRequested(GitViewMode::Changes)),
-            $kb->matches($data, 'switch_list') => $this->switchList(),
-            $this->filesFocused => $this->navigateFiles($data, $kb),
+            // Into the commit's files, the column beside: the next pane.
+            $kb->matches($data, 'switch_list') => $this->fire($this->onFocusNext),
             default => $this->navigateCommits($data, $kb),
         };
     }
 
-    private function switchList(): void
-    {
-        $this->filesFocused = !$this->filesFocused && [] !== $this->files;
-        $this->invalidate();
-    }
-
-    private function navigateFiles(string $data, Keybindings $kb): void
-    {
-        if (ListNavigation::handleKey($data, $kb, $this->fileList, \count($this->files), page: self::FILE_ROWS)) {
-            $this->fireSelectFile();
-            $this->invalidate();
-        }
-    }
-
     private function navigateCommits(string $data, Keybindings $kb): void
     {
-        // The commit list owns only the middle of this pane: a title, then the
-        // commits, then the Files header and its eight rows. Paging by the pane
-        // height therefore jumped TEN commits further than the screen showed —
-        // on a 20-row pane, a page skipped an entire page.
+        // A page is the commits the pane SHOWS — two rows each under the
+        // title — not its height in rows, or a page would skip twice as far
+        // as the screen showed.
         if (ListNavigation::handleKey($data, $kb, $this->commitList, \count($this->commits), page: $this->commitRowCount())) {
             $this->fireSelectCommit();
             // Hitting the bottom of the loaded page pulls the next one in
@@ -247,46 +220,36 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         }
     }
 
-    /** Click routing: commit rows select a commit, file rows select a file. */
+    /** The commit whose entry covers widget-relative $relRow (the header is row 0), or null. */
+    private function commitAt(int $relRow): ?int
+    {
+        $index = $this->commitList->scroll() + \intdiv($relRow - 1, self::ENTRY_ROWS);
+
+        return $relRow >= 1 && $relRow < (1 + ($this->commitRowCount() * self::ENTRY_ROWS)) && \array_key_exists($index, $this->commits) ? $index : null;
+    }
+
+    /** A press on either row of a commit selects it. */
     public function handleClick(int $relRow): void
     {
-        $commitRows = $this->commitRowCount();
-        if ($relRow >= 1 && $relRow < (1 + $commitRows)) {
-            $index = $this->commitList->scroll() + $relRow - 1;
-            if (\array_key_exists($index, $this->commits)) {
-                $this->filesFocused = false;
-                // Re-clicking the selected commit must not reload its files —
-                // that would clobber a diff the user already opened.
-                if ($this->commitList->selectIfChanged($index)) {
-                    $this->fireSelectCommit();
-                }
-                $this->invalidate();
-            }
-
-            return;
+        $index = $this->commitAt($relRow);
+        // Re-clicking the selected commit must not reload its files — that
+        // would clobber a diff the user already opened.
+        if (null !== $index && $this->commitList->selectIfChanged($index)) {
+            $this->fireSelectCommit();
         }
-        $fileHeader = 1 + $commitRows;
-        $index = $this->fileList->scroll() + $relRow - $fileHeader - 1;
-        if ($relRow > $fileHeader && \array_key_exists($index, $this->files)) {
-            $this->filesFocused = true;
-            $this->fileList->select($index);
-            $this->fireSelectFile();
-            $this->invalidate();
-        }
+        $this->invalidate();
     }
 
     /**
-     * A right-click landed on a commit row: select it (like a left click) and
-     * return its entry for the context menu; null off the commit rows.
+     * A right-click landed on a commit: select it (like a left click) and
+     * return its entry for the context menu; null off the commits.
      */
     public function selectCommitAt(int $relRow): ?LogEntry
     {
-        $commitRows = $this->commitRowCount();
-        $index = $this->commitList->scroll() + $relRow - 1;
-        if ($relRow < 1 || $relRow >= (1 + $commitRows) || !\array_key_exists($index, $this->commits)) {
+        $index = $this->commitAt($relRow);
+        if (null === $index) {
             return null;
         }
-        $this->filesFocused = false;
         if ($this->commitList->selectIfChanged($index)) {
             $this->fireSelectCommit();
         }
@@ -295,37 +258,24 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         return $this->commits[$index];
     }
 
-    /**
-     * Tint the row under the pointer (commit or file section, same row math
-     * as {@see handleClick}); a pure visual that never moves the selections.
-     */
+    /** Tint the commit under the pointer; a pure visual that never moves the selection. */
     public function hoverRow(int $relRow): bool
     {
-        $commitRows = $this->commitRowCount();
-        if ($relRow >= 1 && $relRow < (1 + $commitRows)) {
-            $index = $this->commitList->scroll() + $relRow - 1;
-
-            return $this->setHovered(\array_key_exists($index, $this->commits) ? $index : null, null);
-        }
-        $fileHeader = 1 + $commitRows;
-        $index = $this->fileList->scroll() + $relRow - $fileHeader - 1;
-
-        return $this->setHovered(null, $relRow > $fileHeader && \array_key_exists($index, $this->files) ? $index : null);
+        return $this->setHovered($this->commitAt($relRow));
     }
 
     /** The pointer left the list: drop the hover tint. */
     public function clearHover(): bool
     {
-        return $this->setHovered(null, null);
+        return $this->setHovered(null);
     }
 
-    private function setHovered(?int $commit, ?int $file): bool
+    private function setHovered(?int $commit): bool
     {
-        if ($commit === $this->hoveredCommit && $file === $this->hoveredFile) {
+        if ($commit === $this->hoveredCommit) {
             return false;
         }
         $this->hoveredCommit = $commit;
-        $this->hoveredFile = $file;
         $this->invalidate();
 
         return true;
@@ -338,18 +288,10 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         }
     }
 
-    private function fireSelectFile(): void
-    {
-        $commit = $this->selectedCommit();
-        $file = $this->files[$this->fileList->selected()] ?? null;
-        if (null !== $commit && null !== $file) {
-            $this->events?->dispatch(new GitCommitFileSelected($commit, $file['path']));
-        }
-    }
-
+    /** How many commits the pane shows: two rows each, under the title. */
     private function commitRowCount(): int
     {
-        return \max(1, $this->lastRows - 2 - self::FILE_ROWS);
+        return \max(1, \intdiv($this->lastRows - 1, self::ENTRY_ROWS));
     }
 
     /** The repo-relative file this history is filtered to, or null for repo-wide. */
@@ -379,63 +321,40 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
 
         $commitRows = $this->commitRowCount();
         $scroll = $this->commitList->follow($commitRows);
+        $now = ($this->clock)();
+        $bold = $this->styles->of(Role::Emphasis)->withBold();
+        $dim = $this->styles->of(Role::Dim);
         for ($row = 0; $row < $commitRows; ++$row) {
-            $commit = $this->commits[$scroll + $row] ?? null;
+            $index = $scroll + $row;
+            $commit = $this->commits[$index] ?? null;
             if (null === $commit) {
                 $lines[] = AnsiText::blank($width);
-                continue;
-            }
-            $selected = $this->commitList->isSelected($scroll + $row);
-            [$sha, $subject, $author] = \array_map(MarkupParser::escape(...), [$commit->shortSha, $commit->subject, $commit->author]);
-            // A row carries the short sha and whatever of the subject and the
-            // author fit; the card carries all of it, and when.
-            $this->tips[\count($lines)] = ['key' => 'commit:'.$commit->sha, 'text' => $commit->sha."\n".$commit->subject."\n".$commit->author.' · '.\date('Y-m-d H:i', $commit->timestamp)];
-            $text = SelectionBar::of($selected, $this->focused && !$this->filesFocused)->value.$this->styles->format("<modified>{$sha}</> {$subject}<dim>  {$author}</>");
-            $lines[] = $this->shadeSubRow(AnsiText::truncate($text, $width, pad: true), $selected, !$this->filesFocused, ($scroll + $row) === $this->hoveredCommit);
-        }
-
-        // A heading inside the pane, not the pane's title: a legend set into a
-        // rule, as the settings groups and the search picker's categories are.
-        $lines[] = Rule::horizontal($width, $this->styles, $this->translator->trans('Files (%count%)', ['%count%' => \count($this->files)]));
-        $fileScroll = $this->fileList->follow(self::FILE_ROWS);
-        for ($row = 0; $row < self::FILE_ROWS && \count($lines) < $rows; ++$row) {
-            $file = $this->files[$fileScroll + $row] ?? null;
-            if (null === $file) {
                 $lines[] = AnsiText::blank($width);
                 continue;
             }
-            $selected = $this->fileList->isSelected($fileScroll + $row);
-            $whole = SelectionBar::of($selected, $this->focused && $this->filesFocused)->value.$file['status'].' '.$file['path'];
-            if (AnsiUtils::visibleWidth($whole) > $width) {
-                $this->tips[\count($lines)] = ['key' => 'file:'.$file['path'], 'text' => $file['path']];
-            }
-            $lines[] = $this->shadeSubRow(AnsiText::truncate($whole, $width, pad: true), $selected, $this->filesFocused, ($fileScroll + $row) === $this->hoveredFile);
+            $selected = $this->commitList->isSelected($index);
+            $bar = SelectionBar::of($selected, $this->focused)->value;
+            // Two rows, the card says it all, and when to the minute.
+            $tip = ['key' => 'commit:'.$commit->sha, 'text' => $commit->sha."\n".$commit->subject."\n".$commit->author.' · '.\date('Y-m-d H:i', $commit->timestamp)];
+            $this->tips[\count($lines)] = $tip;
+            $this->tips[\count($lines) + 1] = $tip;
+            $hovered = $index === $this->hoveredCommit;
+            $lines[] = $this->shadeRow(AnsiText::truncate($bar.$bold->apply(AnsiText::oneLine($commit->subject)), $width, pad: true), $selected, $hovered);
+            $lines[] = $this->shadeRow(
+                AnsiText::truncate($bar.$dim->apply(AnsiText::oneLine($commit->author).' · '.$this->time->long($commit->timestamp, $now)), $width, pad: true),
+                $selected,
+                $hovered,
+            );
         }
-
-        // commitRowCount + the two headers + FILE_ROWS always fill $rows exactly
-        // (the file loop is height-capped), so no tail padding is needed.
+        // The title and the entries fill $rows but for an odd row left over.
+        while (\count($lines) < $rows) {
+            $lines[] = AnsiText::blank($width);
+        }
 
         return $lines;
     }
 
-    /**
-     * {@see PanelRowStyle::shadeRow()} for one of the two sub-lists: the one
-     * holding the keys ($active) resolves the theme's selection rule like any
-     * panel's; the parked one shows the unfocused shade even while the pane
-     * is focused. Either way the selection's foreground carries across the
-     * sha's and the author's tints.
-     */
-    // @mago-expect lint:no-boolean-flag-parameter -- which sub-list holds the keys is the state being drawn, not a second responsibility.
-    private function shadeSubRow(string $text, bool $selected, bool $active, bool $hovered): string
-    {
-        if ($selected && !$active) {
-            return self::withForeground($this->styles->of(Role::SelectedRowUnfocused), $text);
-        }
-
-        return $this->shadeRow($text, $selected, $hovered);
-    }
-
-    /** A commit row says itself in full; a file row whose path was cut says the path. */
+    /** Either row of a commit says it in full. */
     #[\Override]
     public function tooltipAt(int $row, int $col): ?Tooltip
     {

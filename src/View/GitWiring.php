@@ -11,6 +11,7 @@ use Porta\GitPlugin\Event\GitChangeDiscardRequested;
 use Porta\GitPlugin\Event\GitChangeSelected;
 use Porta\GitPlugin\Event\GitChangeStageToggleRequested;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
+use Porta\GitPlugin\Event\GitCommitHashCopyRequested;
 use Porta\GitPlugin\Event\GitCommitSelected;
 use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
 use Porta\GitPlugin\Event\GitDiffCopyRequested;
@@ -54,6 +55,7 @@ final class GitWiring
         GitStageAllRequested::class => 'onStageAllRequested',
         GitToolbarMenuRequested::class => 'onToolbarMenuRequested',
         GitCommitFileSelected::class => 'onCommitFileSelected',
+        GitCommitHashCopyRequested::class => 'onCommitHashCopyRequested',
         GitCommitSelected::class => 'onCommitSelected',
         GitDiffContextCycleRequested::class => 'onDiffContextCycled',
         GitDiffCopyRequested::class => 'onDiffTextCopied',

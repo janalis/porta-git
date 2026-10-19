@@ -218,7 +218,12 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
     /** Empty until git has answered: an unread branch is not a detached one. */
     private function branchName(): string
     {
-        return $this->repository->branch() ?? ($this->repository->branchRead() ? $this->translator->trans('Detached HEAD') : '');
+        $branch = $this->repository->branch();
+        if (null !== $branch) {
+            return AnsiText::oneLine($branch);
+        }
+
+        return $this->repository->branchRead() ? $this->translator->trans('Detached HEAD') : '';
     }
 
     private function pullRequest(): string
