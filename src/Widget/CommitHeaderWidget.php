@@ -78,6 +78,8 @@ final class CommitHeaderWidget extends AbstractWidget implements MenuOverlayHost
     {
         $this->commit = $commit;
         $this->stat = null;
+        // Another commit's count is not this one's: its files say it when they land.
+        $this->files = null;
         $this->invalidate();
     }
 

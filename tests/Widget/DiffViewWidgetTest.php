@@ -1058,4 +1058,16 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame(0, $cycles);
         $this->assertNull($widget->tooltipAt(1, 1));
     }
+
+    /** A path git names with runs of blanks or control bytes is cleaned before it is cut at its folder. */
+    public function testAPathIsCleanedBeforeItIsCutAtItsFolder(): void
+    {
+        $widget = new DiffViewWidget(new Translator('en'));
+        $widget->setDocument(DiffDocument::parse(self::RAW), 'a  b/éé.php');
+
+        $row = $widget->render(new RenderContext(40, 4))[0];
+
+        $this->assertTrue(\mb_check_encoding($row, encoding: 'UTF-8'), 'no character cut in two');
+        $this->assertStringContainsString(Styles::dark()->of(Role::Dim)->apply('a b/'), $row, 'the folder, cleaned, dim');
+    }
 }

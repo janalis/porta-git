@@ -145,4 +145,17 @@ final class CommitHeaderWidgetTest extends TestCase
 
         $this->assertSame(' phc… f00dfac ⧉ +6 −1 ', self::rows($header, 22)[1]);
     }
+
+    /** Another commit's files are not this one's: the stacked count waits for its own. */
+    public function testANewCommitDropsTheOldCount(): void
+    {
+        $header = $this->header();
+        $header->nameFiles(5);
+
+        $header->setCommit(new LogEntry('b', 'bbbbbbb', 'Bob', 1_700_000_000, 'Next'));
+        $this->assertSame(\str_repeat('─', times: 30), self::rows($header, 30)[2]);
+        $header->setCommit(null);
+        $header->nameFiles(null);
+        $this->assertSame([\str_repeat('─', times: 30)], self::rows($header, 30));
+    }
 }

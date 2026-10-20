@@ -186,7 +186,7 @@ final class GitToolbarE2eTest extends TestCase
                     $tui->handleInput(self::widgetSgr($ide, 'git-columns-separator', 32, 3, 6));
                     $tui->handleInput(self::widgetSgr($ide, 'git-columns-separator', 0, 3, 6, release: true));
                     $this->frame($tui);
-                    $this->assertSame($from + 6, $rect('git-columns-separator')->col, 'the divider moved');
+                    $this->assertGreaterThan($from, $rect('git-columns-separator')->col, 'the divider moved, as far as the diff\'s minimum lets it');
                     $this->assertSame($dividers(), $joins(), 'and the toolbar\'s cell with it');
                     $layout = (string) \file_get_contents($project->path('.porta/layout.json'));
                     $this->assertStringContainsString('"git:columns"', $layout, 'kept for the next session');

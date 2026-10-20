@@ -718,8 +718,9 @@ final class DiffViewWidget extends AbstractWidget implements FocusableInterface,
     /** ` dir/name`, the folder dim: a path reads by its file name first. */
     private function pathTitle(string $path): string
     {
-        $cut = \strrpos($path, needle: '/');
+        // Cleaned first: oneLine() can shorten it, and the cut is an offset into it.
         $path = AnsiText::oneLine($path);
+        $cut = \strrpos($path, needle: '/');
 
         return false === $cut
             ? $this->styles->of(Role::Emphasis)->withBold()->apply($path)
