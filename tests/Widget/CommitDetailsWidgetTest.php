@@ -100,6 +100,7 @@ final class CommitDetailsWidgetTest extends TestCase
         $rows = self::rows($widget, width: 20, rows: 30);
 
         $this->assertCount(7, $rows, 'six files and the rule, however tall the room');
+        $this->assertFalse($widget->isVerticallyExpanded(), 'and it asks for no more: filling, it would split the height with the diff');
         $this->assertSame('▌f1.php           M ', $rows[0]);
         $this->assertSame('────────────────────', $rows[6]);
         $widget->handleClick(1);
@@ -111,6 +112,7 @@ final class CommitDetailsWidgetTest extends TestCase
         $this->assertCount(2, self::rows($widget, width: 20, rows: 30), 'one file, one row');
         $widget->stack(SplitShape::Beside);
         $this->assertCount(30, self::rows($widget, width: 20, rows: 30), 'beside the diff again, the column fills');
+        $this->assertTrue($widget->expandVertically(false)->isVerticallyExpanded(), 'its shape decides, not the caller');
     }
 
     /** A narrow pane gives up the start of a file's folder first, never its name or status. */

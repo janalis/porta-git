@@ -23,7 +23,6 @@ use Porta\Widget\Render\MenuOverlayHostTrait;
 use Porta\Widget\Render\Rule;
 use Porta\Widget\Render\SelectionBar;
 use Porta\Widget\Support\ArrowScrollTrait;
-use Porta\Widget\Support\FillsPaneTrait;
 use Porta\Widget\Support\InputHook;
 use Porta\Widget\Support\PanelRowStyle;
 use Porta\Widget\Support\WheelScrollable;
@@ -50,7 +49,6 @@ use Symfony\Component\Tui\Widget\VerticallyExpandableInterface;
 final class CommitDetailsWidget extends AbstractWidget implements FocusableInterface, HoverableList, MenuOverlayHost, TooltipProvider, VerticallyExpandableInterface, WheelScrollable
 {
     use ArrowScrollTrait;
-    use FillsPaneTrait;
     use FocusableTrait;
     use GitPaneKeys;
     use InputHook;
@@ -116,6 +114,21 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
     {
         $this->stacked = SplitShape::Stacked === $shape;
         $this->invalidate();
+    }
+
+    /**
+     * Beside the diff the column fills its pane; stacked over it, it is as
+     * tall as its files — filling, it would split the height with the diff.
+     */
+    public function isVerticallyExpanded(): bool
+    {
+        return !$this->stacked;
+    }
+
+    /** The column's shape decides, not the caller. */
+    public function expandVertically(bool $expand): static
+    {
+        return $this;
     }
 
     /** Show $commit, its files still to come; null empties the pane. */

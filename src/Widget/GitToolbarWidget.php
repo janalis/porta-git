@@ -63,6 +63,9 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
     private const int CELL_MIN = 22;
     private const int CELL_MAX = 40;
 
+    /** Narrower than this, a cell beside the sidebar's says too little: the cells share the row. */
+    private const int CELL_TIGHT = 14;
+
     private readonly ClickZones $zones;
 
     private readonly ScreenDensity $density;
@@ -335,7 +338,9 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
      * A cell stands over the pane under it while there is one (the last pane
      * is "the rest", so it seats no cell but the last); past them, the cells
      * share the rest within {@see CELL_MAX}. Too tight for {@see CELL_MIN},
-     * they share the whole row instead — lined up with nothing, but legible.
+     * the first still stands over the sidebar and the others share what is
+     * left; tighter still, they share the whole row — lined up with nothing,
+     * but legible.
      *
      * @return list<int>
      */
@@ -351,12 +356,29 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
             $used += $cell + 1;
         }
         if ([] !== $widths && (\min($widths) < self::CELL_MIN || $used >= $width)) {
-            $even = \max(1, \intdiv($width - $count + 1, $count));
+            $first = $panes[0] ?? 0;
+            $rest = $count > 1 ? \intdiv($width - $first - $count + 1, $count - 1) : 0;
 
-            return [...\array_fill(0, \max(0, $count - 1), $even), \max(1, $width - (($count - 1) * ($even + 1)))];
+            return $rest >= self::CELL_TIGHT ? self::share($width, [$first], $count - 1) : self::share($width, [], $count);
         }
 
         return [...$widths, \max(1, $width - $used)];
+    }
+
+    /**
+     * $fixed's cells, then $count more sharing the rest of a row $width wide
+     * evenly, the last taking the odd columns.
+     *
+     * @param list<int> $fixed
+     *
+     * @return list<int>
+     */
+    private static function share(int $width, array $fixed, int $count): array
+    {
+        $left = $width - \array_sum($fixed) - \count($fixed);
+        $even = \max(1, \intdiv($left - $count + 1, \max(1, $count)));
+
+        return [...$fixed, ...\array_fill(0, \max(0, $count - 1), $even), \max(1, $left - (($count - 1) * ($even + 1)))];
     }
 
     /**

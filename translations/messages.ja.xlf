@@ -794,10 +794,6 @@
         <source>Push %remote%</source>
         <target>%remote% へプッシュ</target>
       </trans-unit>
-      <trans-unit id="204">
-        <source>Fetching…</source>
-        <target>フェッチ中…</target>
-      </trans-unit>
       <trans-unit id="205">
         <source>Fetching %remote%…</source>
         <target>%remote% をフェッチ中…</target>

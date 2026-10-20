@@ -136,4 +136,13 @@ final class CommitHeaderWidgetTest extends TestCase
         }
         $this->assertSame([], $this->copied);
     }
+
+    /** An author cut short still stands apart from the sha. */
+    public function testACutAuthorKeepsABlankBeforeTheSha(): void
+    {
+        $header = $this->header();
+        $header->setStat(new DiffStat(6, 1));
+
+        $this->assertSame(' phc… f00dfac ⧉ +6 −1 ', self::rows($header, 22)[1]);
+    }
 }

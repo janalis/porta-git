@@ -298,12 +298,20 @@ final class GitToolbarWidgetTest extends TestCase
         $this->assertSame([30, 71], self::columnsOf('│', $lines[0]), 'the branch cell within its widest');
     }
 
-    /** Too tight to stand over the panes, the cells share the bar instead. */
-    public function testATightBarSharesItsWidthEvenly(): void
+    /** Too tight for full cells past the sidebar, the first still stands over it and the others share the rest. */
+    public function testATightBarKeepsTheSidebarsCellAndSharesTheRest(): void
     {
         $lines = self::plain($this->overPanes($this->repository(), null, 30, 29), 60);
 
-        $this->assertSame([19, 39], self::columnsOf('│', $lines[0]));
+        $this->assertSame([30, 45], self::columnsOf('│', $lines[0]));
+    }
+
+    /** Tighter still, a cell beside the sidebar's would say nothing: the cells share the bar. */
+    public function testATighterBarSharesItsWidthEvenly(): void
+    {
+        $lines = self::plain($this->overPanes($this->repository(), null, 30, 19), 50);
+
+        $this->assertSame([16, 33], self::columnsOf('│', $lines[0]));
     }
 
     public function testCompactTheFirstCellStandsOverTheSidebar(): void

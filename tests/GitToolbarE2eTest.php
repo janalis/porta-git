@@ -9,6 +9,8 @@ use Porta\GitPlugin\View\GitContextMenus;
 use Porta\GitPlugin\View\ToolbarCell;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\Ide;
+use Porta\Layout\PaneSplit;
+use Porta\Layout\ViewRegions;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
@@ -188,6 +190,22 @@ final class GitToolbarE2eTest extends TestCase
                     $this->assertSame($dividers(), $joins(), 'and the toolbar\'s cell with it');
                     $layout = (string) \file_get_contents($project->path('.porta/layout.json'));
                     $this->assertStringContainsString('"git:columns"', $layout, 'kept for the next session');
+
+                    // Narrowed until the columns stack: the divider is gone,
+                    // and no join is drawn where it last stood.
+                    $terminal->simulateResize(96, 40);
+                    $split = Services::resolve($ide, ViewRegions::class)->find('git')?->split('columns');
+                    $this->assertInstanceOf(PaneSplit::class, $split);
+                    $this->await(function () use ($tui, $split): bool {
+                        $this->frame($tui);
+
+                        return $split->isNarrow();
+                    }, what: 'the columns to stack');
+                    $this->frame($tui);
+                    $header = $rect('git-commit-header');
+                    $rule = $this->screenGrid($tui, $terminal)[$header->row + $header->rows - 1];
+                    $this->assertStringNotContainsString('┬', $rule, 'no join for a divider that is not drawn');
+                    $this->assertStringContainsString('changed file', $rule, 'the rule counts the files instead');
                 },
             ],
             columns: 140,

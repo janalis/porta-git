@@ -794,10 +794,6 @@
         <source>Push %remote%</source>
         <target>Push su %remote%</target>
       </trans-unit>
-      <trans-unit id="204">
-        <source>Fetching…</source>
-        <target>Recupero…</target>
-      </trans-unit>
       <trans-unit id="205">
         <source>Fetching %remote%…</source>
         <target>Recupero da %remote%…</target>

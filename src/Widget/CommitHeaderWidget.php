@@ -129,7 +129,7 @@ final class CommitHeaderWidget extends AbstractWidget implements MenuOverlayHost
         }
 
         // The joint goes with the sha, so a subject cut short still stands apart from it.
-        return [$this->withStat(' '.$subject, $this->styles->of(Role::Dim)->apply(' · ').$sha, $stat, $width, 0)];
+        return [$this->withStat(' '.$subject.' ', $this->styles->of(Role::Dim)->apply('· ').$sha, $stat, $width, 0)];
     }
 
     /**
@@ -143,7 +143,8 @@ final class CommitHeaderWidget extends AbstractWidget implements MenuOverlayHost
         $room = \max(0, $width - AnsiUtils::visibleWidth($tail));
         $shaWidth = AnsiUtils::visibleWidth($sha);
         $leadRoom = \max(0, $room - $shaWidth);
-        $lead = AnsiUtils::visibleWidth($lead) > $leadRoom ? AnsiText::truncate($lead, $leadRoom) : $lead;
+        // Cut short, the lead keeps a blank before the sha, or the two run together.
+        $lead = AnsiUtils::visibleWidth($lead) > $leadRoom ? AnsiText::truncate($lead, \max(0, $leadRoom - 1)).(0 < $leadRoom ? ' ' : '') : $lead;
         $start = AnsiUtils::visibleWidth($lead) + $shaWidth - 1;
         if (($start + 1) <= $room) {
             $this->copyZone = [$row, $start, $start + 1];
