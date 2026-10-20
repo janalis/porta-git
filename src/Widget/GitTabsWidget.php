@@ -7,6 +7,10 @@ namespace Porta\GitPlugin\Widget;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
+use Porta\Support\AnsiText;
+use Porta\Ui\Density;
+use Porta\Ui\Glyphs;
+use Porta\Ui\Role;
 use Porta\Ui\ScreenDensity;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\Render\MenuOverlayHost;
@@ -17,6 +21,7 @@ use Porta\Widget\Support\PaneFocusProbe;
 use Porta\Widget\Support\PanelWidth;
 use Porta\Widget\Support\StylesDefault;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 
@@ -37,6 +42,9 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
 
     /** The sidebar focus the last render drew, so a focus change repaints the lid. */
     private bool $drawnFocus = false;
+
+    /** Under the active half: a heavy rule, as GitHub Desktop's blue bar. Box drawing, so narrow in every TUI. */
+    private const string UNDERLINE = '━';
 
     /** The tab under the mouse pointer (visual only), or null. */
     private ?GitViewMode $hoveredMode = null;
@@ -137,15 +145,57 @@ final class GitTabsWidget extends AbstractWidget implements MenuOverlayHost
             'active' => $mode === $this->active,
             'closable' => false,
         ], $modes);
-        $hover = \array_find($this->layout, fn (array $tab): bool => $tab['mode'] === $this->hoveredMode);
         // The core strips have their height pushed; this one is a plugin's,
         // and its sidebar's height says nothing of the terminal's — it reads
         // the screen's density core hands every view.
+        if (Density::Roomy === $this->density->current()) {
+            return $this->halves($tabs, $width);
+        }
+        $hover = \array_find($this->layout, fn (array $tab): bool => $tab['mode'] === $this->hoveredMode);
         $rows = TabStripRenderer::rowsFor($this->density->current());
         $strip = TabStripRenderer::render($tabs, $width, $this->styles, $hover['start'] ?? null, rows: $rows, paneFocused: $this->drawnFocus = $this->paneFocused());
         $this->layout = \array_map(static fn (array $zone): array => ['mode' => $modes[$zone['index']], 'start' => $zone['start'], 'width' => $zone['width']], $strip['hitMap']);
 
         return TabStripTail::pad($strip, $width, $this->styles);
+    }
+
+    /**
+     * GitHub Desktop's two tabs, roomy: the column cut in halves, each label
+     * centred in its own, the active one underlined over a rule. A local
+     * exception to the house tab strip (docs/internals/ui-style.md): these
+     * are two modes of one pane, never more and never closed.
+     *
+     * @param list<array{label: string, active: bool, closable: bool}> $tabs
+     *
+     * @return list<string>
+     */
+    private function halves(array $tabs, int $width): array
+    {
+        $modes = GitViewMode::cases();
+        $this->drawnFocus = $this->paneFocused();
+        $focused = $this->drawnFocus;
+        $this->layout = [];
+        $top = '';
+        $bottom = '';
+        $start = 0;
+        foreach ($tabs as $i => $tab) {
+            $cell = $i === (\count($tabs) - 1) ? $width - $start : \intdiv($width, \count($tabs));
+            $label = AnsiText::truncate($tab['label'], $cell);
+            $text = AnsiText::truncate(AnsiText::blank(\intdiv($cell - AnsiUtils::visibleWidth($label), num2: 2)).$label, $cell, pad: true);
+            $hovered = !$tab['active'] && $modes[$i] === $this->hoveredMode;
+            $top .= match (true) {
+                $tab['active'] => $this->styles->of(Role::Emphasis)->withBold()->apply($text),
+                $hovered => $this->styles->of(Role::BarHoverBg)->apply($text),
+                default => $this->styles->of(Role::Dim)->apply($text),
+            };
+            $bottom .= $tab['active']
+                ? $this->styles->of($focused ? Role::TabAccent : Role::Emphasis)->apply(\str_repeat(self::UNDERLINE, \max(0, $cell)))
+                : $this->styles->of(Role::Rule)->apply(\str_repeat(Glyphs::FRAME_HORIZONTAL, \max(0, $cell)));
+            $this->layout[] = ['mode' => $modes[$i], 'start' => $start, 'width' => $cell];
+            $start += $cell;
+        }
+
+        return [$top, $bottom];
     }
 
     protected function overlayWidth(RenderContext $context): int

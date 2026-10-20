@@ -12,9 +12,11 @@ use Porta\GitPlugin\Support\RelativeTime;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
+use Porta\Ui\Density;
 use Porta\Ui\ListNavigation;
 use Porta\Ui\ListSelection;
 use Porta\Ui\Role;
+use Porta\Ui\ScreenDensity;
 use Porta\Ui\Theme\Styles;
 use Porta\Ui\Tooltip;
 use Porta\Ui\TooltipProvider;
@@ -57,8 +59,13 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
     use PanelRowStyle;
     use PanelWidth;
 
-    /** Each commit takes two rows: its subject, then who and when. */
-    private const int ENTRY_ROWS = 2;
+    /** A commit's text: its subject, then who and when. */
+    private const int TEXT_ROWS = 2;
+
+    /** The rule between two commits on a roomy screen, GitHub Desktop's hairline. Box drawing: narrow in every TUI. */
+    private const string SEPARATOR = '╌';
+
+    private readonly ScreenDensity $density;
 
     /** @var list<LogEntry> */
     private array $commits = [];
@@ -96,7 +103,9 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         ?Styles $styles = null,
         ?EventDispatcherInterface $events = null,
         ?\Closure $clock = null,
+        ?ScreenDensity $density = null,
     ) {
+        $this->density = $density ?? new ScreenDensity();
         $this->events = $events;
         $this->addStyleClass('list'); // the theme's .list::selected(:focus) rules style the selection
         $this->width = $width;
@@ -181,10 +190,22 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         }
     }
 
-    /** The widget-relative LAST row of the selected commit's entry (the header is row 0): a menu opens under it. */
+    /** The widget-relative row of the selected commit's who-and-when, its last text row: a menu opens under it. */
     public function selectedCommitRow(): int
     {
-        return (($this->commitList->selected() - $this->commitList->scroll()) * self::ENTRY_ROWS) + self::ENTRY_ROWS;
+        return $this->headRows() + (($this->commitList->selected() - $this->commitList->scroll()) * $this->entryRows()) + self::TEXT_ROWS - 1;
+    }
+
+    /** The rows a commit takes: its two, and the rule under them where the screen is roomy. */
+    private function entryRows(): int
+    {
+        return Density::Roomy === $this->density->current() ? self::TEXT_ROWS + 1 : self::TEXT_ROWS;
+    }
+
+    /** The rows over the commits: the heading that names a file the history is filtered to, or none. */
+    private function headRows(): int
+    {
+        return null === $this->filterLabel ? 0 : 1;
     }
 
     public function handleInput(string $data): void
@@ -205,9 +226,9 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
 
     private function navigateCommits(string $data, Keybindings $kb): void
     {
-        // A page is the commits the pane SHOWS — two rows each under the
-        // title — not its height in rows, or a page would skip twice as far
-        // as the screen showed.
+        // A page is the commits the pane SHOWS — two or three rows each —
+        // not its height in rows, or a page would skip that much farther
+        // than the screen showed.
         if (ListNavigation::handleKey($data, $kb, $this->commitList, \count($this->commits), page: $this->commitRowCount())) {
             $this->fireSelectCommit();
             // Hitting the bottom of the loaded page pulls the next one in
@@ -220,12 +241,14 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         }
     }
 
-    /** The commit whose entry covers widget-relative $relRow (the header is row 0), or null. */
+    /** The commit whose text covers widget-relative $relRow, or null — the rule between two is neither's. */
     private function commitAt(int $relRow): ?int
     {
-        $index = $this->commitList->scroll() + \intdiv($relRow - 1, self::ENTRY_ROWS);
+        $entry = $relRow - $this->headRows();
+        $index = $this->commitList->scroll() + \intdiv($entry, $this->entryRows());
+        $onText = $entry >= 0 && ($entry % $this->entryRows()) < self::TEXT_ROWS && $entry < ($this->commitRowCount() * $this->entryRows());
 
-        return $relRow >= 1 && $relRow < (1 + ($this->commitRowCount() * self::ENTRY_ROWS)) && \array_key_exists($index, $this->commits) ? $index : null;
+        return $onText && \array_key_exists($index, $this->commits) ? $index : null;
     }
 
     /** A press on either row of a commit selects it. */
@@ -288,10 +311,10 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         }
     }
 
-    /** How many commits the pane shows: two rows each, under the title. */
+    /** How many commits the pane shows, under the filter's heading when there is one. */
     private function commitRowCount(): int
     {
-        return \max(1, \intdiv($this->lastRows - 1, self::ENTRY_ROWS));
+        return \max(1, \intdiv($this->lastRows - $this->headRows(), $this->entryRows()));
     }
 
     /** The repo-relative file this history is filtered to, or null for repo-wide. */
@@ -310,12 +333,13 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
         $rows = \max(4, $context->getRows() > 0 ? $context->getRows() : 12);
         $this->lastRows = $rows;
 
-        $header = null === $this->filterLabel
-            ? $this->translator->trans('History (%count%)', ['%count%' => \count($this->commits)])
+        // GitHub Desktop heads the list with nothing — the tab says History —
+        // unless it is one file's: then the heading says which.
+        $lines = null === $this->filterLabel
+            ? []
             // An em dash, not a colon: symfony's legacy plural handling treats
             // "label: message" specially whenever %count% is a parameter.
-            : $this->translator->trans('History — %path% (%count%)', ['%path%' => $this->filterLabel, '%count%' => \count($this->commits)]);
-        $lines = [HeaderRenderer::title($header, $width, $this->styles)];
+            : [HeaderRenderer::title($this->translator->trans('History — %path% (%count%)', ['%path%' => $this->filterLabel, '%count%' => \count($this->commits)]), $width, $this->styles)];
         $this->tips = [];
         $this->drawnWidth = $width;
 
@@ -328,8 +352,7 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
             $index = $scroll + $row;
             $commit = $this->commits[$index] ?? null;
             if (null === $commit) {
-                $lines[] = AnsiText::blank($width);
-                $lines[] = AnsiText::blank($width);
+                \array_push($lines, ...\array_fill(0, \max(0, $this->entryRows()), AnsiText::blank($width)));
                 continue;
             }
             $selected = $this->commitList->isSelected($index);
@@ -345,8 +368,11 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
                 $selected,
                 $hovered,
             );
+            if (self::TEXT_ROWS < $this->entryRows()) {
+                $lines[] = AnsiText::truncate(' '.$this->styles->of(Role::Rule)->apply(\str_repeat(self::SEPARATOR, \max(0, $width - 2))), $width, pad: true);
+            }
         }
-        // The title and the entries fill $rows but for an odd row left over.
+        // The heading and the entries fill $rows but for the rows left over.
         while (\count($lines) < $rows) {
             $lines[] = AnsiText::blank($width);
         }

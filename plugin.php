@@ -440,7 +440,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             new ChangesListWidget($s->translator, styles: $s->styles, density: $s->density, events: $events),
             new DiffViewWidget($s->translator, $s->styles, $api->syntaxTheme(), $events),
             new CommitBoxWidget($s->translator, styles: $s->styles, cursorStyle: $s->cursorStyle, density: $s->density),
-            new HistoryListWidget($s->translator, styles: $s->styles, events: $events),
+            new HistoryListWidget($s->translator, styles: $s->styles, events: $events, density: $s->density),
             new GitTabsWidget($s->translator, styles: $s->styles, density: $s->density, events: $events),
             new GitToolbarWidget($s->translator, $repository, $s->styles, $s->density, $events),
             new CommitDetailsWidget($s->translator, $s->styles, $events),

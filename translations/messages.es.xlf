@@ -6,10 +6,6 @@
         <source>%count% changed file|%count% changed files</source>
         <target>%count% archivo modificado|%count% archivos modificados</target>
       </trans-unit>
-      <trans-unit id="3">
-        <source>History (%count%)</source>
-        <target>Historial (%count%)</target>
-      </trans-unit>
       <trans-unit id="6">
         <source>Commit failed (nothing staged?)</source>
         <target>Error al confirmar (¿nada preparado?)</target>

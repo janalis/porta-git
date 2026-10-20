@@ -142,7 +142,8 @@ final class GitTabsWidgetTest extends TestCase
      * and the active mode's lid is heavy all round while the sidebar has the
      * keys.
      */
-    public function testTheModeTabsArePillsOnARoomyScreen(): void
+    /** GitHub Desktop's pair, roomy: two halves, the labels centred, the shown one underlined. */
+    public function testTheModeTabsAreHalvesOnARoomyScreen(): void
     {
         $density = new ScreenDensity();
         $widget = new GitTabsWidget(new Translator('en'), density: $density);
@@ -153,13 +154,14 @@ final class GitTabsWidgetTest extends TestCase
 
         $lines = $widget->render(new RenderContext(44, 5));
         $tall = \array_map(AnsiUtils::stripAnsiCodes(...), $lines);
+        $this->assertSame([GitViewMode::Changes, GitViewMode::History], [$widget->modeAtColumn(21), $widget->modeAtColumn(22)], 'each half is its tab');
         $density->observe(29);
         $short = $widget->render(new RenderContext(44, 5));
 
-        $this->assertCount(2, $tall, 'the labels and the baseline: the upper halves are the frame\'s, in the rule above');
-        $this->assertStringStartsWith(' Changes  History ', $tall[0]);
-        $this->assertSame(\str_repeat('▀', times: 9).\str_repeat('─', times: 35), $tall[1], 'the shown mode a pill, on a baseline that runs on beside it');
-        $this->assertStringContainsString("\x1b[38;5;31m▀", $lines[1], 'blue while the sidebar has the keys');
+        $half = static fn (string $label): string => \str_repeat(' ', times: 7).$label.\str_repeat(' ', times: 8);
+        $this->assertSame([$half('Changes').$half('History'), \str_repeat('━', times: 22).\str_repeat('─', times: 22)], $tall, 'each label centred in its half, the shown one underlined');
+        $this->assertSame(44, AnsiUtils::visibleWidth($lines[0]));
+        $this->assertStringContainsString("\x1b[38;5;110m━", $lines[1], 'the accent while the sidebar has the keys');
         $this->assertCount(1, $short, 'the sidebar is as tall as before: the screen is not');
 
         $density->observe(30);
@@ -167,6 +169,18 @@ final class GitTabsWidgetTest extends TestCase
         $revision = $widget->getRenderRevision();
         $widget->beforeRender();
         $this->assertNotSame($revision, $widget->getRenderRevision(), 'a focus change repaints');
-        $this->assertStringContainsString("\x1b[38;5;237m▀", $widget->render(new RenderContext(44, 5))[1], 'grey without them');
+        $this->assertStringNotContainsString("\x1b[38;5;110m━", $widget->render(new RenderContext(44, 5))[1], 'no longer the accent without them');
+    }
+
+    /** The other half takes the pointer's tint; the shown one does not. */
+    public function testRoomyTheHoveredHalfIsTinted(): void
+    {
+        $widget = new GitTabsWidget(new Translator('en'));
+        $widget->render(new RenderContext(44, 2));
+
+        $widget->hoverMode(GitViewMode::History);
+        $this->assertStringContainsString("\x1b[48;5;240m", $widget->render(new RenderContext(44, 2))[0]);
+        $widget->hoverMode(GitViewMode::Changes);
+        $this->assertStringNotContainsString("\x1b[48;5;240m", $widget->render(new RenderContext(44, 2))[0], 'the shown tab takes no hover');
     }
 }

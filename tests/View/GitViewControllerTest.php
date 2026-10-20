@@ -787,15 +787,15 @@ final class GitViewControllerTest extends TestCase
 
         $commit = $this->history->selectCommitAt(1); // the newest commit's subject row
         $this->assertSame('second', $commit?->subject, 'a right-click selects the commit under it');
-        $this->assertSame(2, $this->history->selectedCommitRow(), 'its menu opens under its second row');
+        $this->assertSame(1, $this->history->selectedCommitRow(), 'its menu opens under its who-and-when row');
 
         // Selecting a different commit moves the selection (and fires the callback).
         $older = $this->history->selectCommitAt(4);
         $this->assertNotSame('second', $older?->subject, 'the next entry is an older commit');
         $this->assertSame(4, $this->history->selectedCommitRow());
 
-        $this->assertNull($this->history->selectCommitAt(0), 'the header row is no commit');
-        $this->assertNull($this->history->selectCommitAt(5), 'an empty commit slot is no commit');
+        $this->assertNull($this->history->selectCommitAt(2), 'the hairline between two is no commit');
+        $this->assertNull($this->history->selectCommitAt(6), 'an empty commit slot is no commit');
         $this->assertNull($this->history->selectCommitAt(99), 'past the list is no commit');
     }
 
