@@ -807,8 +807,8 @@
         <target>Git: ביטול מיזוג או rebase…</target>
       </trans-unit>
       <trans-unit id="216">
-        <source>Resolve the conflicts first: %count% left</source>
-        <target>פתרו קודם את ההתנגשויות: נותרו %count%</target>
+        <source>Resolve the conflicted files first: %count% left</source>
+        <target>פתרו קודם את הקבצים בהתנגשות: נותרו %count%</target>
       </trans-unit>
       <trans-unit id="217">
         <source>A merge has no step to skip: continue or abort it</source>
@@ -887,8 +887,8 @@
         <target>revert בתהליך</target>
       </trans-unit>
       <trans-unit id="236">
-        <source>%count% conflict|%count% conflicts</source>
-        <target>התנגשות %count%|%count% התנגשויות</target>
+        <source>%count% conflicted file|%count% conflicted files</source>
+        <target>קובץ %count% בהתנגשות|%count% קבצים בהתנגשות</target>
       </trans-unit>
       <trans-unit id="237">
         <source>Resolved — click to continue or abort</source>

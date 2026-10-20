@@ -68,7 +68,7 @@ final readonly class GitBranchSegment
         );
     }
 
-    /** "⑂ main · rebasing 3/7 · 2 conflicts": what is in progress, and what its menu does about it. */
+    /** "⑂ main · rebasing 3/7 · 2 conflicted files": what is in progress, and what its menu does about it. */
     private function operationCell(?string $branch, OperationState $state): StatusCell
     {
         $progress = $this->translator->trans(match ($state->operation) {
@@ -80,7 +80,7 @@ final readonly class GitBranchSegment
         $parts = [
             ...(null === $branch ? [] : [$branch]),
             $progress.(null === $state->step || null === $state->total ? '' : " {$state->step}/{$state->total}"),
-            ...(0 === $state->conflicts ? [] : [$this->translator->trans('%count% conflict|%count% conflicts', ['%count%' => (string) $state->conflicts])]),
+            ...(0 === $state->conflicts ? [] : [$this->translator->trans('%count% conflicted file|%count% conflicted files', ['%count%' => (string) $state->conflicts])]),
         ];
 
         return new StatusCell(

@@ -208,7 +208,7 @@ plugin disabled, Porta opens the file in the editor and says why.
 When a `git merge`, `git rebase`, `git cherry-pick` or `git revert` stops —
 on a conflict, usually — the branch cell in the status bar says so, with how
 far a rebase has got and how many files are still conflicted: `⑂ main ·
-rebasing 3/7 · 2 conflicts`. The Git view's Branch cell says it too. It is
+rebasing 3/7 · 2 conflicted files`. The Git view's Branch cell says it too. It is
 read from git's own files, whoever ran the command — Porta or a terminal.
 
 - **Resolve** each conflicted file: it opens in the

@@ -807,8 +807,8 @@
         <target>Git: マージまたはリベースを中止…</target>
       </trans-unit>
       <trans-unit id="216">
-        <source>Resolve the conflicts first: %count% left</source>
-        <target>先に競合を解決してください: 残り %count%</target>
+        <source>Resolve the conflicted files first: %count% left</source>
+        <target>先に競合ファイルを解決してください: 残り %count%</target>
       </trans-unit>
       <trans-unit id="217">
         <source>A merge has no step to skip: continue or abort it</source>
@@ -887,8 +887,8 @@
         <target>リバート中</target>
       </trans-unit>
       <trans-unit id="236">
-        <source>%count% conflict|%count% conflicts</source>
-        <target>競合 %count% 件|競合 %count% 件</target>
+        <source>%count% conflicted file|%count% conflicted files</source>
+        <target>競合ファイル %count% 件|競合ファイル %count% 件</target>
       </trans-unit>
       <trans-unit id="237">
         <source>Resolved — click to continue or abort</source>

@@ -63,11 +63,11 @@ final class OperationE2eTest extends TestCase
             $project->path('a.php'),
             [
                 0 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
-                    $this->awaitPainted($tui, $terminal, 'rebasing 1/1 · 1 conflict');
+                    $this->awaitPainted($tui, $terminal, 'rebasing 1/1 · 1 conflicted file');
                     $commands = Services::resolve($ide, CommandRegistry::class);
 
                     $commands->run('git:continue');
-                    $this->await(static fn (): bool => \in_array('Resolve the conflicts first: 1 left', Toasts::all($ide), strict: true), what: 'continue refused');
+                    $this->await(static fn (): bool => \in_array('Resolve the conflicted files first: 1 left', Toasts::all($ide), strict: true), what: 'continue refused');
 
                     // The merge view. Mid-rebase git's "ours" is the branch
                     // being rebased onto and "theirs" the commit being

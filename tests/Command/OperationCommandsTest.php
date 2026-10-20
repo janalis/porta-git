@@ -129,7 +129,7 @@ final class OperationCommandsTest extends TestCase
         $commands->continue();
         $this->pumpUntil();
 
-        $this->assertStringContainsString('Resolve the conflicts first: 1 left', $this->statusRow($this->statusBar));
+        $this->assertStringContainsString('Resolve the conflicted files first: 1 left', $this->statusRow($this->statusBar));
         $this->assertFileExists($this->project->path('.git/MERGE_HEAD'), 'git was not asked');
     }
 

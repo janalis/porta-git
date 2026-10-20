@@ -49,7 +49,7 @@ final readonly class OperationCommands
         }
         $this->git->conflictCount(function (int $count) use ($state): void {
             if ($count > 0) {
-                $this->notifier->warn($this->translator->trans('Resolve the conflicts first: %count% left', ['%count%' => (string) $count]));
+                $this->notifier->warn($this->translator->trans('Resolve the conflicted files first: %count% left', ['%count%' => (string) $count]));
 
                 return;
             }

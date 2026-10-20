@@ -153,7 +153,7 @@ final class GitBranchSegmentTest extends TestCase
         $cell = $this->segment(showBranch: true, branch: null, operation: new OperationState(GitOperation::Rebasing, 3, 7, 2))->statusCell();
 
         $this->assertInstanceOf(StatusCell::class, $cell);
-        $this->assertStringEndsWith(' rebasing 3/7 · 2 conflicts', $cell->text);
+        $this->assertStringEndsWith(' rebasing 3/7 · 2 conflicted files', $cell->text);
         $this->assertSame(StatusTone::Active, $cell->tone, 'what is in progress, picked out');
         $this->assertSame('Resolve the conflicts, then click to continue — or skip or abort', $cell->tooltip);
         $this->assertSame(['Continue rebase', 'Skip This Step', 'Abort rebase…', 'Switch Branch…', 'New Branch…', 'Delete Branch…', 'Worktrees…', 'New Worktree…'], self::labels($cell));
@@ -174,7 +174,7 @@ final class GitBranchSegmentTest extends TestCase
         $cell = $this->segment(showBranch: true, branch: 'main', operation: new OperationState(GitOperation::CherryPicking, conflicts: 1))->statusCell();
 
         $this->assertInstanceOf(StatusCell::class, $cell);
-        $this->assertStringEndsWith(' main · cherry-picking · 1 conflict', $cell->text);
+        $this->assertStringEndsWith(' main · cherry-picking · 1 conflicted file', $cell->text);
     }
 
     public function testARevertAndARebaseWithNoCountKeepTheirWords(): void

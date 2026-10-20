@@ -807,8 +807,8 @@
         <target>Git: Merge oder Rebase abbrechen…</target>
       </trans-unit>
       <trans-unit id="216">
-        <source>Resolve the conflicts first: %count% left</source>
-        <target>Zuerst die Konflikte lösen: noch %count%</target>
+        <source>Resolve the conflicted files first: %count% left</source>
+        <target>Zuerst die Dateien mit Konflikt lösen: noch %count%</target>
       </trans-unit>
       <trans-unit id="217">
         <source>A merge has no step to skip: continue or abort it</source>
@@ -887,8 +887,8 @@
         <target>Revert läuft</target>
       </trans-unit>
       <trans-unit id="236">
-        <source>%count% conflict|%count% conflicts</source>
-        <target>%count% Konflikt|%count% Konflikte</target>
+        <source>%count% conflicted file|%count% conflicted files</source>
+        <target>%count% Datei mit Konflikt|%count% Dateien mit Konflikt</target>
       </trans-unit>
       <trans-unit id="237">
         <source>Resolved — click to continue or abort</source>
