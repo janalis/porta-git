@@ -135,6 +135,15 @@ final class GitViewController implements ContributedView
     /** History's content: the selected commit's details beside its diff. */
     private readonly ContainerWidget $historyRow;
 
+    /** The sidebar as one resizable unit — and how wide it draws, for the toolbar over it. */
+    private readonly GitSidebar $sidebar;
+
+    /** The timer turning the remote icon while an operation runs; null at rest. */
+    private ?string $spinner = null;
+
+    /** Seconds between two steps of the remote icon's turn. */
+    private const float SPIN_SECONDS = 0.12;
+
     /**
      * Set while the view shows a comparison git difftool asked for: called when
      * it closes, which ends the tool session. Null in the view's own use.
@@ -197,7 +206,9 @@ final class GitViewController implements ContributedView
         // How this sidebar resizes. Four stacked widgets each render their own
         // width, so a drag fans the new one out to all of them; core sees a
         // container and cannot know that.
-        $this->region->setSidebarPanes(new GitSidebar($this->panes->tabs, $this->panes->changes, $this->panes->commitBox, $this->panes->history));
+        $this->sidebar = new GitSidebar($this->panes->tabs, $this->panes->changes, $this->panes->commitBox, $this->panes->history);
+        $this->region->setSidebarPanes($this->sidebar);
+        $this->panes->toolbar->followPanes($this->columns(...));
         // Seeded for the initial Changes mode. WorkspaceLayout used to stack
         // these three at construction — the one place core layout named a
         // view's contents — and switchMode() only refills on a CHANGE, so
@@ -226,6 +237,19 @@ final class GitViewController implements ContributedView
             ->onAmendToggle(fn () => $this->amendToggled($this->panes->commitBox->isAmend() ? CommitMode::Amend : CommitMode::Fresh))
             ->onFocusNext($next)
             ->onExit($exit);
+    }
+
+    /**
+     * The panes' widths under a header row $width wide, left to right: the
+     * sidebar, then the content — what the toolbar's cells stand over.
+     *
+     * @return list<int>
+     */
+    private function columns(int $width): array
+    {
+        $sidebar = \min($this->sidebar->width(), \max(1, $width - 2));
+
+        return [$sidebar, $width - $sidebar - 1];
     }
 
     public function viewId(): string
@@ -298,6 +322,7 @@ final class GitViewController implements ContributedView
         $this->refresh();
         $this->repository?->refresh();
         $this->armPoll();
+        $this->spinWhileRunning();
         $this->host->invalidate();
     }
 
@@ -409,7 +434,44 @@ final class GitViewController implements ContributedView
         $this->poll = EventLoop::repeat($interval, function (): void {
             $this->refresh(RefreshMode::Quiet);
             $this->ageTimes();
+            // An operation the palette started, with the view already up.
+            $this->spinWhileRunning();
         });
+    }
+
+    /**
+     * Turn the remote icon while an operation runs, GitHub Desktop's spinning
+     * arrows: a step every {@see SPIN_SECONDS}, until the operation is over —
+     * answered, failed or cancelled — or the view closes.
+     */
+    private function spinWhileRunning(): void
+    {
+        $operation = $this->remoteCommands?->running();
+        if (null !== $this->spinner || null === $operation || !$this->open) {
+            return;
+        }
+        $this->panes->toolbar->spin($operation);
+        $this->host->invalidate();
+        $this->spinner = EventLoop::repeat(self::SPIN_SECONDS, function (): void {
+            $running = $this->remoteCommands?->running();
+            if (null === $running) {
+                $this->stopSpinning();
+
+                return;
+            }
+            $this->panes->toolbar->spin($running);
+            $this->host->invalidate();
+        });
+    }
+
+    private function stopSpinning(): void
+    {
+        if (null !== $this->spinner) {
+            EventLoop::cancel($this->spinner);
+            $this->spinner = null;
+        }
+        $this->panes->toolbar->settle();
+        $this->host->invalidate();
     }
 
     /**
@@ -439,6 +501,7 @@ final class GitViewController implements ContributedView
             EventLoop::cancel($this->poll);
             $this->poll = null;
         }
+        $this->stopSpinning();
         $this->host->restore();
         $ended = $this->onComparisonClosed;
         if (null !== $ended) {
@@ -907,6 +970,7 @@ final class GitViewController implements ContributedView
     public function onRemoteRequested(GitRemoteRequested $event): void
     {
         $this->remoteCommands?->runOperation($event->operation);
+        $this->spinWhileRunning();
     }
 
     /**
@@ -920,6 +984,7 @@ final class GitViewController implements ContributedView
 
     public function onRemoteCompleted(GitRemoteCompleted $event): void
     {
+        $this->stopSpinning();
         if ($this->open) {
             // A fetch moves what the toolbar says: behind, last fetched, and
             // maybe a pull request opened on the server since.

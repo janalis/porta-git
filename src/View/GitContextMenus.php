@@ -67,7 +67,7 @@ final readonly class GitContextMenus implements ViewMenuSource
     {
         $toolbar = $this->toolbar;
         $items = match ($cell) {
-            ToolbarCell::Repository => $this->branchMenu?->worktrees(),
+            ToolbarCell::Repository, ToolbarCell::Worktree => $this->branchMenu?->worktrees(),
             ToolbarCell::Branch => $this->branchMenu?->branches(),
             ToolbarCell::Remote => null,
         };

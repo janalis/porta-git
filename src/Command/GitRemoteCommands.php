@@ -23,20 +23,29 @@ use Psr\EventDispatcher\EventDispatcherInterface;
  * offers --set-upstream. Completion dispatches {@see GitRemoteCompleted} so
  * the branch/marks/history refresh listeners react without coupling.
  */
-final readonly class GitRemoteCommands
+final class GitRemoteCommands
 {
     /** The one toast a remote operation owns: its progress, then its outcome, in place. */
     private const string SLOT = 'git.remote';
 
+    /** The operation started and not yet answered — what the git view's remote button says it is doing. */
+    private ?GitRemoteOperation $running = null;
+
     public function __construct(
-        private GitRemote $remote,
-        private Flash $notifier,
-        private Translate $translator,
-        private EventDispatcherInterface $dispatcher,
-        private Modals $editor,
+        private readonly GitRemote $remote,
+        private readonly Flash $notifier,
+        private readonly Translate $translator,
+        private readonly EventDispatcherInterface $dispatcher,
+        private readonly Modals $editor,
         /** @var \Closure(): void asks for a frame */
-        private \Closure $repaint,
+        private readonly \Closure $repaint,
     ) {}
+
+    /** The remote operation running now, or null. */
+    public function running(): ?GitRemoteOperation
+    {
+        return $this->remote->isBusy() ? $this->running : null;
+    }
 
     public function fetch(): void
     {
@@ -138,6 +147,7 @@ final readonly class GitRemoteCommands
             return;
         }
         $this->remote->cancelAll();
+        $this->running = null;
         // A cancelled operation never calls back, so this is its outcome.
         $this->notifier->warn($this->translator->trans('Git remote operation cancelled'), slot: self::SLOT);
         $this->dispatcher->dispatch(new GitRemoteCompleted('cancelled', false));
@@ -173,7 +183,9 @@ final readonly class GitRemoteCommands
         // Sticky until the outcome replaces it in the same slot — the card
         // turns into the result where it stands rather than lingering beside it.
         $this->notifier->flash($started, 600.0, self::SLOT);
+        $this->running = $operation;
         $start(function (Outcome $ok, string $output) use ($operation, $succeeded, $onFailure): void {
+            $this->running = null;
             if (!$ok->isOk() && null !== $onFailure && $onFailure($output)) {
                 // The follow-up choice is the answer; the progress card goes.
                 $this->notifier->warn($this->translator->trans('%operation% needs a choice', ['%operation%' => \ucfirst($operation->value)]), 3.0, self::SLOT);

@@ -20,9 +20,11 @@ use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Tests\Support\ViewWindowCells;
 use Porta\Tests\Support\Widgets;
 use Porta\Widget\ContextMenu;
+use Porta\Widget\SeparatorWidget;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\LineBufferInterface;
+use Symfony\Component\Tui\Render\Renderer;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
 
@@ -91,10 +93,20 @@ final class GitToolbarE2eTest extends TestCase
                     $this->assertStringContainsString('⑂ main', $text(), 'the branch');
                     $this->assertStringContainsString('⌂ '.\basename($project->dir), $text(), 'the repository, by its folder');
                     $this->frame($tui);
+                    // The repository cell stands over the sidebar: its divider is the sidebar's.
+                    $renderer = Services::resolve($ide, Renderer::class);
+                    $repository = $toolbar->span(ToolbarCell::Repository);
+                    $this->assertNotNull($repository);
+                    $this->assertSame(
+                        Widgets::rect($renderer, Widgets::byId($tui, 'git-separator', SeparatorWidget::class))->col,
+                        Widgets::rect($renderer, $toolbar)->col + $repository[1],
+                    );
 
                     // Over "main", in the branch cell.
-                    $tui->handleInput(self::widgetSgr($ide, 'git-toolbar', 0, 0, \mb_strlen(' ⌂ '.\basename($project->dir).' ▾ │ ⑂ ')));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-toolbar', 0, 0, \mb_strlen(' ⌂ '.\basename($project->dir).' ▾ │ ⑂ '), release: true));
+                    $branch = $toolbar->span(ToolbarCell::Branch);
+                    $this->assertNotNull($branch);
+                    $tui->handleInput(self::widgetSgr($ide, 'git-toolbar', 0, 0, $branch[0] + 3));
+                    $tui->handleInput(self::widgetSgr($ide, 'git-toolbar', 0, 0, $branch[0] + 3, release: true));
                     $this->frame($tui);
                     $this->assertSame(['Switch Branch…', 'New Branch…', 'Delete Branch…'], self::menuLabels($ide), 'the branch cell drops the branch verbs');
 

@@ -87,6 +87,38 @@ final readonly class GitInfo
     }
 
     /**
+     * The remote $branch pushes to and pulls from — `origin`, usually — or
+     * null for a branch never published, or one tracking a LOCAL branch,
+     * which git spells `.`: there is no remote to name.
+     *
+     * @param callable(?string): void $onDone
+     */
+    public function remoteOf(string $branch, callable $onDone): void
+    {
+        $this->runner->runStatus(['config', '--get', 'branch.'.$branch.'.remote'], static function (int $code, string $out) use ($onDone): void {
+            $remote = \trim($out);
+            $onDone(0 === $code && !\in_array($remote, ['', '.'], strict: true) ? $remote : null);
+        });
+    }
+
+    /**
+     * How many lines a commit added and removed, over all its files — the
+     * `+3 −1` beside its header — or null when git could not say.
+     *
+     * @param callable(?DiffStat): void $onDone
+     */
+    public function commitStat(string $sha, callable $onDone): void
+    {
+        $this->runner->runStatus(['show', '--shortstat', '--format=', $sha], static function (int $code, string $out) use ($onDone): void {
+            $added = [];
+            $deleted = [];
+            \preg_match('/(\d+) insertion/', $out, $added);
+            \preg_match('/(\d+) deletion/', $out, $deleted);
+            $onDone(0 === $code ? new DiffStat((int) ($added[1] ?? 0), (int) ($deleted[1] ?? 0)) : null);
+        });
+    }
+
+    /**
      * Where the repository lives, all absolute: the working tree's top
      * folder, git's COMMON directory (the main worktree's `.git`, which names
      * the repository), and this worktree's own FETCH_HEAD — per worktree, so

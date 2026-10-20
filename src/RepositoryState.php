@@ -20,6 +20,9 @@ final class RepositoryState
 {
     private string $name;
 
+    /** The open working tree's folder: the clone's, or a linked worktree's. */
+    private string $worktree;
+
     private ?string $branch = null;
 
     /** Whether git has said which branch: until it has, a null branch is not yet known, not detached. */
@@ -30,6 +33,12 @@ final class RepositoryState
     private ?int $lastFetched = null;
 
     private ?int $pullRequest = null;
+
+    /** The remote the branch tracks, or null when it is unpublished — or detached. */
+    private ?string $remote = null;
+
+    /** How many working trees the repository has: one, unless worktrees were added. */
+    private int $worktrees = 1;
 
     /** The branch the pull request number was last asked for, so a refresh asks again only when it moved. */
     private ?string $askedFor = null;
@@ -50,6 +59,7 @@ final class RepositoryState
         string $rootDir,
     ) {
         $this->name = \basename($rootDir);
+        $this->worktree = $this->name;
         $this->repaint = static function (): void {};
     }
 
@@ -75,6 +85,7 @@ final class RepositoryState
             if (RefreshScope::Remote === $scope || $branch !== $this->askedFor) {
                 $this->askPullRequest($branch);
             }
+            $this->askRemote($branch, $generation);
             ($this->repaint)();
         });
         $this->git->tracking(function (?Tracking $tracking) use ($generation): void {
@@ -89,6 +100,28 @@ final class RepositoryState
                 $this->located($at);
             }
         });
+        $this->git->worktrees(function (?array $worktrees) use ($generation): void {
+            if (null !== $worktrees && $generation === $this->generation) {
+                $this->worktrees = \max(1, \count($worktrees));
+                ($this->repaint)();
+            }
+        });
+    }
+
+    /** The remote the branch tracks, asked once git has said which branch. */
+    private function askRemote(?string $branch, int $generation): void
+    {
+        if (null === $branch) {
+            $this->remote = null;
+
+            return;
+        }
+        $this->git->remoteOf($branch, function (?string $remote) use ($generation): void {
+            if ($generation === $this->generation) {
+                $this->remote = $remote;
+                ($this->repaint)();
+            }
+        });
     }
 
     private function located(Locations $at): void
@@ -96,6 +129,7 @@ final class RepositoryState
         // The main worktree's folder names the repository, as GitHub
         // Desktop does: a linked worktree is a checkout OF it.
         $this->name = '.git' === \basename($at->common) ? \basename(\dirname($at->common)) : \basename($at->top);
+        $this->worktree = \basename($at->top);
         \clearstatcache(clear_realpath_cache: true, filename: $at->fetchHead);
         $fetched = \is_file($at->fetchHead) ? \filemtime($at->fetchHead) : false;
         $this->lastFetched = false === $fetched ? null : $fetched;
@@ -153,5 +187,23 @@ final class RepositoryState
     public function pullRequest(): ?int
     {
         return $this->pullRequest;
+    }
+
+    /** The remote the branch tracks — `origin`, usually — or null. */
+    public function remote(): ?string
+    {
+        return $this->remote;
+    }
+
+    /** The open working tree's folder name. */
+    public function worktree(): string
+    {
+        return $this->worktree;
+    }
+
+    /** Whether worktrees were added beside the clone: then the toolbar names the one open. */
+    public function hasWorktrees(): bool
+    {
+        return $this->worktrees > 1;
     }
 }

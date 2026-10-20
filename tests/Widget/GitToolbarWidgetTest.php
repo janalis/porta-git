@@ -35,7 +35,7 @@ final class GitToolbarWidgetTest extends TestCase
     /** @var list<object> */
     private array $dispatched = [];
 
-    private function repository(?string $branch = 'main', ?Tracking $tracking = null, ?int $pullRequest = null, ?int $lastFetched = null): RepositoryState
+    private function repository(?string $branch = 'main', ?Tracking $tracking = null, ?int $pullRequest = null, ?int $lastFetched = null, ?string $remote = null, int $worktrees = 1): RepositoryState
     {
         $repository = GitDoubles::repository(new GitInfo(\sys_get_temp_dir()), '/work/porta');
         Probe::set($repository, 'branch', $branch);
@@ -43,8 +43,30 @@ final class GitToolbarWidgetTest extends TestCase
         Probe::set($repository, 'tracking', $tracking);
         Probe::set($repository, 'pullRequest', $pullRequest);
         Probe::set($repository, 'lastFetched', $lastFetched);
+        Probe::set($repository, 'remote', $remote);
+        Probe::set($repository, 'worktrees', $worktrees);
+        Probe::set($repository, 'worktree', 'porta-review');
 
         return $repository;
+    }
+
+    /** The toolbar over panes this wide: History's sidebar, files and diff at 120 columns. */
+    private function overPanes(RepositoryState $repository, ?ScreenDensity $density = null, int ...$panes): GitToolbarWidget
+    {
+        $toolbar = $this->toolbar($repository, $density);
+        $toolbar->followPanes(static fn (int $width): array => [] === $panes ? [30, 35, $width - 67] : $panes);
+
+        return $toolbar;
+    }
+
+    /**
+     * The columns a glyph stands at in a plain row.
+     *
+     * @return list<int>
+     */
+    private static function columnsOf(string $glyph, string $line): array
+    {
+        return \array_keys(\mb_str_split($line), $glyph, strict: true);
     }
 
     private function toolbar(RepositoryState $repository, ?ScreenDensity $density = null): GitToolbarWidget
@@ -73,9 +95,10 @@ final class GitToolbarWidgetTest extends TestCase
 
         $this->assertCount(3, $lines);
         $this->assertSame(3, $toolbar->drawnRows());
-        $this->assertMatchesRegularExpression('/⌂ Current repository +▾ │ ⑂ Current branch +▾ │ ⟳ Fetch +│/u', $lines[0]);
-        $this->assertMatchesRegularExpression('/^ +porta +│ +feature +#446 │ +Last fetched 3 minutes ago +│/u', $lines[1]);
-        $this->assertSame(3, \mb_substr_count($lines[2], needle: '┴'), 'the rule joins each cell\'s divider');
+        $this->assertMatchesRegularExpression('/^ ⌂ Current repository +▾ │ ⑂ Current branch +▾ │ ↻ Fetch +$/u', $lines[0]);
+        $this->assertMatchesRegularExpression('/^ +porta +│ +feature +#446 │ +Last fetched 3 minutes ago +$/u', $lines[1]);
+        $this->assertSame(self::columnsOf('│', $lines[0]), self::columnsOf('┴', $lines[2]), 'the rule joins each cell\'s divider');
+        $this->assertCount(2, self::columnsOf('┴', $lines[2]), 'the last cell runs to the end of the bar');
         foreach ($lines as $line) {
             $this->assertSame(120, \mb_strwidth($line));
         }
@@ -89,7 +112,7 @@ final class GitToolbarWidgetTest extends TestCase
 
         $this->assertCount(1, $lines);
         $this->assertSame(1, $toolbar->drawnRows());
-        $this->assertMatchesRegularExpression('/^ ⌂ porta ▾ │ ⑂ feature #446 ▾ │ ⟳ Pull ⇣1 ⇡2 · 2h │/u', $lines[0]);
+        $this->assertMatchesRegularExpression('/^ ⌂ porta ▾ │ ⑂ feature #446 ▾ │ ↻ Pull ⇣1 ⇡2 · 2h +$/u', $lines[0]);
     }
 
     /** A narrow bar cuts a value, never the arrow that says its cell opens a menu. */
@@ -121,7 +144,7 @@ final class GitToolbarWidgetTest extends TestCase
     {
         $toolbar = $this->toolbar($this->repository($branch, $tracking));
         $line = self::plain($toolbar)[0];
-        $this->assertStringContainsString('⟳ '.$label.' ', $line);
+        $this->assertStringContainsString('↻ '.$label.' ', $line);
 
         $span = $toolbar->span(ToolbarCell::Remote);
         $this->assertNotNull($span);
@@ -140,7 +163,7 @@ final class GitToolbarWidgetTest extends TestCase
             $this->assertNotNull($span);
             $toolbar->handleClick($span[1] - 1);
         }
-        $toolbar->handleClick(119); // the bar past the cells
+        $toolbar->handleClick(\mb_strpos(self::plain($toolbar)[0], needle: '│')); // a divider
 
         $this->assertEquals([new GitToolbarMenuRequested(ToolbarCell::Repository), new GitToolbarMenuRequested(ToolbarCell::Branch)], $this->dispatched);
     }
@@ -195,7 +218,7 @@ final class GitToolbarWidgetTest extends TestCase
         $this->assertSame('Repository porta — click for its worktrees', $at(ToolbarCell::Repository));
         $this->assertSame("Branch main — 1 ahead, 2 behind its upstream\nPull request #446\nClick to switch, create or delete a branch", $at(ToolbarCell::Branch));
         $this->assertSame("Pull the commits the upstream has and this branch does not\nLast fetched 1 minute ago", $at(ToolbarCell::Remote));
-        $this->assertNull($toolbar->tooltipAt(1, 119), 'the bar past the cells says nothing');
+        $this->assertNull($toolbar->tooltipAt(1, (int) \mb_strpos(self::plain($toolbar)[1], needle: '│')), 'a divider says nothing');
         $this->assertNull($toolbar->tooltipAt(3, 1), 'nor does a row it did not draw');
     }
 
@@ -247,7 +270,125 @@ final class GitToolbarWidgetTest extends TestCase
     {
         $line = self::plain($this->toolbar($this->repository('feature', new Tracking(1, 2), lastFetched: self::NOW - 18_000), CompactScreen::density()), 45)[0];
 
-        $this->assertStringContainsString('⟳ Pull ⇣2 ⇡1 · ', $line);
+        $this->assertStringContainsString('↻ Pull ⇣2 ⇡1 · ', $line);
         $this->assertStringNotContainsString('5h', $line);
+    }
+
+    /** Each cell stands over the pane under it, so its divider meets the pane's — the rule's `┴` lands on it. */
+    public function testTheCellsStandOverThePanesUnderThem(): void
+    {
+        $lines = self::plain($this->overPanes($this->repository('main', new Tracking(1, 1), 446, self::NOW - 60, remote: 'origin')));
+
+        $this->assertSame([30, 66], self::columnsOf('│', $lines[0]));
+        $this->assertSame([30, 66], self::columnsOf('│', $lines[1]));
+        $this->assertSame([30, 66], self::columnsOf('┴', $lines[2]));
+        $this->assertStringStartsWith(' ⌂ Current repository', $lines[0]);
+        $this->assertStringStartsWith('   porta', $lines[1], 'the value under its label\'s first letter');
+        $this->assertSame(' ⑂ Current branch', \mb_substr($lines[0], start: 31, length: 17));
+        $this->assertSame('   main', \mb_substr($lines[1], start: 31, length: 7));
+        $this->assertSame(' ↻ Pull origin', \mb_substr($lines[0], start: 67, length: 14));
+        $this->assertSame('   Last fetched', \mb_substr($lines[1], start: 67, length: 15));
+    }
+
+    /** Over Changes there is one pane beside the sidebar: the cells after the first share it. */
+    public function testPastThePanesTheCellsShareTheRest(): void
+    {
+        $lines = self::plain($this->overPanes($this->repository(), null, 30, 89));
+
+        $this->assertSame([30, 71], self::columnsOf('│', $lines[0]), 'the branch cell within its widest');
+    }
+
+    /** Too tight to stand over the panes, the cells share the bar instead. */
+    public function testATightBarSharesItsWidthEvenly(): void
+    {
+        $lines = self::plain($this->overPanes($this->repository(), null, 30, 29), 60);
+
+        $this->assertSame([19, 39], self::columnsOf('│', $lines[0]));
+    }
+
+    public function testCompactTheFirstCellStandsOverTheSidebar(): void
+    {
+        $line = self::plain($this->overPanes($this->repository('feature', new Tracking(0, 0)), CompactScreen::density()))[0];
+
+        $this->assertSame(30, self::columnsOf('│', $line)[0]);
+        $this->assertStringStartsWith(' ⌂ porta ▾ ', $line);
+    }
+
+    /** With worktrees beside the clone, one more cell names the open one and takes their menu from the repository's. */
+    public function testWorktreesGetACellOfTheirOwn(): void
+    {
+        $toolbar = $this->overPanes($this->repository('main', new Tracking(0, 0), 446, remote: 'origin', worktrees: 2));
+        $lines = self::plain($toolbar);
+
+        $this->assertSame([30, 66, 93], self::columnsOf('┴', $lines[2]));
+        $this->assertMatchesRegularExpression('/^ ⌂ Current repository +│ ◫ Current worktree +▾ │ ⑂ Current branch +▾ │ ↻ Fetch origin +$/u', $lines[0]);
+        $this->assertSame('   porta-review', \mb_substr($lines[1], start: 31, length: 15));
+        foreach ([ToolbarCell::Repository, ToolbarCell::Worktree] as $cell) {
+            $span = $toolbar->span($cell);
+            $this->assertNotNull($span);
+            $toolbar->handleClick($span[0] + 1);
+        }
+        $this->assertEquals([new GitToolbarMenuRequested(ToolbarCell::Worktree)], $this->dispatched, 'the repository is a plain label now');
+        $repository = $toolbar->span(ToolbarCell::Repository);
+        $this->assertNotNull($repository);
+        $this->assertFalse($toolbar->hoverAt($repository[0]), 'nor does it light up');
+        $this->assertSame('Repository porta', $toolbar->tooltipAt(0, $repository[0])?->text);
+        $this->assertSame('Worktree porta-review — click to switch or add one', $toolbar->tooltipAt(0, 31)?->text);
+        $this->assertMatchesRegularExpression('/^ ⌂ porta +│ ◫ porta-review ▾ │/u', self::plain($this->overPanes($this->repository(worktrees: 2), CompactScreen::density()))[0]);
+    }
+
+    /** While an operation runs, the remote icon turns a quarter each step and the label says what it is doing. */
+    public function testTheRemoteIconTurnsWhileAnOperationRuns(): void
+    {
+        $toolbar = $this->toolbar($this->repository('main', new Tracking(0, 1), remote: 'origin'));
+        $frames = [];
+        foreach ([1, 2, 3, 4, 5] as $ignored) {
+            $toolbar->spin(GitRemoteOperation::Pull);
+            $frames[] = \mb_substr(self::plain($toolbar)[0], start: (int) $toolbar->span(ToolbarCell::Remote)[0] + 1, length: 1);
+        }
+        $line = self::plain($toolbar)[0];
+
+        $this->assertSame(['◜', '◝', '◞', '◟', '◜'], $frames);
+        $this->assertStringContainsString('◜ Pulling origin… ', $line);
+        $toolbar->settle();
+        $this->assertStringContainsString('↻ Pull origin ', self::plain($toolbar)[0]);
+        $toolbar->settle();
+        $toolbar->spin(GitRemoteOperation::Fetch);
+        $this->assertStringContainsString('◜ Fetching origin…', self::plain($toolbar)[0], 'a new run starts from the first quarter');
+    }
+
+    /**
+     * @return iterable<string, array{GitRemoteOperation, string}>
+     */
+    public static function runningLabels(): iterable
+    {
+        yield 'fetch' => [GitRemoteOperation::Fetch, 'Fetching…'];
+        yield 'pull' => [GitRemoteOperation::Pull, 'Pulling…'];
+        yield 'push' => [GitRemoteOperation::Push, 'Pushing…'];
+    }
+
+    #[DataProvider('runningLabels')]
+    public function testARunWithNoRemoteNamedSaysJustWhatItDoes(GitRemoteOperation $operation, string $label): void
+    {
+        $toolbar = $this->toolbar($this->repository(null));
+        $toolbar->spin($operation);
+
+        $this->assertStringContainsString('◜ '.$label, self::plain($toolbar)[0]);
+    }
+
+    /**
+     * @return iterable<string, array{Tracking, string}>
+     */
+    public static function namedRemotes(): iterable
+    {
+        yield 'fetch' => [new Tracking(0, 0), 'Fetch origin'];
+        yield 'pull' => [new Tracking(0, 1), 'Pull origin'];
+        yield 'push' => [new Tracking(1, 0), 'Push origin'];
+    }
+
+    #[DataProvider('namedRemotes')]
+    public function testTheButtonNamesTheRemote(Tracking $tracking, string $label): void
+    {
+        $this->assertStringContainsString('↻ '.$label.' ', self::plain($this->toolbar($this->repository('main', $tracking, remote: 'origin')))[0]);
     }
 }

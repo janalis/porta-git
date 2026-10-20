@@ -117,11 +117,16 @@ trait GitViewRig
     {
         $this->controller?->close();
         if (null !== $this->git) {
-            $this->awaitLanes([Probe::get(Probe::get($this->git, 'runner'), 'lane')]);
+            $this->awaitLanes([Probe::get(Probe::get($this->git, 'runner'), 'lane'), $this->remoteLane]);
         }
     }
 
     private Tui $tui;
+
+    /** The remote operations' own lane, drained at teardown like git's. */
+    private ProcessLane $remoteLane;
+
+    private GitRemoteCommands $remoteCommands;
     private ChangesListWidget $changes;
     private DiffViewWidget $diffView;
     private CommitBoxWidget $commitBox;
@@ -276,7 +281,7 @@ trait GitViewRig
             // Wired, because plugin.php wires it: with the nullable dependency
             // left null the remote listener is a no-op, and a test of it can
             // only assert that nothing threw.
-            new GitRemoteCommands(new GitRemote($this->project->dir), $flash, $trans, $dispatcher, $modals, $repaint),
+            $this->remoteCommands = new GitRemoteCommands(new GitRemote($this->project->dir, lane: $this->remoteLane = new ProcessLane()), $flash, $trans, $dispatcher, $modals, $repaint),
             historyPageSize: $historyPageSize,
             repository: $repository,
         );

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\GitPlugin\DiffStat;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\Parse\HunkParser;
 use Porta\GitPlugin\Setting\GitSettings;
@@ -373,5 +374,61 @@ final class GitInfoTest extends TestCase
         }
 
         $this->assertStringContainsString("-one\n+two", (string) $out);
+    }
+
+    /** A commit's added and removed lines over all its files; a commit that only removes says 0 added. */
+    public function testACommitsStatCountsItsLines(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject([]);
+        $this->gitInit($project);
+        $project->write('a.txt', "one\ntwo\n");
+        $project->write('b.txt', "x\n");
+        $this->gitCommit($project, 'a.txt');
+        $project->git('add', 'b.txt');
+        $project->git('commit', '-q', '-m', 'b');
+        $project->write('a.txt', "one\nthree\nfour\n");
+        $project->git('rm', '-q', 'b.txt');
+        $project->git('commit', '-qam', 'mixed');
+        $git = new GitInfo($project->dir);
+
+        $this->assertEquals(new DiffStat(2, 2), $this->stat($git, 'HEAD'));
+        $this->assertEquals(new DiffStat(1, 0), $this->stat($git, 'HEAD~1'));
+        $this->assertNull($this->stat($git, 'no-such-commit'));
+    }
+
+    private function stat(GitInfo $git, string $sha): ?DiffStat
+    {
+        $stat = false;
+        $git->commitStat($sha, static function (?DiffStat $answer) use (&$stat): void {
+            $stat = $answer;
+        });
+        $this->await(static function () use (&$stat): bool {
+            return false !== $stat;
+        }, what: 'the stat');
+
+        return false === $stat ? null : $stat;
+    }
+
+    public function testABranchsRemoteIsItsConfiguredOne(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject([]);
+        $this->gitInit($project);
+        $project->git('config', 'branch.main.remote', 'origin');
+        $project->git('config', 'branch.local.remote', '.');
+        $git = new GitInfo($project->dir);
+
+        $answers = [];
+        foreach (['main', 'unpublished', 'local'] as $branch) {
+            $git->remoteOf($branch, static function (?string $remote) use (&$answers, $branch): void {
+                $answers[$branch] = $remote;
+            });
+        }
+        $this->await(static function () use (&$answers): bool {
+            return 3 === \count($answers);
+        }, what: 'every answer');
+
+        $this->assertSame(['main' => 'origin', 'unpublished' => null, 'local' => null], $answers, 'a branch tracking a local one names no remote');
     }
 }

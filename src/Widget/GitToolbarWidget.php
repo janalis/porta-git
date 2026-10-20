@@ -31,13 +31,17 @@ use Symfony\Component\Tui\Widget\AbstractWidget;
 
 /**
  * GitHub Desktop's toolbar, across the top of the git view: the repository,
- * the branch with its pull request, and the remote button — Fetch, or Pull,
- * Push or Publish when there is something to move, with when it last fetched.
+ * the worktree when there are several, the branch with its pull request, and
+ * the remote button — Fetch, or Pull, Push or Publish when there is something
+ * to move, with when it last fetched.
  *
  * Roomy, each cell is a small label over its value and the row is ruled off
- * below; compact, the three values share one bar row. A press on the first two
- * drops their menu ({@see GitToolbarMenuRequested}); on the third, it runs the
- * operation the cell names.
+ * below; compact, the values share one bar row. Either way the cells stand
+ * over the panes under them: the first is as wide as the sidebar, the next as
+ * the column beside it ({@see $columns}), so each `│` meets a divider. A press
+ * on a menu cell drops its menu ({@see GitToolbarMenuRequested}); on the
+ * remote cell, it runs the operation the cell names — whose icon turns while
+ * it runs ({@see spin()}).
  */
 final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, TooltipProvider
 {
@@ -46,12 +50,16 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
 
     // Checked narrow: each is East Asian Neutral and has no emoji presentation.
     private const string REPOSITORY = '⌂';
+    private const string WORKTREE = '◫';
     private const string BRANCH = '⑂';
-    private const string REMOTE = '⟳';
+    private const string REMOTE = '↻';
     private const string AHEAD = '⇡';
     private const string BEHIND = '⇣';
 
-    /** A roomy cell's columns: a third of the row, within these. */
+    /** The remote icon while an operation runs: a quarter arc, turning clockwise. */
+    private const array SPIN = ['◜', '◝', '◞', '◟'];
+
+    /** A cell not standing over a pane takes its share of the rest, within these. */
     private const int CELL_MIN = 22;
     private const int CELL_MAX = 40;
 
@@ -69,6 +77,19 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
 
     /** How many rows the last render drew — where a dropped menu hangs from. */
     private int $drawnRows = 1;
+
+    /** The remote operation running, while its icon turns; null at rest. */
+    private ?GitRemoteOperation $running = null;
+
+    private int $frame = 0;
+
+    /**
+     * The widths of the panes under a row so wide, left to right; without,
+     * the cells share the row.
+     *
+     * @var (\Closure(int): list<int>)|null
+     */
+    private ?\Closure $columns = null;
 
     /** @param (\Closure(): int)|null $clock now, as a Unix timestamp; the real clock by default */
     public function __construct(
@@ -96,10 +117,45 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
         return $lines;
     }
 
+    /**
+     * Stand the cells over the panes under the toolbar. The view says how
+     * wide they are, from what it knows BEFORE the frame lays them out — the
+     * toolbar renders first, so a rect read off the panes would be a frame
+     * stale during a drag.
+     *
+     * @param \Closure(int): list<int> $columns the panes' widths under a row so wide, left to right
+     */
+    public function followPanes(\Closure $columns): void
+    {
+        $this->columns = $columns;
+        $this->invalidate();
+    }
+
     /** The rows the last render drew. */
     public function drawnRows(): int
     {
         return $this->drawnRows;
+    }
+
+    /**
+     * Turn the remote icon one step on, and say which operation runs. The
+     * view calls it on a timer while one does; {@see settle()} stops it.
+     */
+    public function spin(GitRemoteOperation $operation): void
+    {
+        $this->frame = null === $this->running ? 0 : ($this->frame + 1) % \count(self::SPIN);
+        $this->running = $operation;
+        $this->invalidate();
+    }
+
+    /** The operation is over: the icon comes back to rest. */
+    public function settle(): void
+    {
+        if (null === $this->running) {
+            return;
+        }
+        $this->running = null;
+        $this->invalidate();
     }
 
     /**
@@ -112,20 +168,27 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
         return $this->zones->span($cell->name);
     }
 
-    /** A press: the remote cell runs its operation, the other two drop their menu. */
+    /** A press: the remote cell runs its operation, a menu cell drops its menu. */
     public function handleClick(int $relCol): void
     {
         $cell = $this->cellAt($relCol);
-        if (null === $cell) {
+        if (null === $cell || !$this->opens($cell)) {
             return;
         }
         $this->events?->dispatch(ToolbarCell::Remote === $cell ? new GitRemoteRequested($this->operation()) : new GitToolbarMenuRequested($cell));
+    }
+
+    /** Whether a press on $cell does anything: the repository is a plain label once the worktree cell takes its menu. */
+    private function opens(ToolbarCell $cell): bool
+    {
+        return ToolbarCell::Repository !== $cell || !$this->repository->hasWorktrees();
     }
 
     /** Tint the cell under the pointer; returns whether that changed. */
     public function hoverAt(?int $relCol): bool
     {
         $cell = null === $relCol ? null : $this->cellAt($relCol);
+        $cell = null !== $cell && $this->opens($cell) ? $cell : null;
         if ($cell === $this->hovered) {
             return false;
         }
@@ -151,7 +214,10 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
             return null;
         }
         $text = match ($cell) {
-            ToolbarCell::Repository => $this->translator->trans('Repository %name% — click for its worktrees', ['%name%' => $this->repository->name()]),
+            ToolbarCell::Repository => $this->repository->hasWorktrees()
+                ? $this->translator->trans('Repository %name%', ['%name%' => $this->repository->name()])
+                : $this->translator->trans('Repository %name% — click for its worktrees', ['%name%' => $this->repository->name()]),
+            ToolbarCell::Worktree => $this->translator->trans('Worktree %name% — click to switch or add one', ['%name%' => $this->repository->worktree()]),
             ToolbarCell::Branch => $this->branchTip(),
             ToolbarCell::Remote => $this->remoteTip(),
         };
@@ -177,16 +243,32 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
         };
     }
 
+    /** "Pull origin", as GitHub Desktop says it — "Pulling origin…" while it runs. */
     private function remoteLabel(): string
     {
         $published = null !== $this->repository->tracking() || null === $this->repository->branch();
+        $remote = $this->repository->remote();
+        $named = null === $remote ? [] : ['%remote%' => AnsiText::oneLine($remote)];
+        $operation = $this->running ?? $this->operation();
 
-        return $this->translator->trans(match (true) {
-            !$published => 'Publish branch',
-            GitRemoteOperation::Pull === $this->operation() => 'Pull',
-            GitRemoteOperation::Push === $this->operation() => 'Push',
-            default => 'Fetch',
-        });
+        return match (true) {
+            null !== $this->running => $this->translator->trans(match ($operation) {
+                GitRemoteOperation::Fetch => [] === $named ? 'Fetching…' : 'Fetching %remote%…',
+                GitRemoteOperation::Pull => [] === $named ? 'Pulling…' : 'Pulling %remote%…',
+                GitRemoteOperation::Push => [] === $named ? 'Pushing…' : 'Pushing %remote%…',
+            }, $named),
+            !$published => $this->translator->trans('Publish branch'),
+            default => $this->translator->trans(match ($operation) {
+                GitRemoteOperation::Fetch => [] === $named ? 'Fetch' : 'Fetch %remote%',
+                GitRemoteOperation::Pull => [] === $named ? 'Pull' : 'Pull %remote%',
+                GitRemoteOperation::Push => [] === $named ? 'Push' : 'Push %remote%',
+            }, $named),
+        };
+    }
+
+    private function remoteIcon(): string
+    {
+        return null === $this->running ? self::REMOTE : self::SPIN[$this->frame];
     }
 
     /** "⇣2 ⇡1": what the remote button would move, or nothing. */
@@ -234,79 +316,153 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
     }
 
     /**
-     * Three cells, a third of the row each up to a width, then the rest of
-     * the bar; the label row, the value row and the rule under both.
+     * The cells drawn, left to right: the worktree's only once there are
+     * several to choose from.
+     *
+     * @return list<ToolbarCell>
+     */
+    private function cells(): array
+    {
+        return (
+            $this->repository->hasWorktrees()
+                ? [ToolbarCell::Repository, ToolbarCell::Worktree, ToolbarCell::Branch, ToolbarCell::Remote]
+                : [ToolbarCell::Repository, ToolbarCell::Branch, ToolbarCell::Remote]
+        );
+    }
+
+    /**
+     * Each cell's columns in a row $width wide, the last taking what is left.
+     * A cell stands over the pane under it while there is one (the last pane
+     * is "the rest", so it seats no cell but the last); past them, the cells
+     * share the rest within {@see CELL_MAX}. Too tight for {@see CELL_MIN},
+     * they share the whole row instead — lined up with nothing, but legible.
+     *
+     * @return list<int>
+     */
+    private function widths(int $width, int $count): array
+    {
+        $panes = null === $this->columns ? [] : ($this->columns)($width);
+        $widths = [];
+        $used = 0;
+        for ($i = 0; $i < ($count - 1); ++$i) {
+            $left = $count - $i;
+            $cell = $i < (\count($panes) - 1) ? $panes[$i] : \min(self::CELL_MAX, \intdiv($width - $used - $left + 1, $left));
+            $widths[] = $cell;
+            $used += $cell + 1;
+        }
+        if ([] !== $widths && (\min($widths) < self::CELL_MIN || $used >= $width)) {
+            $even = \max(1, \intdiv($width - $count + 1, $count));
+
+            return [...\array_fill(0, \max(0, $count - 1), $even), \max(1, $width - (($count - 1) * ($even + 1)))];
+        }
+
+        return [...$widths, \max(1, $width - $used)];
+    }
+
+    /**
+     * A cell's two rows: its label with what sits at its end, then its value
+     * with its badge.
+     *
+     * @return array{string, string, string, string}
+     */
+    private function roomyCell(ToolbarCell $cell): array
+    {
+        $dim = $this->styles->of(Role::Dim);
+        $bold = $this->styles->of(Role::Emphasis)->withBold();
+        $arrow = $this->opens($cell) ? Glyphs::SELECT_ARROW : '';
+
+        return match ($cell) {
+            ToolbarCell::Repository => [self::REPOSITORY.' '.$dim->apply($this->translator->trans('Current repository')), $arrow, '  '.$bold->apply($this->repository->name()), ''],
+            ToolbarCell::Worktree => [self::WORKTREE.' '.$dim->apply($this->translator->trans('Current worktree')), $arrow, '  '.$bold->apply(AnsiText::oneLine($this->repository->worktree())), ''],
+            ToolbarCell::Branch => [self::BRANCH.' '.$dim->apply($this->translator->trans('Current branch')), $arrow, '  '.$bold->apply($this->branchName()), $this->pullRequest()],
+            ToolbarCell::Remote => [$this->remoteIcon().' '.$bold->apply($this->remoteLabel()), $this->counts(), '  '.$dim->apply($this->fetched()), ''],
+        };
+    }
+
+    /**
+     * The label row, the value row and the rule under both, a `┴` under each
+     * cell's divider.
      *
      * @return list<string>
      */
     private function roomy(int $width): array
     {
-        $cell = \min(self::CELL_MAX, \max(self::CELL_MIN, \intdiv($width, num2: 3) - 1));
-        if ((3 * ($cell + 1)) > $width) {
-            $cell = \max(1, \intdiv($width, num2: 3) - 1);
-        }
-        $dim = $this->styles->of(Role::Dim);
-        $bold = $this->styles->of(Role::Emphasis)->withBold();
+        $cells = $this->cells();
+        $widths = $this->widths($width, \count($cells));
         $rule = $this->styles->of(Role::Rule);
-        $cells = [
-            [ToolbarCell::Repository, self::REPOSITORY.' '.$dim->apply($this->translator->trans('Current repository')), Glyphs::SELECT_ARROW, '  '.$bold->apply($this->repository->name()), ''],
-            [ToolbarCell::Branch, self::BRANCH.' '.$dim->apply($this->translator->trans('Current branch')), Glyphs::SELECT_ARROW, '  '.$bold->apply($this->branchName()), $this->pullRequest()],
-            [ToolbarCell::Remote, self::REMOTE.' '.$bold->apply($this->remoteLabel()), $this->counts(), '  '.$dim->apply($this->fetched()), ''],
-        ];
         $top = '';
         $middle = '';
-        $col = 0;
-        foreach ($cells as [$name, $label, $marker, $value, $badge]) {
-            $this->zones->add($name->name, $col, $col + $cell);
-            $hover = $name === $this->hovered ? $this->styles->of(Role::BarHoverBg) : null;
-            $top .= $this->shade(self::seat(' '.$label, $marker, $cell), $hover).$rule->apply(Glyphs::SEPARATOR);
-            $middle .= $this->shade(self::seat(' '.$value, $badge, $cell), $hover).$rule->apply(Glyphs::SEPARATOR);
-            $col += $cell + 1;
-        }
-        $tail = \max(0, $width - $col);
         $bottom = '';
-        for ($i = 0; $i < \min($col, $width); ++$i) {
-            $bottom .= $cell === ($i % ($cell + 1)) ? Glyphs::RULE_UP : Glyphs::FRAME_HORIZONTAL;
+        $col = 0;
+        foreach ($cells as $i => $cell) {
+            [$label, $marker, $value, $badge] = $this->roomyCell($cell);
+            $cellWidth = $widths[$i];
+            $last = $i === (\count($cells) - 1);
+            $this->zones->add($cell->name, $col, $col + $cellWidth);
+            $hover = $cell === $this->hovered ? $this->styles->of(Role::BarHoverBg) : null;
+            $divider = $last ? '' : $rule->apply(Glyphs::SEPARATOR);
+            $top .= $this->shade(self::seat(' '.$label, $marker, $cellWidth), $hover).$divider;
+            $middle .= $this->shade(self::seat(' '.$value, $badge, $cellWidth), $hover).$divider;
+            $bottom .= \str_repeat(Glyphs::FRAME_HORIZONTAL, \max(0, $cellWidth)).($last ? '' : Glyphs::RULE_UP);
+            $col += $cellWidth + 1;
         }
 
         return [
-            AnsiText::truncate($top.AnsiText::blank($tail), $width, pad: true),
-            AnsiText::truncate($middle.AnsiText::blank($tail), $width, pad: true),
-            $rule->apply(\mb_substr($bottom.\str_repeat(Glyphs::FRAME_HORIZONTAL, $tail), start: 0, length: $width)),
+            AnsiText::truncate($top, $width, pad: true),
+            AnsiText::truncate($middle, $width, pad: true),
+            $rule->apply(\mb_substr($bottom.\str_repeat(Glyphs::FRAME_HORIZONTAL, \max(0, $width)), start: 0, length: $width)),
         ];
     }
 
     /**
-     * One bar row: each cell's value, its badge and its arrow, sized to what
-     * it says. Past a third of the row a cell gives up the end of its VALUE —
-     * never the arrow that says it opens a menu, nor the badge.
+     * A cell on the one bar row: what leads its value, the value, and what
+     * follows it.
+     *
+     * @return array{string, string, string}
      */
-    private function compact(int $width): string
+    private function compactCell(ToolbarCell $cell): array
     {
         $bold = $this->styles->of(Role::Emphasis)->withBold();
-        $when = $this->repository->lastFetched();
+        $arrow = $this->opens($cell) ? ' '.Glyphs::SELECT_ARROW.' ' : ' ';
         $badge = $this->pullRequest();
-        $cells = [
-            [ToolbarCell::Repository, ' '.self::REPOSITORY.' ', $bold->apply($this->repository->name()), ' '.Glyphs::SELECT_ARROW.' '],
-            [ToolbarCell::Branch, ' '.self::BRANCH.' ', $bold->apply($this->branchName()), ('' === $badge ? '' : ' '.$badge).' '.Glyphs::SELECT_ARROW.' '],
-            [
-                ToolbarCell::Remote,
-                // What the button does and what it moves stay; the time gives way first.
-                ' '.self::REMOTE.' '.$bold->apply($this->remoteLabel()).('' === $this->counts() ? '' : ' '.$this->counts()).(null === $when ? '' : ' · '),
+        $when = $this->repository->lastFetched();
+
+        return match ($cell) {
+            ToolbarCell::Repository => [' '.self::REPOSITORY.' ', $bold->apply($this->repository->name()), $arrow],
+            ToolbarCell::Worktree => [' '.self::WORKTREE.' ', $bold->apply(AnsiText::oneLine($this->repository->worktree())), $arrow],
+            ToolbarCell::Branch => [' '.self::BRANCH.' ', $bold->apply($this->branchName()), ('' === $badge ? '' : ' '.$badge).$arrow],
+            // What the button does and what it moves stay; the time gives way first.
+            ToolbarCell::Remote => [
+                ' '.$this->remoteIcon().' '.$bold->apply($this->remoteLabel()).('' === $this->counts() ? '' : ' '.$this->counts()).(null === $when ? '' : ' · '),
                 null === $when ? '' : $this->time->short($when, ($this->clock)()),
                 ' ',
             ],
-        ];
-        $room = \max(1, \intdiv($width, num2: 3) - 1);
+        };
+    }
+
+    /**
+     * One bar row. The first cell stands over the sidebar like a roomy one;
+     * the others are as wide as what they say, and past their share of the
+     * rest a cell gives up the end of its VALUE — never the arrow that says it
+     * opens a menu, nor the badge.
+     */
+    private function compact(int $width): string
+    {
+        $cells = $this->cells();
+        $first = null === $this->columns ? null : ($this->columns)($width)[0] ?? null;
         $row = '';
         $col = 0;
         $separator = $this->styles->of(Role::Rule)->apply(Glyphs::SEPARATOR);
-        foreach ($cells as [$name, $head, $value, $tail]) {
+        foreach ($cells as $i => $cell) {
+            [$head, $value, $tail] = $this->compactCell($cell);
+            $seated = 0 === $i && null !== $first && $first < $width;
+            $room = $seated ? $first : \max(1, \intdiv($width - $col, \count($cells) - $i) - 1);
             $valueRoom = \max(1, $room - AnsiUtils::visibleWidth($head) - AnsiUtils::visibleWidth($tail));
             $text = $head.(AnsiUtils::visibleWidth($value) > $valueRoom ? AnsiText::truncate($value, $valueRoom) : $value).$tail;
+            $text = $seated ? AnsiText::truncate($text, $room, pad: true) : $text;
             $cellWidth = AnsiUtils::visibleWidth($text);
-            $this->zones->add($name->name, $col, $col + $cellWidth);
-            $row .= $this->shade($text, $name === $this->hovered ? $this->styles->of(Role::BarHoverBg) : null).$separator;
+            $this->zones->add($cell->name, $col, $col + $cellWidth);
+            $row .= $this->shade($text, $cell === $this->hovered ? $this->styles->of(Role::BarHoverBg) : null).($i === (\count($cells) - 1) ? '' : $separator);
             $col += $cellWidth + 1;
         }
 

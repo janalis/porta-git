@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Tests;
 
+use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\Process\ProcessLane;
@@ -12,6 +13,7 @@ use Porta\GitPlugin\RefreshScope;
 use Porta\GitPlugin\RepositoryState;
 use Porta\GitPlugin\Tracking;
 use Porta\Tests\Support\GitBinary;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
 
@@ -60,8 +62,13 @@ final class RepositoryStateTest extends TestCase
         });
         $state->refresh($scope);
         $lane = $this->lane;
-        $this->await(static function () use (&$repaints, $lane): bool {
-            return 0 === $lane->inFlight() && $repaints >= 3;
+        // git's own lane too: the branch's answer asks two more things —
+        // its remote of git, its pull request of gh — so neither lane alone
+        // being quiet says the refresh is over.
+        $git = Probe::get(Probe::get(Probe::get($state, 'git'), 'runner'), 'lane');
+        Assert::assertInstanceOf(ProcessLane::class, $git);
+        $this->await(static function () use (&$repaints, $lane, $git): bool {
+            return 0 === $lane->inFlight() && 0 === $git->inFlight() && $repaints >= 3;
         }, what: 'every answer');
         $this->pump(0.05);
 
@@ -140,6 +147,51 @@ final class RepositoryStateTest extends TestCase
         $this->assertSame(\basename($this->project->dir), $state->name());
         $this->assertSame('side', $state->branch());
         $this->assertSame(1_700_000_000, $state->lastFetched());
+    }
+
+    /** Each answer this test waits on, by name: the state repaints once per answer, in any order. */
+    private function settleOn(RepositoryState $state, \Closure $ready): void
+    {
+        $state->onChange(static function (): void {});
+        $state->refresh();
+        $this->await(static fn (): bool => $ready($state), what: 'the answers');
+    }
+
+    public function testTheWorktreeOpenAndHowManyThereAreAreRead(): void
+    {
+        $state = $this->state();
+        $this->settleOn($state, static fn (RepositoryState $s): bool => $s->branchRead());
+        $this->pump(0.2);
+        $this->assertFalse($state->hasWorktrees(), 'the clone alone');
+        $this->assertSame(\basename($this->project->dir), $state->worktree());
+
+        $linked = $this->project->path('elsewhere');
+        $this->project->git('worktree', 'add', '-q', '-b', 'side', $linked);
+        $linkedState = $this->state(root: $linked);
+        $this->settleOn($linkedState, static fn (RepositoryState $s): bool => $s->hasWorktrees() && 'elsewhere' === $s->worktree());
+
+        $this->assertSame(\basename($this->project->dir), $linkedState->name(), 'still named for the repository');
+    }
+
+    public function testTheRemoteTheBranchTracksIsRead(): void
+    {
+        $this->project->git('config', 'branch.main.remote', 'upstream');
+        $state = $this->state();
+
+        $this->settleOn($state, static fn (RepositoryState $s): bool => 'upstream' === $s->remote());
+
+        $this->project->git('checkout', '-q', '--detach');
+        $this->settleOn($state, static fn (RepositoryState $s): bool => null === $s->branch() && $s->branchRead());
+        $this->assertNull($state->remote(), 'a detached HEAD tracks nothing');
+    }
+
+    public function testAnUnpublishedBranchHasNoRemote(): void
+    {
+        $state = $this->state();
+        $this->settleOn($state, static fn (RepositoryState $s): bool => $s->branchRead());
+        $this->pump(0.2);
+
+        $this->assertNull($state->remote());
     }
 
     public function testAFailedOrStrangeAnswerFromGhIsNoNumber(): void
@@ -241,11 +293,14 @@ final class RepositoryStateTest extends TestCase
             $this->project->dir,
         );
         $state->refresh(); // slow: still on main when asked
-        $this->await(static function () use ($asked): bool {
-            $lines = \is_file($asked) ? \file($asked) : false;
+        $this->await(
+            static function () use ($asked): bool {
+                $lines = \is_file($asked) ? \file($asked) : false;
 
-            return false !== $lines && 3 === \count($lines);
-        }, what: 'the slow refresh to have asked git');
+                return false !== $lines && \count($lines) >= 4; // branch, tracking, locations, worktrees
+            },
+            what: 'the slow refresh to have asked git',
+        );
 
         $git = (string) $this->whichGit();
         $this->project->git('checkout', '-q', '-b', 'feature');

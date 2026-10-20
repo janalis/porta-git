@@ -770,6 +770,62 @@
         <source>whitespace changes shown</source>
         <target>changements d’espaces affichés</target>
       </trans-unit>
+      <trans-unit id="197">
+        <source>Fetch</source>
+        <target>Récupérer</target>
+      </trans-unit>
+      <trans-unit id="198">
+        <source>Pull</source>
+        <target>Pull</target>
+      </trans-unit>
+      <trans-unit id="199">
+        <source>Push</source>
+        <target>Push</target>
+      </trans-unit>
+      <trans-unit id="200">
+        <source>Publish branch</source>
+        <target>Publier la branche</target>
+      </trans-unit>
+      <trans-unit id="201">
+        <source>Fetch %remote%</source>
+        <target>Récupérer %remote%</target>
+      </trans-unit>
+      <trans-unit id="202">
+        <source>Pull %remote%</source>
+        <target>Pull depuis %remote%</target>
+      </trans-unit>
+      <trans-unit id="203">
+        <source>Push %remote%</source>
+        <target>Push vers %remote%</target>
+      </trans-unit>
+      <trans-unit id="204">
+        <source>Fetching…</source>
+        <target>Récupération…</target>
+      </trans-unit>
+      <trans-unit id="205">
+        <source>Fetching %remote%…</source>
+        <target>Récupération de %remote%…</target>
+      </trans-unit>
+      <trans-unit id="206">
+        <source>Pulling %remote%…</source>
+        <target>Pull depuis %remote%…</target>
+      </trans-unit>
+      <trans-unit id="207">
+        <source>Pushing %remote%…</source>
+        <target>Push vers %remote%…</target>
+      </trans-unit>
+      <trans-unit id="208">
+        <source>Current worktree</source>
+        <target>Arbre de travail actuel</target>
+      </trans-unit>
+      <trans-unit id="209">
+        <source>Repository %name%</source>
+        <target>Dépôt %name%</target>
+      </trans-unit>
+      <trans-unit id="210">
+        <source>Worktree %name% — click to switch or add one</source>
+        <target>Arbre de travail %name% — cliquer pour en changer ou en ajouter un</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

@@ -770,6 +770,62 @@
         <source>whitespace changes shown</source>
         <target>空白の変更を表示</target>
       </trans-unit>
+      <trans-unit id="197">
+        <source>Fetch</source>
+        <target>フェッチ</target>
+      </trans-unit>
+      <trans-unit id="198">
+        <source>Pull</source>
+        <target>プル</target>
+      </trans-unit>
+      <trans-unit id="199">
+        <source>Push</source>
+        <target>プッシュ</target>
+      </trans-unit>
+      <trans-unit id="200">
+        <source>Publish branch</source>
+        <target>ブランチを公開</target>
+      </trans-unit>
+      <trans-unit id="201">
+        <source>Fetch %remote%</source>
+        <target>%remote% をフェッチ</target>
+      </trans-unit>
+      <trans-unit id="202">
+        <source>Pull %remote%</source>
+        <target>%remote% からプル</target>
+      </trans-unit>
+      <trans-unit id="203">
+        <source>Push %remote%</source>
+        <target>%remote% へプッシュ</target>
+      </trans-unit>
+      <trans-unit id="204">
+        <source>Fetching…</source>
+        <target>フェッチ中…</target>
+      </trans-unit>
+      <trans-unit id="205">
+        <source>Fetching %remote%…</source>
+        <target>%remote% をフェッチ中…</target>
+      </trans-unit>
+      <trans-unit id="206">
+        <source>Pulling %remote%…</source>
+        <target>%remote% からプル中…</target>
+      </trans-unit>
+      <trans-unit id="207">
+        <source>Pushing %remote%…</source>
+        <target>%remote% へプッシュ中…</target>
+      </trans-unit>
+      <trans-unit id="208">
+        <source>Current worktree</source>
+        <target>現在のワークツリー</target>
+      </trans-unit>
+      <trans-unit id="209">
+        <source>Repository %name%</source>
+        <target>リポジトリ %name%</target>
+      </trans-unit>
+      <trans-unit id="210">
+        <source>Worktree %name% — click to switch or add one</source>
+        <target>ワークツリー %name% — クリックで切り替え・追加</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

@@ -7,13 +7,17 @@ namespace Porta\GitPlugin\Tests\View;
 use PHPUnit\Framework\TestCase;
 use Porta\Event\GitRemoteCompleted;
 use Porta\Event\WorkingTreeChanged;
+use Porta\GitPlugin\Command\GitRemoteOperation;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitHashCopyRequested;
 use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
+use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Tests\Support\GitViewRig;
+use Porta\GitPlugin\View\ToolbarCell;
 use Porta\Tests\Support\Presence;
 use Porta\Tests\Support\Probe;
+use Porta\Tests\Support\TempProject;
 
 /**
  * The git view's GitHub Desktop half: the toolbar that follows the branch,
@@ -63,7 +67,7 @@ final class GitViewToolbarTest extends TestCase
         $this->project->git('add', 'a.txt');
         Probe::invoke($controller, 'commit', 'Ahead');
         $this->await(fn (): bool => \str_contains($this->toolbarText(), '⇡1'), what: 'one commit ahead');
-        $this->assertStringContainsString('⟳ Push', $this->toolbarText(), 'and the remote button offers to push it');
+        $this->assertStringContainsString('↻ Push', $this->toolbarText(), 'and the remote button offers to push it');
     }
 
     /** The commit header's copy button puts the full sha on the clipboard and says the short one. */
@@ -178,5 +182,77 @@ final class GitViewToolbarTest extends TestCase
         $this->awaitLanes([$this->lane()]);
 
         $this->assertStringContainsString('+two', $this->diffText(), 'the older answer was dropped');
+    }
+
+    /**
+     * A remote whose upload-pack waits $seconds before answering, so a fetch
+     * from it is still running while the test looks.
+     */
+    private function slowOrigin(int $seconds = 1): void
+    {
+        $bare = new TempProject([]);
+        \exec('git clone -q --bare '.\escapeshellarg($this->project->dir).' '.\escapeshellarg($bare->dir.'/origin.git'));
+        $this->project->git('remote', 'add', 'origin', $bare->dir.'/origin.git');
+        $this->project->git('config', 'remote.origin.uploadpack', 'sleep '.$seconds.'; git-upload-pack');
+    }
+
+    /** The remote icon in the toolbar's top row: the cell's first column after its space. */
+    private function remoteIcon(): string
+    {
+        $top = \explode("\n", $this->toolbarText())[0];
+        $span = $this->toolbar->span(ToolbarCell::Remote);
+
+        return null === $span ? '' : \mb_substr($top, start: $span[0] + 1, length: 1);
+    }
+
+    /** GitHub Desktop's spinning arrows: the remote icon turns while the fetch runs, and rests when it is over. */
+    public function testTheRemoteIconTurnsWhileAFetchRunsAndRestsAfter(): void
+    {
+        $controller = $this->controller();
+        $this->slowOrigin();
+        $controller->open();
+        $seen = [];
+
+        $controller->onRemoteRequested(new GitRemoteRequested(GitRemoteOperation::Fetch));
+        $this->await(function () use (&$seen): bool {
+            $seen[$this->remoteIcon()] = true;
+
+            return \count(\array_intersect_key($seen, ['◜' => 1, '◝' => 1, '◞' => 1])) >= 2;
+        }, what: 'the icon to turn');
+        $this->assertStringContainsString('Fetching…', $this->toolbarText());
+        $this->await(fn (): bool => '↻' === $this->remoteIcon() && null === Probe::get($controller, 'spinner'), what: 'the icon to rest after the fetch');
+        $this->assertStringNotContainsString('Fetching', $this->toolbarText());
+    }
+
+    /** An operation the palette started, with the view open: the next poll tick sees it and turns the icon. */
+    public function testAnOperationStartedElsewhereIsSeenByThePoll(): void
+    {
+        $controller = $this->controller();
+        $this->slowOrigin(seconds: 3); // past the first two-second tick
+        $controller->open();
+        $this->await($controller->isOpen(...));
+
+        $this->remoteCommands->fetch();
+        $this->await(static fn (): bool => null !== Probe::get($controller, 'spinner'), what: 'the poll to see the fetch'); // the object, re-read each time
+        $this->assertNotSame('↻', $this->remoteIcon());
+
+        $controller->close();
+        $this->assertNull(Probe::get($controller, 'spinner'), 'a closed view turns nothing');
+        $this->assertSame('↻', $this->remoteIcon());
+    }
+
+    /** Opening the view while an operation runs turns the icon at once; a completion stops it at once. */
+    public function testOpeningMidOperationTurnsTheIconAndACompletionStopsIt(): void
+    {
+        $controller = $this->controller();
+        $this->slowOrigin();
+        $this->remoteCommands->fetch();
+
+        $controller->open();
+        $this->assertNotNull(Probe::get($controller, 'spinner'));
+
+        $controller->onRemoteCompleted(new GitRemoteCompleted('fetch', true));
+        $this->assertNull(Probe::get($controller, 'spinner'));
+        $this->assertSame('↻', $this->remoteIcon());
     }
 }

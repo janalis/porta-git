@@ -49,18 +49,24 @@ Status re-reads on every action and polls every 2 s while open. Two tabs:
 
 ### Toolbar
 
-Across the top, as in GitHub Desktop, three cells:
+Across the top, as in GitHub Desktop, a cell over each pane below it — the
+first as wide as the sidebar, the next as wide as History's files column — so
+each divider meets the pane's:
 
 | Cell | Shows | A click |
 | --- | --- | --- |
-| **Current repository** | the repository's folder (a linked worktree's main one) | drops *Worktrees…* · *New Worktree…* |
-| **Current branch** | the branch, and `#446` when `gh` finds an open pull request for it | drops *Switch* · *New* · *Delete Branch…* |
-| **Fetch** | *Pull ⇣2*, *Push ⇡1* or *Publish branch* when there is something to move, and when the last fetch was | runs that operation |
+| ⌂ **Current repository** | the repository's folder (a linked worktree's main one) | drops *Worktrees…* · *New Worktree…* |
+| ◫ **Current worktree** | the worktree open — only once worktrees were added beside the clone; the repository cell is then a plain label | drops *Worktrees…* · *New Worktree…* |
+| ⑂ **Current branch** | the branch, and `#446` when `gh` finds an open pull request for it | drops *Switch* · *New* · *Delete Branch…* |
+| ↻ **Fetch origin** | *Pull origin ⇣2*, *Push origin ⇡1* or *Publish branch* when there is something to move, and when the last fetch was | runs that operation |
+
+While a fetch, pull or push runs — from the toolbar, its keys or the palette —
+the ↻ turns (◜ ◝ ◞ ◟) and the cell says *Fetching origin…*.
 
 The pull request number needs the [GitHub CLI](https://cli.github.com) on the
 `PATH`, logged in; without it the cell simply shows no number. It is asked in
 the background when the branch changes and after a fetch. On a short screen
-the three cells share one bar row.
+the cells share one bar row.
 
 ### Changes
 
