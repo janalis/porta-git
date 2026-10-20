@@ -210,10 +210,12 @@ final class GitViewController implements ContributedView
         // content to start with, the diff the rest, and a divider to move.
         $this->split = $this->region->split('columns', NarrowSplit::Stacked, self::FILES_SHARE, self::FILES_MIN);
         $this->split->onNarrow($this->stack(...));
+        // The branch cell stands over the files column: it moves with the divider.
+        $this->split->onMove($this->panes->toolbar->invalidate(...));
         // How this sidebar resizes. Four stacked widgets each render their own
         // width, so a drag fans the new one out to all of them; core sees a
         // container and cannot know that.
-        $this->sidebar = new GitSidebar($this->panes->tabs, $this->panes->changes, $this->panes->commitBox, $this->panes->history);
+        $this->sidebar = new GitSidebar($this->panes->tabs, $this->panes->changes, $this->panes->commitBox, $this->panes->history, $this->panes->toolbar);
         $this->region->setSidebarPanes($this->sidebar);
         $this->panes->toolbar->followPanes($this->columns(...));
         // Seeded for the initial Changes mode. WorkspaceLayout used to stack

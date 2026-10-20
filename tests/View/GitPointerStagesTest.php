@@ -15,7 +15,6 @@ use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Input\HitTester;
 use Porta\Input\MouseEvent;
-use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\TestTui;
 use Porta\Workbench\View\WheelAxis;
 use Porta\Workbench\View\WheelGesture;
@@ -44,7 +43,7 @@ final class GitPointerStagesTest extends TestCase
             new HitTester(new Renderer(new StyleSheet())),
             GitDoubles::host($tui),
             new ChangesListWidget($translator),
-            new DiffViewWidget($translator, density: CompactScreen::density()),
+            new DiffViewWidget($translator),
             new CommitBoxWidget($translator),
             new HistoryListWidget($translator),
             new GitTabsWidget($translator),

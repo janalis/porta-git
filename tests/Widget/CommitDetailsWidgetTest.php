@@ -72,7 +72,7 @@ final class CommitDetailsWidgetTest extends TestCase
         $this->assertSame(
             [
                 '            2 changed files             ',
-                '────────────────────────────────────────',
+                '▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀',
                 '▌tasks/lessons.md                     M ',
                 ' tasks/todo.md                        A ',
                 '                                        ',
@@ -86,7 +86,8 @@ final class CommitDetailsWidgetTest extends TestCase
         $styles = Styles::dark();
         $this->assertStringContainsString($styles->of(Role::Dim)->apply('tasks/'), $raw[2], 'the folder dim');
         $this->assertStringContainsString($styles->of(Role::Added)->apply('A'), $raw[3], 'the status in its tint');
-        $this->assertSame(Rule::horizontal(40, $styles), $raw[1]);
+        $this->assertSame(Rule::under(40, $styles, Role::HeaderBar), $raw[1], 'closed off like the diff\'s file header beside it');
+        $this->assertSame($styles->of(Role::HeaderBar)->apply('            2 changed files             '), $raw[0], 'on a bar row like it');
     }
 
     /** Stacked over the diff, the column is its files alone — at most six — closed off by a rule. */
@@ -129,7 +130,7 @@ final class CommitDetailsWidgetTest extends TestCase
 
         $rows = self::rows($widget, rows: 3);
 
-        $this->assertSame(['                                        ', '────────────────────────────────────────', '                                        '], $rows);
+        $this->assertSame(['                                        ', '▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀', '                                        '], $rows);
         $this->assertNull($widget->commit());
         $this->assertNull($widget->selectedFile());
         $this->assertSame(0, $widget->fileCount());

@@ -12,8 +12,10 @@ use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\I18n\Translator;
 use Porta\Layout\DiffLayout;
-use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\Probe;
+use Porta\Ui\Role;
+use Porta\Ui\Theme\Styles;
+use Porta\Widget\Render\Rule;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
@@ -36,16 +38,38 @@ final class DiffViewWidgetTest extends TestCase
 
     private function widget(?EventDispatcher $events = null): DiffViewWidget
     {
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $widget = new DiffViewWidget(new Translator('en'), events: $events);
         $widget->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
 
         return $widget;
     }
 
-    /** @return list<string> */
+    /**
+     * The title row, then the body: the rule under the title is dropped, so
+     * a body row is at the index it would be under a one-row header.
+     *
+     * @return list<string>
+     */
     private function plainLines(DiffViewWidget $widget, int $cols = 80, int $rows = 12): array
     {
-        return \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext($cols, $rows)));
+        $lines = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext($cols, $rows + 1)));
+        \array_splice($lines, offset: 1, length: 1);
+
+        return $lines;
+    }
+
+    /**
+     * A raw render with the rule under the title dropped, as {@see plainLines()} does.
+     *
+     * @param list<string> $lines
+     *
+     * @return list<string>
+     */
+    private static function body(array $lines): array
+    {
+        \array_splice($lines, offset: 1, length: 1);
+
+        return $lines;
     }
 
     public function testRendersGuttersHunkHeadersAndBodies(): void
@@ -62,7 +86,7 @@ final class DiffViewWidgetTest extends TestCase
 
     public function testColorsMarkRowKinds(): void
     {
-        $raw = $this->widget()->render(new RenderContext(80, 12));
+        $raw = self::body($this->widget()->render(new RenderContext(80, 12)));
 
         $this->assertStringContainsString("\x1b[38;5;75m", $raw[1], 'hunk header cyan');
         $this->assertStringContainsString("\x1b[38;5;203m", $raw[3], 'deletion red');
@@ -71,7 +95,7 @@ final class DiffViewWidgetTest extends TestCase
 
     public function testAddedAndContextLinesKeepSyntaxHighlighting(): void
     {
-        $raw = $this->widget()->render(new RenderContext(80, 12));
+        $raw = self::body($this->widget()->render(new RenderContext(80, 12)));
 
         // tempest/highlight colors PHP variables; the raw added row must carry
         // SGR codes beyond the plain green marker (i.e. highlighted body).
@@ -86,7 +110,7 @@ final class DiffViewWidgetTest extends TestCase
 
     public function testPlaceholderWithoutADocument(): void
     {
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(null, null, 'Select a file');
 
         $lines = $this->plainLines($widget, 40, 5);
@@ -200,7 +224,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput(' ');
         $this->assertArrayHasKey(0, (array) $captured, 'cursor is back on hunk 0');
 
-        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), events: $events);
         $empty->setDocument(null, null);
         $empty->setFocused(true);
         $empty->handleInput("\x1b[B"); // no rows: consumed, no crash
@@ -217,7 +241,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput("\x1b[B");
         $widget->handleInput('v'); // anchor at row 2
         $widget->handleInput("\x1b[A"); // cursor row 1: reversed range [1..2]
-        $raw = $widget->render(new RenderContext(80, 12));
+        $raw = self::body($widget->render(new RenderContext(80, 12)));
         $this->assertStringContainsString("\x1b[48;5;236m", $raw[3], 'the anchor row (below the cursor) is range-highlighted');
     }
 
@@ -239,7 +263,7 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame(1, $fired, 'read-only history diffs cannot change context');
 
         $widget->makeEditable();
-        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), events: $events);
         $empty->setDocument(null, null);
         $empty->setFocused(true);
         $empty->handleInput('c');
@@ -263,7 +287,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->scrollBy(50); // clamps at the bottom
         $this->assertStringContainsString('tail!', \implode("\n", $this->plainLines($widget, 80, 4)));
 
-        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $empty = new DiffViewWidget(new Translator('en'));
         $empty->setDocument(null, null);
         $empty->scrollBy(1); // no rows: a safe no-op
         $this->assertFalse($empty->isSplit());
@@ -349,7 +373,7 @@ final class DiffViewWidgetTest extends TestCase
 
     public function testNoNewlineMarkerRendersDim(): void
     {
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-old\n\\ No newline at end of file\n+new\n"), 'x.txt');
 
         $lines = $this->plainLines($widget, 60, 6);
@@ -416,10 +440,10 @@ final class DiffViewWidgetTest extends TestCase
         GitWidgetEvents::wire($events, onLayoutToggle: static function () use (&$toggles, $widget): void {
             $toggles[] = $widget->isSplit();
         });
-        $plain = AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(80, 12))[0]);
-        $this->assertMatchesRegularExpression('/^ src\/demo\.php +⚙ ▾  $/u', $plain, 'the title, then the gear at the end');
+        $plain = AnsiUtils::stripAnsiCodes(self::body($widget->render(new RenderContext(80, 12)))[0]);
+        $this->assertMatchesRegularExpression('/^ src\/demo\.php +⚙ ▾ $/u', $plain, 'the title, then the gear at the end');
         $anchor = $widget->settingsAnchor();
-        $this->assertSame([74, 1], $anchor, 'its first column, and the toolbar\'s height to hang a menu under');
+        $this->assertSame([75, 2], $anchor, 'its first column, and the header\'s height to hang a menu under');
 
         $widget->handleClick(0, 75);
         $this->assertSame(1, $asked);
@@ -435,11 +459,11 @@ final class DiffViewWidgetTest extends TestCase
     }
 
     /**
-     * On a roomy screen the gear is a box, the title on its middle row: it
-     * answers on each of its three rows, and every body row sits three down —
-     * the cursor, the page and the scroll all count the header.
+     * GitHub Desktop's file header, at every density: the path — its folder
+     * dim — and the gear on one bar row, closed off by a second; the body
+     * starts under both, and only the bar row's gear answers.
      */
-    public function testARoomyToolbarBoxesItsGearAndTheBodyStartsBelowIt(): void
+    public function testTheHeaderIsOneBarRowAndItsCloseAtEveryDensity(): void
     {
         $events = new EventDispatcher();
         $widget = new DiffViewWidget(new Translator('en'), events: $events);
@@ -449,42 +473,53 @@ final class DiffViewWidgetTest extends TestCase
         $events->addListener(GitDiffSettingsRequested::class, static function () use (&$asked): void {
             ++$asked;
         });
-        $lines = $this->plainLines($widget);
+        $raw = $widget->render(new RenderContext(80, 12));
+        $styles = Styles::dark();
 
-        $this->assertStringEndsWith('╭─────╮ ', $lines[0]);
-        $this->assertMatchesRegularExpression('/^ src\/demo\.php +│ ⚙ ▾ │ $/u', $lines[1]);
-        $this->assertStringContainsString('@@ -3,3 +3,4 @@', $lines[3], 'the body starts below the three-row header');
+        $this->assertMatchesRegularExpression('/^ src\/demo\.php +⚙ ▾ $/u', AnsiUtils::stripAnsiCodes($raw[0]));
+        $this->assertStringContainsString($styles->of(Role::Dim)->apply('src/'), $raw[0], 'the folder dim');
+        $this->assertSame(Rule::under(80, $styles, Role::HeaderBar), $raw[1]);
+        $this->assertStringContainsString('@@ -3,3 +3,4 @@', AnsiUtils::stripAnsiCodes($raw[2]), 'the body starts under the two rows');
         $anchor = $widget->settingsAnchor();
         $this->assertNotNull($anchor);
-        $this->assertSame(3, $anchor[1], 'its menu hangs under all three rows');
 
-        $widget->handleClick(0, $anchor[0] + 1); // its top border
-        $widget->handleClick(2, $anchor[0] + 1); // and its bottom one
-        $this->assertSame(2, $asked);
-        $this->assertTrue($widget->hoverHeader(2, $anchor[0] + 1), 'hover answers on the bottom row too');
+        $widget->handleClick(1, $anchor[0] + 1); // the close under the gear: nothing
+        $this->assertSame(0, $asked);
+        $this->assertFalse($widget->hoverHeader(1, $anchor[0] + 1), 'nor does it light up');
+        $this->assertNull($widget->tooltipAt(1, $anchor[0] + 1));
+        $widget->handleClick(0, $anchor[0] + 1);
+        $this->assertSame(1, $asked);
 
         $captured = null;
         GitWidgetEvents::wire($events, onStageSelection: static function (array $selected) use (&$captured): void {
             $captured = $selected;
         });
-        $widget->handleClick(5, 10); // row 5 = the deletion (hunk 0 line 1), three header rows down
+        $widget->handleClick(4, 10); // the deletion (hunk 0 line 1), two header rows down
         $widget->handleInput(' ');
         $this->assertSame([0 => [1 => true]], $captured);
     }
 
-    /** A roomy pane too narrow for the boxed gear takes the one-row one, and one too narrow for that the title alone. */
-    public function testANarrowRoomyToolbarFallsBackToTheTagThenToTheTitle(): void
+    /** A pane too narrow gives up its title first, then its gear. */
+    public function testANarrowHeaderGivesUpTheTitleThenTheGear(): void
     {
         $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
 
-        $tag = $this->plainLines($widget, 7, 8);
-        $this->assertSame(' ⚙ ▾  ', \mb_substr($tag[0], start: 1), 'boxed, the gear needs 8 columns: the tag takes 6');
-        $this->assertStringContainsString('@@', $tag[1], 'a one-row header');
+        $this->assertSame(' … ⚙ ▾ ', $this->plainLines($widget, 7, 8)[0]);
 
         $title = $this->plainLines($widget, 5, 8);
         $this->assertSame(' src…', $title[0]);
         $this->assertNull($widget->settingsAnchor(), 'no gear drawn, none to hang a menu from');
+    }
+
+    /** A file at the top of the repository has no folder to dim. */
+    public function testAPathWithNoFolderIsItsNameAlone(): void
+    {
+        $widget = new DiffViewWidget(new Translator('en'));
+        $widget->setDocument(DiffDocument::parse(self::RAW), 'demo.php');
+
+        $this->assertStringContainsString(' '.Styles::dark()->of(Role::Emphasis)->withBold()->apply('demo.php'), $widget->render(new RenderContext(40, 4))[0]);
+        $this->assertStringNotContainsString("\x1b[38;5;245m", $widget->render(new RenderContext(40, 4))[0], 'nothing dim');
     }
 
     public function testBodyClickMovesTheCursor(): void
@@ -497,17 +532,17 @@ final class DiffViewWidgetTest extends TestCase
         GitWidgetEvents::wire($events, onStageSelection: static function (array $selected) use (&$captured): void {
             $captured = $selected;
         });
-        $widget->handleClick(3, 10); // row 3 = the deletion (hunk 0 line 1)
+        $widget->handleClick(4, 10); // row 3 = the deletion (hunk 0 line 1)
         $widget->handleInput(' ');
         $this->assertSame([0 => [1 => true]], $captured);
 
-        $widget->handleClick(50, 10); // past the rows: clamps to the last row
+        $widget->handleClick(51, 10); // past the rows: clamps to the last row
         $widget->handleInput(' ');
         $this->assertSame([1 => [1 => true]], $captured, 'clamped to the final +tail! row');
 
-        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), events: $events);
         $empty->setDocument(null, null);
-        $empty->handleClick(2, 2); // no rows: a safe no-op
+        $empty->handleClick(3, 2); // no rows: a safe no-op
         $this->assertFalse($empty->isSplit());
     }
 
@@ -573,7 +608,7 @@ final class DiffViewWidgetTest extends TestCase
     public function testHorizontalScrollSlidesTextUnderPinnedGutters(): void
     {
         $long = \str_repeat('x', times: 30).'NEEDLE'.\str_repeat('y', times: 30);
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-old\n+{$long}\n"), 'x.txt');
         $widget->setFocused(true);
 
@@ -605,7 +640,7 @@ final class DiffViewWidgetTest extends TestCase
     {
         $long = \str_repeat('a', times: 25).'LEFT'.\str_repeat('b', times: 20);
         $longer = \str_repeat('c', times: 25).'RIGHT'.\str_repeat('d', times: 20);
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-{$long}\n+{$longer}\n"), 'x.txt');
         $widget->useSplitView();
         $widget->setFocused(true);
@@ -629,14 +664,14 @@ final class DiffViewWidgetTest extends TestCase
     {
         // Paired lines sharing prefix/suffix get an intraline range; scroll so
         // the emphasized middle is inside the window and check its bg code.
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-".\str_repeat('p', times: 30)."OLD tail\n+".\str_repeat('p', times: 30)."NEW tail\n"), 'x.txt');
         $widget->setFocused(true);
         for ($i = 0; $i < 3; ++$i) {
             $widget->handleInput("\x1b[C"); // 24 cols: the changed middle is in view
         }
 
-        $raw = $widget->render(new RenderContext(40, 6));
+        $raw = self::body($widget->render(new RenderContext(40, 6)));
         $this->assertStringContainsString("\x1b[48;5;124m", $raw[2], 'the deletion emphasis bg survived the slice');
         $this->assertStringContainsString("\x1b[48;5;28m", $raw[3], 'the addition emphasis bg survived the slice');
     }
@@ -672,7 +707,7 @@ final class DiffViewWidgetTest extends TestCase
     public function testCopySkipsNoNewlineMarkersAndWorksSplitAndReadOnly(): void
     {
         $events = new EventDispatcher();
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $widget = new DiffViewWidget(new Translator('en'), events: $events);
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-old\n\\ No newline at end of file\n+new\n"), 'x.txt');
         $widget->setFocused(true);
         $widget->makeReadOnly(); // history diffs can select + copy...
@@ -694,7 +729,7 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput("\x03");
         $this->assertSame(["old\nnew\n"], $copies, 'both sides, marker line skipped, still read-only');
 
-        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), events: $events);
         $empty->setDocument(null, null);
         GitWidgetEvents::wire($events, onCopy: static function () use (&$copies): void {
             $copies[] = 'never';
@@ -717,9 +752,9 @@ final class DiffViewWidgetTest extends TestCase
         });
         // Press mid '-$old = 2;' (text col 1 = 'old = 2;') and drag to the
         // next row's text col 4: tail of the old line + head of the new one.
-        $widget->handleClick(3, 13);
-        $widget->dragSelectTo(4, 16);
-        $raw = $widget->render(new RenderContext(80, 12));
+        $widget->handleClick(4, 13);
+        $widget->dragSelectTo(5, 16);
+        $raw = self::body($widget->render(new RenderContext(80, 12)));
         $this->assertStringContainsString("\x1b[48;5;24m", $raw[3], 'the selected span carries the selection bg');
         $this->assertStringContainsString("\x1b[48;5;24m", $raw[4]);
         $this->assertStringNotContainsString("\x1b[48;5;24m", $raw[2], 'rows outside the span stay untinted');
@@ -727,27 +762,27 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame(["old = 2;\n\$new"], $copies, 'exact chars: tail of the deletion, head of the addition');
 
         // The selection was consumed; a plain click + copy is row-based again.
-        $widget->handleClick(4, 20);
+        $widget->handleClick(5, 20);
         $widget->handleInput("\x03");
         $this->assertSame("\$new = 2;\n", $copies[1], 'a degenerate press falls back to the cursor row');
 
         // A reversed drag (upward) normalizes.
-        $widget->handleClick(4, 16);
-        $widget->dragSelectTo(3, 13);
+        $widget->handleClick(5, 16);
+        $widget->dragSelectTo(4, 13);
         $widget->handleInput("\x03");
         $this->assertSame("old = 2;\n\$new", $copies[2]);
 
         // A span across the second hunk header: the header row contributes
         // nothing to the tint or the copied text.
-        $widget->handleClick(5, 13); // +$extra = 3;
-        $widget->dragSelectTo(7, 16); // through '@@ -10,1 +11,1 @@' to -tail
-        $widget->render(new RenderContext(80, 12)); // tints skip the header row
+        $widget->handleClick(6, 13); // +$extra = 3;
+        $widget->dragSelectTo(8, 16); // through '@@ -10,1 +11,1 @@' to -tail
+        self::body($widget->render(new RenderContext(80, 12))); // tints skip the header row
         $widget->handleInput("\x03");
         $this->assertSame("extra = 3;\ntail", $copies[3], 'hunk header skipped mid-selection');
 
-        $empty = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $empty = new DiffViewWidget(new Translator('en'), events: $events);
         $empty->setDocument(null, null);
-        $empty->dragSelectTo(3, 5); // no rows / no press: a safe no-op
+        $empty->dragSelectTo(4, 5); // no rows / no press: a safe no-op
         $this->assertFalse($empty->isSplit());
     }
 
@@ -765,10 +800,10 @@ final class DiffViewWidgetTest extends TestCase
         // A raw tab reached the terminal, which jumps to every eighth column
         // while the vendor had counted three; and the emphasis was placed by
         // mb_strwidth(), so it landed columns off the changed word.
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-{$prefix}xx OLD tail\n+{$prefix}xx NEW tail\n"), 'x.txt');
 
-        $rows = $widget->render(new RenderContext(60, 6));
+        $rows = self::body($widget->render(new RenderContext(60, 6)));
 
         foreach ($rows as $n => $row) {
             $this->assertStringNotContainsString("\t", $row, "row {$n} sends no raw tab");
@@ -781,7 +816,7 @@ final class DiffViewWidgetTest extends TestCase
     public function testADragAcrossATabCopiesTheRawTab(): void
     {
         $events = new EventDispatcher();
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $widget = new DiffViewWidget(new Translator('en'), events: $events);
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-\tif (x) {\n+\tif (y) {\n"), 'x.txt');
         $widget->setFocused(true);
         $this->plainLines($widget);
@@ -792,17 +827,17 @@ final class DiffViewWidgetTest extends TestCase
 
         // Text starts at widget col 12; the tab is painted four columns wide,
         // so text cols 0-5 are the tab and `if`.
-        $widget->handleClick(3, 12);
-        $widget->dragSelectTo(3, 18);
+        $widget->handleClick(4, 12);
+        $widget->dragSelectTo(4, 18);
         $widget->handleInput("\x03");
 
         $this->assertSame(["\tif"], $copies, 'the copy is the file\'s text, tab and all');
 
         // From the deletion's start into the addition: the deletion is tinted
         // to its painted end, which a tab counted as one column cut short.
-        $widget->handleClick(2, 12);
-        $widget->dragSelectTo(3, 14);
-        $row = $widget->render(new RenderContext(80, 12))[2];
+        $widget->handleClick(3, 12);
+        $widget->dragSelectTo(4, 14);
+        $row = self::body($widget->render(new RenderContext(80, 12)))[2];
         // The intraline emphasis on `x` splits the tint; its last run is the end.
         $runs = \explode("\x1b[48;5;24m", $row);
         $last = \explode("\x1b[49m", $runs[\count($runs) - 1], limit: 2)[0];
@@ -813,24 +848,24 @@ final class DiffViewWidgetTest extends TestCase
     {
         // Twelve tabs paint 48 columns: counted as one each, the scroll limit
         // stopped short and `END` could never be brought into view.
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n ".\str_repeat("\t", times: 12)."END\n"), 'x.txt');
         $widget->setFocused(true);
         for ($i = 0; $i < 6; ++$i) {
             $widget->handleInput("\x1b[C");
         }
 
-        $this->assertStringContainsString('END', AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(50, 6))[2]));
+        $this->assertStringContainsString('END', AnsiUtils::stripAnsiCodes(self::body($widget->render(new RenderContext(50, 6)))[2]));
     }
 
     public function testSplitDragBindsToItsHalf(): void
     {
         $events = new EventDispatcher();
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density(), events: $events);
+        $widget = new DiffViewWidget(new Translator('en'), events: $events);
         $widget->setDocument(DiffDocument::parse("@@ -1,2 +1,2 @@\n-oldA\n-oldB\n+newA\n+newB\n"), 'x.txt');
         $widget->useSplitView();
         $widget->setFocused(true);
-        $widget->render(new RenderContext(80, 6)); // leftW = 39: right half text starts at col 46
+        self::body($widget->render(new RenderContext(80, 6))); // leftW = 39: right half text starts at col 46
         $copies = [];
         GitWidgetEvents::wire($events, onCopy: static function (string $text) use (&$copies): void {
             $copies[] = $text;
@@ -838,17 +873,17 @@ final class DiffViewWidgetTest extends TestCase
         // Press in the RIGHT half (col 46 = new-side text col 0) and drag down
         // past the divider into the left half: the selection stays on the new
         // side, the out-of-half column clamps to its start.
-        $widget->handleClick(2, 46);
-        $widget->dragSelectTo(3, 50);
-        $raw = $widget->render(new RenderContext(80, 6));
+        $widget->handleClick(3, 46);
+        $widget->dragSelectTo(4, 50);
+        $raw = self::body($widget->render(new RenderContext(80, 6)));
         $this->assertStringContainsString("\x1b[48;5;24m", $raw[2], 'the right-half span is tinted');
         $widget->handleInput("\x03");
         $this->assertSame(["newA\nnewB"], $copies, 'only new-side texts, cols projected onto the right half');
 
         // Press in the LEFT half: old-side text only.
-        $widget->handleClick(2, 6);
-        $widget->dragSelectTo(3, 8);
-        $raw = $widget->render(new RenderContext(80, 6));
+        $widget->handleClick(3, 6);
+        $widget->dragSelectTo(4, 8);
+        $raw = self::body($widget->render(new RenderContext(80, 6)));
         $this->assertStringContainsString("\x1b[48;5;24m", $raw[2], 'the left-half span is tinted');
         $widget->handleInput("\x03");
         $this->assertSame("oldA\nol", $copies[1]);
@@ -858,8 +893,8 @@ final class DiffViewWidgetTest extends TestCase
         GitWidgetEvents::wire($events, onStageSelection: static function (array $sel) use (&$staged): void {
             $staged = $sel;
         });
-        $widget->handleClick(2, 6);
-        $widget->dragSelectTo(3, 8);
+        $widget->handleClick(3, 6);
+        $widget->dragSelectTo(4, 8);
         $widget->makeEditable();
         $widget->handleInput(' ');
         $this->assertSame([0 => [1 => true, 3 => true]], $staged, 'Space stages the cursor pair row, not the char span');
@@ -870,17 +905,17 @@ final class DiffViewWidgetTest extends TestCase
         // The right split half holds syntax-highlighted additions whose SGR
         // (and truncateToWidth's pad-boundary \x1b[0m) reset the background
         // mid-span; the selection must re-apply its bg after every reset.
-        $widget = new DiffViewWidget(new Translator('en'), density: CompactScreen::density());
+        $widget = new DiffViewWidget(new Translator('en'));
         $widget->setDocument(DiffDocument::parse("@@ -1,1 +1,1 @@\n-\$a = 1;\n+\$a = 22;\n"), 'src/demo.php');
         $widget->useSplitView();
         $widget->setFocused(false);
-        $widget->render(new RenderContext(60, 6)); // leftW = 29: right text starts col 36
+        self::body($widget->render(new RenderContext(60, 6))); // leftW = 29: right text starts col 36
 
         // Select from the right-half text start well past the line's end
         // (into the padding, which sits behind a \x1b[0m reset).
-        $widget->handleClick(2, 36);
-        $widget->dragSelectTo(2, 55);
-        $row = $widget->render(new RenderContext(60, 6))[2];
+        $widget->handleClick(3, 36);
+        $widget->dragSelectTo(3, 55);
+        $row = self::body($widget->render(new RenderContext(60, 6)))[2];
 
         $this->assertGreaterThanOrEqual(
             2,
@@ -895,7 +930,7 @@ final class DiffViewWidgetTest extends TestCase
     public function testTheGearUnderThePointerTints(): void
     {
         $widget = $this->widget();
-        $widget->render(new RenderContext(80, 12));
+        self::body($widget->render(new RenderContext(80, 12)));
 
         // ' ⚙ ▾ ' spans cols 74-78 at 80 cols.
         $this->assertTrue($widget->hoverHeader(0, 75), 'the pointer landed on the gear');
@@ -913,15 +948,15 @@ final class DiffViewWidgetTest extends TestCase
     public function testTheGearTintsUnderThePointerInTheSameWidth(): void
     {
         $widget = $this->widget();
-        $widget->render(new RenderContext(80, 12));
+        self::body($widget->render(new RenderContext(80, 12)));
 
         $widget->hoverHeader(0, 75);
-        $hovered = $widget->render(new RenderContext(80, 12))[0];
-        $this->assertStringContainsString("\x1b[48;5;236m", $hovered, 'the gear takes the hover tint');
+        $hovered = self::body($widget->render(new RenderContext(80, 12)))[0];
+        $this->assertStringContainsString("\x1b[48;5;240m", $hovered, 'the gear takes the hover tint');
         $this->assertSame(80, AnsiUtils::visibleWidth($hovered), 'the tint does not change the toolbar width');
 
         $widget->clearHeaderHover();
-        $this->assertStringNotContainsString("\x1b[48;5;236m", $widget->render(new RenderContext(80, 12))[0]);
+        $this->assertStringNotContainsString("\x1b[48;5;240m", self::body($widget->render(new RenderContext(80, 12)))[0]);
     }
 
     public function testATeamThemeSwitchRebuildsTheBakedRows(): void
@@ -932,11 +967,11 @@ final class DiffViewWidgetTest extends TestCase
         // Without it the diff keeps painting the previous palette until the
         // document changes, which no screen test elsewhere would catch.
         $widget = $this->widget();
-        $before = \implode("\n", $widget->render(new RenderContext(80, 20)));
+        $before = \implode("\n", self::body($widget->render(new RenderContext(80, 20))));
 
         $widget->refreshTheme();
 
-        $this->assertSame($before, \implode("\n", $widget->render(new RenderContext(80, 20))), 'same theme, same rows — the rebuild is not a repaint bug');
+        $this->assertSame($before, \implode("\n", self::body($widget->render(new RenderContext(80, 20)))), 'same theme, same rows — the rebuild is not a repaint bug');
         $this->assertStringContainsString('$new = 2;', AnsiUtils::stripAnsiCodes($before), 'and the rows survived the rebuild');
     }
 
@@ -944,7 +979,7 @@ final class DiffViewWidgetTest extends TestCase
     public function testAddedAndDeletedRowsAreBandedEndToEnd(): void
     {
         $widget = $this->widget();
-        $raw = $widget->render(new RenderContext(60, 8));
+        $raw = self::body($widget->render(new RenderContext(60, 8)));
 
         $this->assertStringStartsWith("\x1b[48;5;52m", $raw[3], 'the deletion\'s band opens at its first column');
         $this->assertStringStartsWith("\x1b[48;5;22m", $raw[4], 'and the addition\'s');
@@ -953,7 +988,7 @@ final class DiffViewWidgetTest extends TestCase
         $this->assertSame(60, AnsiUtils::visibleWidth($raw[4]));
 
         $widget->useSplitView();
-        $split = $widget->render(new RenderContext(60, 8));
+        $split = self::body($widget->render(new RenderContext(60, 8)));
         $this->assertStringStartsWith("\x1b[48;5;52m", $split[3], 'split: the old half red');
         $this->assertStringContainsString("\x1b[48;5;22m", $split[3], 'and the new half green');
     }
@@ -966,19 +1001,19 @@ final class DiffViewWidgetTest extends TestCase
         $widget->handleInput("\x1b[B");
         $widget->handleInput("\x1b[B"); // the cursor on the deletion
 
-        $raw = $widget->render(new RenderContext(60, 8));
+        $raw = self::body($widget->render(new RenderContext(60, 8)));
         $this->assertStringNotContainsString("\x1b[48;5;52m", $raw[3], 'the cursor row');
         $this->assertStringContainsString("\x1b[48;5;22m", $raw[4], 'the next row is still banded');
 
         $widget->handleInput('v');
         $widget->handleInput("\x1b[B"); // the range takes the addition too
-        $this->assertStringNotContainsString("\x1b[48;5;22m", $widget->render(new RenderContext(60, 8))[4], 'a ranged row');
+        $this->assertStringNotContainsString("\x1b[48;5;22m", self::body($widget->render(new RenderContext(60, 8)))[4], 'a ranged row');
 
         $selected = $this->widget();
-        $selected->render(new RenderContext(60, 8));
-        $selected->handleClick(4, 14);
-        $selected->dragSelectTo(4, 18);
-        $this->assertStringNotContainsString("\x1b[48;5;22m", $selected->render(new RenderContext(60, 8))[4], 'a row under the mouse selection');
+        self::body($selected->render(new RenderContext(60, 8)));
+        $selected->handleClick(5, 14);
+        $selected->dragSelectTo(5, 18);
+        $this->assertStringNotContainsString("\x1b[48;5;22m", self::body($selected->render(new RenderContext(60, 8)))[4], 'a row under the mouse selection');
     }
 
     /** The mark before a hunk's header shows more of the file: a click there runs the context cycle, as `c` does. */
@@ -993,16 +1028,16 @@ final class DiffViewWidgetTest extends TestCase
         $rows = $this->plainLines($widget, 60, 8);
         $this->assertStringStartsWith(' ⇕ @@ -3,3 +3,4 @@', $rows[1]);
 
-        $widget->handleClick(1, 1);
+        $widget->handleClick(2, 1);
         $this->assertSame(1, $cycles);
-        $widget->handleClick(1, 10); // the header text: the cursor moves, nothing cycles
-        $widget->handleClick(2, 1); // a body row's first columns: nothing cycles
+        $widget->handleClick(2, 10); // the header text: the cursor moves, nothing cycles
+        $widget->handleClick(3, 1); // a body row's first columns: nothing cycles
         $this->assertSame(1, $cycles);
 
-        $tip = $widget->tooltipAt(1, 1);
+        $tip = $widget->tooltipAt(2, 1);
         $this->assertSame('Show more of the file around the changes (c)', $tip?->text);
-        $this->assertNull($widget->tooltipAt(1, 10));
-        $this->assertNull($widget->tooltipAt(2, 1));
+        $this->assertNull($widget->tooltipAt(2, 10));
+        $this->assertNull($widget->tooltipAt(3, 1));
     }
 
     /** A read-only diff — a commit's, a comparison's — has no context to cycle: no mark, no click, no tip. */
@@ -1017,7 +1052,7 @@ final class DiffViewWidgetTest extends TestCase
         });
 
         $rows = $this->plainLines($widget, 60, 8);
-        $widget->handleClick(1, 1);
+        $widget->handleClick(2, 1);
 
         $this->assertStringStartsWith(' @@ -3,3 +3,4 @@', $rows[1]);
         $this->assertSame(0, $cycles);

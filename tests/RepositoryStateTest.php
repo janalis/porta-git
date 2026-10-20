@@ -168,8 +168,10 @@ final class RepositoryStateTest extends TestCase
         $linked = $this->project->path('elsewhere');
         $this->project->git('worktree', 'add', '-q', '-b', 'side', $linked);
         $linkedState = $this->state(root: $linked);
-        $this->settleOn($linkedState, static fn (RepositoryState $s): bool => $s->hasWorktrees() && 'elsewhere' === $s->worktree());
+        $this->settle($linkedState);
 
+        $this->assertTrue($linkedState->hasWorktrees());
+        $this->assertSame('elsewhere', $linkedState->worktree());
         $this->assertSame(\basename($this->project->dir), $linkedState->name(), 'still named for the repository');
     }
 

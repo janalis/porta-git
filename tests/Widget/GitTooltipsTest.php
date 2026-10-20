@@ -123,16 +123,17 @@ final class GitTooltipsTest extends TestCase
 
         $tip = $diff->tooltipAt(0, $anchor[0] + 1);
         $this->assertSame(
-            ['git:diff:settings', 'Diff settings: Unified diff, whitespace changes shown', 0, 3],
+            ['git:diff:settings', 'Diff settings: Unified diff, whitespace changes shown', 0, 1],
             [$tip?->key, $tip?->text, $tip?->row, $tip?->rows],
-            'any row of the boxed gear; the card spans all three',
+            'the gear on the bar row',
         );
-        $this->assertNull($diff->tooltipAt(1, 2), 'the title');
+        $this->assertNull($diff->tooltipAt(0, 2), 'the title');
+        $this->assertNull($diff->tooltipAt(1, $anchor[0] + 1), 'the close under the bar');
         $this->assertNull($diff->tooltipAt(5, $anchor[0] + 1), 'below the toolbar');
 
         $diff->useSplitView();
         $diff->hideWhitespace();
-        $this->assertSame('Diff settings: Side-by-side diff, whitespace changes hidden', $diff->tooltipAt(1, $anchor[0] + 1)?->text);
+        $this->assertSame('Diff settings: Side-by-side diff, whitespace changes hidden', $diff->tooltipAt(0, $anchor[0] + 1)?->text);
     }
 
     public function testADisabledCommitButtonSaysWhy(): void

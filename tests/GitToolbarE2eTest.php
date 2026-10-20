@@ -14,6 +14,7 @@ use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RunsIde;
+use Porta\Tests\Support\ScreenReads;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
@@ -25,8 +26,10 @@ use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\LineBufferInterface;
 use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Render\WidgetRect;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
+use Symfony\Component\Tui\Widget\AbstractWidget;
 
 /**
  * The git view's toolbar, in the running IDE: it says which repository and
@@ -39,6 +42,7 @@ final class GitToolbarE2eTest extends TestCase
     use GitBinary;
     use PreservesPath;
     use RunsIde;
+    use ScreenReads;
     use UsesBundledPlugins;
     use ViewWindowCells;
 
@@ -129,5 +133,65 @@ final class GitToolbarE2eTest extends TestCase
         );
 
         $this->addToAssertionCount(1);
+    }
+
+    /**
+     * GitHub Desktop's alignment, on a roomy screen in History: the toolbar's
+     * `┴` stand on the two dividers below it, the files' heading is level
+     * with the diff's file header, and a drag of the divider between them
+     * moves the toolbar's cell with it — and is kept.
+     */
+    public function testHistorysColumnsLineUpUnderTheToolbarAndItsDividerDrags(): void
+    {
+        $this->skipWithoutGit();
+        \putenv('PATH='.\dirname((string) $this->whichGit()));
+        $project = new TempProject(['src/a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project->initGit('main');
+        $project->commitAll('first');
+        $project->write('src/a.txt', "one\ntwo\n");
+        $project->commitAll('second');
+
+        $this->runIde(
+            $project,
+            $project->path('src/a.txt'),
+            [
+                100 => static function (Tui $tui): void {
+                    $tui->handleInput("\x1b\x04"); // open the git view
+                },
+                200 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
+                    $tui->handleInput('2'); // History
+                    $this->awaitPainted($tui, $terminal, '1 changed file');
+                    $this->awaitPainted($tui, $terminal, '+two'); // the first file's patch, beside it
+                    $renderer = Services::resolve($ide, Renderer::class);
+                    $rect = static fn (string $id): WidgetRect => Widgets::rect($renderer, Widgets::byId($tui, $id, AbstractWidget::class));
+                    $dividers = static fn (): array => [$rect('git-separator')->col, $rect('git-columns-separator')->col];
+                    $joins = function () use ($tui, $terminal, $rect): array {
+                        $row = $this->screenGrid($tui, $terminal)[$rect('git-toolbar')->row + 2];
+
+                        return \array_keys(\mb_str_split($row), '┴', strict: true);
+                    };
+
+                    $this->assertSame($dividers(), $joins(), 'each toolbar divider stands on a pane divider');
+                    $this->assertSame($rect('git-commit-details')->row, $rect('git-diff')->row, 'the files and the diff start on one row');
+                    $heading = $this->screenGrid($tui, $terminal)[$rect('git-diff')->row];
+                    $this->assertStringContainsString('1 changed file', $heading);
+                    $this->assertStringContainsString('src/a.txt', $heading, 'level with the file header');
+                    $this->assertStringContainsString('⚙ ▾', $heading);
+
+                    // Six columns right, by the divider between the files and the diff.
+                    $from = $rect('git-columns-separator')->col;
+                    $tui->handleInput(self::widgetSgr($ide, 'git-columns-separator', 0, 3, 0));
+                    $tui->handleInput(self::widgetSgr($ide, 'git-columns-separator', 32, 3, 6));
+                    $tui->handleInput(self::widgetSgr($ide, 'git-columns-separator', 0, 3, 6, release: true));
+                    $this->frame($tui);
+                    $this->assertSame($from + 6, $rect('git-columns-separator')->col, 'the divider moved');
+                    $this->assertSame($dividers(), $joins(), 'and the toolbar\'s cell with it');
+                    $layout = (string) \file_get_contents($project->path('.porta/layout.json'));
+                    $this->assertStringContainsString('"git:columns"', $layout, 'kept for the next session');
+                },
+            ],
+            columns: 140,
+            rows: 40,
+        );
     }
 }

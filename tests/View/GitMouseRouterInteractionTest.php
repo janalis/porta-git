@@ -16,7 +16,6 @@ use Porta\I18n\Translator;
 use Porta\Input\HitTester;
 use Porta\Input\MouseEvent;
 use Porta\Layout\ViewRegions;
-use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\Probe;
 use Porta\Ui\Theme\Styles;
 use Symfony\Component\Tui\Render\Renderer;
@@ -42,7 +41,7 @@ final class GitMouseRouterInteractionTest extends TestCase
         $renderer = new Renderer(new StyleSheet());
         $this->tui = new Tui(terminal: new VirtualTerminal(columns: 100, rows: 24), renderer: $renderer);
         $changes = new ChangesListWidget($translator);
-        $this->diff = new DiffViewWidget($translator, density: CompactScreen::density());
+        $this->diff = new DiffViewWidget($translator);
         $commitBox = new CommitBoxWidget($translator);
         $history = new HistoryListWidget($translator);
         $tabs = new GitTabsWidget($translator);

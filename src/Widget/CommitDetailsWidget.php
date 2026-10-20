@@ -13,6 +13,7 @@ use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
 use Porta\Ui\ListNavigation;
 use Porta\Ui\ListSelection;
+use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Ui\Tooltip;
 use Porta\Ui\TooltipProvider;
@@ -234,8 +235,13 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
         $lines = [];
         if (!$this->stacked) {
             $heading = null === $this->commit ? '' : $this->translator->trans('%count% changed file|%count% changed files', ['%count%' => \count($this->files)]);
-            $lines[] = AnsiText::truncate(\str_repeat(' ', \max(0, \intdiv($width - AnsiUtils::visibleWidth($heading), num2: 2))).$heading, $width, pad: true);
-            $lines[] = Rule::horizontal($width, $this->styles);
+            // The diff's file header's shape beside it: a bar row and its close.
+            $lines[] = $this->styles->of(Role::HeaderBar)->apply(AnsiText::truncate(
+                \str_repeat(' ', \max(0, \intdiv($width - AnsiUtils::visibleWidth($heading), num2: 2))).$heading,
+                $width,
+                pad: true,
+            ));
+            $lines[] = Rule::under($width, $this->styles, Role::HeaderBar);
         }
         $this->headerRows = \count($lines);
         $rows = $this->stacked

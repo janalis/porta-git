@@ -21,7 +21,6 @@ use Porta\I18n\Translator;
 use Porta\Input\HitTester;
 use Porta\Input\MouseEvent;
 use Porta\Layout\ViewRegions;
-use Porta\Tests\Support\CompactScreen;
 use Porta\Ui\Theme\Styles;
 use Porta\Workbench\View\WheelAxis;
 use Porta\Workbench\View\WheelGesture;
@@ -70,7 +69,7 @@ final class GitHistoryPointerTest extends TestCase
         });
         $history = new HistoryListWidget($translator);
         $tabs = new GitTabsWidget($translator);
-        $diff = new DiffViewWidget($translator, density: CompactScreen::density());
+        $diff = new DiffViewWidget($translator);
         $this->details = new CommitDetailsWidget($translator, events: $events);
         $this->details->setCommit(new LogEntry('full', 'abc1234', 'Alice', 1_700_000_000, 'Subject'));
         $this->header = new CommitHeaderWidget($translator, events: $events);
