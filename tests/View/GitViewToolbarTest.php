@@ -8,16 +8,22 @@ use PHPUnit\Framework\TestCase;
 use Porta\Event\GitRemoteCompleted;
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\Command\GitRemoteOperation;
+use Porta\GitPlugin\Command\HistoryReload;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitHashCopyRequested;
 use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
 use Porta\GitPlugin\Event\GitRemoteRequested;
+use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Tests\Support\GitViewRig;
+use Porta\GitPlugin\View\GitViewMode;
 use Porta\GitPlugin\View\ToolbarCell;
+use Porta\GitPlugin\Widget\SplitShape;
 use Porta\Tests\Support\Presence;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\TempProject;
+use Symfony\Component\Tui\Ansi\AnsiUtils;
+use Symfony\Component\Tui\Render\RenderContext;
 
 /**
  * The git view's GitHub Desktop half: the toolbar that follows the branch,
@@ -254,5 +260,76 @@ final class GitViewToolbarTest extends TestCase
         $controller->onRemoteCompleted(new GitRemoteCompleted('fetch', true));
         $this->assertNull(Probe::get($controller, 'spinner'));
         $this->assertSame('↻', $this->remoteIcon());
+    }
+
+    /** History is headed by the commit across both columns, with what it added and removed. */
+    public function testHistoryHeadsTheColumnsWithTheCommitAndItsStat(): void
+    {
+        $controller = $this->controller();
+        $this->project->write('a.txt', "one\ntwo\nthree\n");
+        $this->project->commitAll('second');
+        $controller->open();
+        $controller->onViewModeRequested(new GitViewModeRequested(GitViewMode::History));
+
+        $this->await(fn (): bool => \str_contains($this->headerText(), '+1 −0'), what: 'the stat');
+        $this->assertStringContainsString(' second', $this->headerText());
+    }
+
+    /** A stat for a commit no longer selected is not this one's: dropped. */
+    public function testAStatForACommitLeftBehindIsDropped(): void
+    {
+        $controller = $this->controller();
+        $this->project->write('a.txt', "one\ntwo\nthree\n");
+        $this->project->commitAll('second');
+        $controller->open();
+        $controller->onViewModeRequested(new GitViewModeRequested(GitViewMode::History));
+        $this->await(fn (): bool => \str_contains($this->headerText(), '+1 −0'), what: 'the stat');
+        $first = new LogEntry(\trim($this->project->git('rev-parse', 'HEAD~1')), 'x', 'x', 0, 'init');
+
+        Probe::invoke($controller, 'loadCommitFiles', $first);
+        $this->awaitLanes([Probe::get(Probe::get($this->git, 'runner'), 'lane')]);
+
+        $this->assertStringContainsString('+1 −0', $this->headerText(), 'still the selected commit\'s');
+    }
+
+    /** The toolbar's cells stand over the sidebar and, in History, the files column. */
+    public function testTheToolbarIsToldTheColumnsOfTheModeShowing(): void
+    {
+        $controller = $this->controller();
+        $controller->open();
+        $this->assertSame([44, 75], Probe::invoke($controller, 'columns', 120), 'Changes: the sidebar, then the diff');
+
+        $controller->onViewModeRequested(new GitViewModeRequested(GitViewMode::History));
+        $this->assertSame([44, 29, 45], Probe::invoke($controller, 'columns', 120), 'History: the files take two fifths of the rest');
+
+        Probe::set($this->region->split('columns'), 'narrow', true);
+        $this->assertSame([44, 75], Probe::invoke($controller, 'columns', 120), 'stacked, there is one column again');
+    }
+
+    /** Too narrow for three columns: the files stack over the diff and the header's rule counts them. */
+    public function testStackedTheHeaderCountsTheFiles(): void
+    {
+        $controller = $this->controller();
+        $controller->open();
+        $controller->onViewModeRequested(new GitViewModeRequested(GitViewMode::History));
+        $this->await(fn (): bool => 2 === $this->details->fileCount(), what: 'the files: a.txt and .gitignore');
+
+        Probe::set($this->region->split('columns'), 'narrow', true);
+        Probe::invoke($controller, 'stack', true);
+        $this->assertStringContainsString('─ 2 changed files', $this->headerText());
+        $this->assertSame(SplitShape::Stacked, Probe::get($this->details, 'stacked') ? SplitShape::Stacked : SplitShape::Beside);
+
+        $this->project->write('b.txt', "b\n");
+        $this->project->commitAll('third');
+        Probe::invoke($controller, 'reloadHistory', HistoryReload::SelectFirst); // the newest on top, selected
+        $this->await(fn (): bool => \str_contains($this->headerText(), '─ 1 changed file '), what: 'the new commit\'s count');
+
+        Probe::invoke($controller, 'stack', false);
+        $this->assertStringNotContainsString('changed file', $this->headerText(), 'beside the diff, the files column says it');
+    }
+
+    private function headerText(): string
+    {
+        return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->header->render(new RenderContext(80, 3))));
     }
 }

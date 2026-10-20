@@ -47,6 +47,7 @@ use Porta\GitPlugin\View\GitWiring;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
+use Porta\GitPlugin\Widget\CommitHeaderWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
@@ -443,21 +444,21 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             new GitTabsWidget($s->translator, styles: $s->styles, density: $s->density, events: $events),
             new GitToolbarWidget($s->translator, $repository, $s->styles, $s->density, $events),
             new CommitDetailsWidget($s->translator, $s->styles, $events),
+            new CommitHeaderWidget($s->translator, $s->styles, $s->density, $events),
         );
         // The ids and flex styles the container used to apply from #[AsWidget].
         // The ids are how the renderer and every rect-reading test name these
         // widgets; the flex values are what makes the diff pane take the slack
         // while the three stacked sidebar widgets keep their rendered height.
         $panes->changes->setId('git-changes')->setStyle(new Style(flex: 0));
-        // Flex 3: beside the commit details (flex 2) in History, the diff takes
-        // three fifths — a third left the details too narrow to read a path in
-        // on a compact window. Alone in Changes, any weight takes the column.
-        $panes->diffView->setId('git-diff')->setStyle(new Style(flex: 3));
+        // Beside History's files the split sizes it; alone in Changes, it takes the column.
+        $panes->diffView->setId('git-diff')->setStyle(new Style(flex: 1));
         $panes->commitBox->setId('git-commit');
         $panes->history->setId('git-history');
         $panes->tabs->setId('git-tabs')->setStyle(new Style(flex: 0));
         $panes->toolbar->setId('git-toolbar');
-        $panes->details->setId('git-commit-details')->setStyle(new Style(flex: 2));
+        $panes->details->setId('git-commit-details');
+        $panes->header->setId('git-commit-header')->setStyle(new Style(flex: 0));
 
         $controller = new GitViewController(
             $git,
@@ -465,7 +466,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             $panes,
             $s->region,
             $s->host,
-            new GitMouseRouter($s->hit, $s->host, $panes->changes, $panes->diffView, $panes->commitBox, $panes->history, $panes->tabs, $panes->toolbar, $panes->details),
+            new GitMouseRouter($s->hit, $s->host, $panes->changes, $panes->diffView, $panes->commitBox, $panes->history, $panes->tabs, $panes->toolbar, $panes->details, $panes->header),
             new GitContextMenus($s->hit, $s->host, $panes->changes, $panes->history, $commands, $s->translator, $panes->toolbar, $branchMenu, $panes->diffView),
             $flash,
             $s->translator,

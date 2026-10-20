@@ -429,6 +429,7 @@ final class GitInfoTest extends TestCase
             return 3 === \count($answers);
         }, what: 'every answer');
 
-        $this->assertSame(['main' => 'origin', 'unpublished' => null, 'local' => null], $answers, 'a branch tracking a local one names no remote');
+        \ksort($answers);
+        $this->assertSame(['local' => null, 'main' => 'origin', 'unpublished' => null], $answers, 'a branch tracking a local one names no remote');
     }
 }

@@ -734,13 +734,12 @@ final class GitViewControllerTest extends TestCase
         $this->assertSame('second', $this->history->selectedCommit()?->subject);
         $this->assertTrue(Probe::get($this->diffView, 'readOnly'));
         $this->assertSame(
-            ['git-history-content'],
+            ['git-commit-header', 'git-columns'],
             \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->region->content()->all()),
-            'the content is GitHub Desktop\'s middle column and the diff',
+            'the content is the commit header over GitHub Desktop\'s middle column and the diff',
         );
-        $row = $this->region->content()->all()[0];
-        $this->assertInstanceOf(ContainerWidget::class, $row);
-        $this->assertSame([$this->details, $this->diffView], $row->all());
+        $split = $this->region->split('columns');
+        $this->assertSame([$this->details, $this->diffView], [$split->lead(), $split->rest()]);
 
         // The files of the newest commit load beside it, and the FIRST file's
         // patch shows immediately — no keyboard step needed to see a diff.

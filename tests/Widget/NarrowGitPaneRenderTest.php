@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Diff\DiffDocument;
+use Porta\GitPlugin\DiffStat;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
@@ -15,10 +16,12 @@ use Porta\GitPlugin\Tracking;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
+use Porta\GitPlugin\Widget\CommitHeaderWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
+use Porta\GitPlugin\Widget\SplitShape;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\AttachedStyles;
 use Porta\Tests\Support\CompactScreen;
@@ -90,6 +93,21 @@ final class NarrowGitPaneRenderTest extends TestCase
         $details->setCommit(new LogEntry('full1', 'aaa111', 'Alice', 1_700_000_100, 'Newest work, with a subject long enough to wrap twice and be cut'));
         $details->setFiles([['status' => 'M', 'path' => 'src/deep/folder/a.php'], ['status' => 'R', 'path' => 'b.php']]);
         yield 'commit details' => [$details];
+
+        $stacked = new CommitDetailsWidget(new Translator('en'));
+        $stacked->stack(SplitShape::Stacked);
+        $stacked->setCommit(new LogEntry('full1', 'aaa111', 'Alice', 1_700_000_100, 'Newest work'));
+        $stacked->setFiles([['status' => 'M', 'path' => 'src/deep/folder/a.php']]);
+        yield 'commit details (stacked)' => [$stacked];
+
+        // Both shapes: the subject over the author, and one row; with a stat and the stacked legend.
+        foreach (['commit header (roomy)' => new ScreenDensity(), 'commit header (compact)' => CompactScreen::density()] as $name => $density) {
+            $header = new CommitHeaderWidget(new Translator('en'), density: $density);
+            $header->setCommit(new LogEntry('full1', 'aaa111', 'Alice Withalongname', 1_700_000_100, 'Newest work, with a subject long enough to be cut'));
+            $header->setStat(new DiffStat(1234, 56));
+            $header->nameFiles(12);
+            yield $name => [$header];
+        }
 
         yield 'git tabs' => [new GitTabsWidget(new Translator('en'))];
 

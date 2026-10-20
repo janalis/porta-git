@@ -35,6 +35,7 @@ use Porta\GitPlugin\View\GitViewController;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
+use Porta\GitPlugin\Widget\CommitHeaderWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
@@ -136,6 +137,8 @@ trait GitViewRig
     private GitToolbarWidget $toolbar;
 
     private CommitDetailsWidget $details;
+
+    private CommitHeaderWidget $header;
     private MenuBarWidget $menuBar;
     private ContainerWidget $gitLeft;
     private ViewRegion $region;
@@ -176,6 +179,8 @@ trait GitViewRig
         $this->tabs->setId('git-tabs');
         $this->details = new CommitDetailsWidget(new Translator('en'), events: $dispatcher);
         $this->details->setId('git-commit-details');
+        $this->header = new CommitHeaderWidget(new Translator('en'), events: $dispatcher);
+        $this->header->setId('git-commit-header');
         $this->menuBar = new MenuBarWidget();
         $this->menuBar->setId('menu');
         $editWidget = new ContainerWidget();
@@ -241,7 +246,7 @@ trait GitViewRig
         $controller = new GitViewController(
             $this->git,
             new ProjectPaths($this->project->dir),
-            new GitPanes($this->changes, $this->diffView, $this->commitBox, $this->history, $this->tabs, $this->toolbar, $this->details),
+            new GitPanes($this->changes, $this->diffView, $this->commitBox, $this->history, $this->tabs, $this->toolbar, $this->details, $this->header),
             $region,
             $host,
             new GitMouseRouter(
@@ -453,7 +458,8 @@ trait GitViewRig
 
     private function detailsText(): string
     {
-        return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->details->render(new RenderContext(44, 20))));
+        // History's middle: the commit header over the files.
+        return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), [...$this->header->render(new RenderContext(44, 3)), ...$this->details->render(new RenderContext(44, 20))]));
     }
 
     private function diffText(): string

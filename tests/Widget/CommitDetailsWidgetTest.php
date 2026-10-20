@@ -13,6 +13,7 @@ use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Tests\Support\GitWidgetEvents;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\FileRow;
+use Porta\GitPlugin\Widget\SplitShape;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\AttachedStyles;
 use Porta\Tests\Support\RendersWidget;
@@ -24,8 +25,8 @@ use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 
 /**
- * GitHub Desktop's middle column: the selected commit over the files it
- * changed, each file driving the diff beside it.
+ * GitHub Desktop's middle column: the files the selected commit changed, each
+ * driving the diff beside it — or over it, stacked in a narrow window.
  */
 final class CommitDetailsWidgetTest extends TestCase
 {
@@ -64,37 +65,51 @@ final class CommitDetailsWidgetTest extends TestCase
         return \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext($width, $rows)));
     }
 
-    public function testTheCommitIsItsSubjectAuthorAndShaOverItsFiles(): void
+    public function testTheFilesAreCountedLevelWithTheDiffHeaderAndListedUnderARule(): void
     {
         $rows = self::rows($this->widget());
 
         $this->assertSame(
             [
-                ' Record the parallel flake fixes       │',
-                ' phcorp · f00dfac ⧉                    │',
-                '─ 2 changed files ─────────────────────│',
-                '▌tasks/lessons.md                    M │',
-                ' tasks/todo.md                       A │',
-                '                                       │',
-                '                                       │',
-                '                                       │',
+                '            2 changed files             ',
+                '────────────────────────────────────────',
+                '▌tasks/lessons.md                     M ',
+                ' tasks/todo.md                        A ',
+                '                                        ',
+                '                                        ',
+                '                                        ',
+                '                                        ',
             ],
             $rows,
         );
         $raw = $this->widget()->render(new RenderContext(40, 8));
         $styles = Styles::dark();
-        $this->assertStringContainsString($styles->of(Role::Dim)->apply('tasks/'), $raw[3], 'the folder dim');
-        $this->assertStringContainsString($styles->of(Role::Added)->apply('A'), $raw[4], 'the status in its tint');
-        $this->assertStringStartsWith(Rule::horizontal(39, $styles, '2 changed files'), $raw[2], 'the files counted in a rule legend');
+        $this->assertStringContainsString($styles->of(Role::Dim)->apply('tasks/'), $raw[2], 'the folder dim');
+        $this->assertStringContainsString($styles->of(Role::Added)->apply('A'), $raw[3], 'the status in its tint');
+        $this->assertSame(Rule::horizontal(40, $styles), $raw[1]);
     }
 
-    public function testALongSubjectWrapsToTwoRowsAndSaysThereIsMore(): void
+    /** Stacked over the diff, the column is its files alone — at most six — closed off by a rule. */
+    public function testStackedTheListStopsAtSixRowsUnderNoHeading(): void
     {
-        $rows = self::rows($this->widget('Release the session lock before an embedded editor reloads the whole page again'), width: 30);
+        $widget = $this->widget();
+        $widget->setFiles(\array_map(static fn (int $i): array => ['status' => 'M', 'path' => "f{$i}.php"], \range(1, end: 8)));
+        $widget->stack(SplitShape::Stacked);
 
-        $this->assertSame(' Release the session lock    │', $rows[0]);
-        $this->assertStringEndsWith('…│', \rtrim($rows[1]));
-        $this->assertStringStartsWith(' phcorp · f00dfac', $rows[2], 'the author row follows the two');
+        $rows = self::rows($widget, width: 20, rows: 30);
+
+        $this->assertCount(7, $rows, 'six files and the rule, however tall the room');
+        $this->assertSame('▌f1.php           M ', $rows[0]);
+        $this->assertSame('────────────────────', $rows[6]);
+        $widget->handleClick(1);
+        $this->assertSame('f2.php', $widget->selectedFile()['path'] ?? null, 'a press counts from the first row');
+        $widget->handleInput("\x1b[6~"); // page down: six rows a page
+        $this->assertSame('f8.php', $widget->selectedFile()['path'] ?? null);
+
+        $widget->setFiles([['status' => 'A', 'path' => 'one.php']]);
+        $this->assertCount(2, self::rows($widget, width: 20, rows: 30), 'one file, one row');
+        $widget->stack(SplitShape::Beside);
+        $this->assertCount(30, self::rows($widget, width: 20, rows: 30), 'beside the diff again, the column fills');
     }
 
     /** A narrow pane gives up the start of a file's folder first, never its name or status. */
@@ -103,9 +118,9 @@ final class CommitDetailsWidgetTest extends TestCase
         $widget = $this->widget('Short');
         $widget->setFiles([['status' => 'M', 'path' => 'plugins/assist/src/Session/GuestSession.php']]);
 
-        $row = self::rows($widget, width: 32)[3];
+        $row = self::rows($widget, width: 32)[2];
 
-        $this->assertSame('▌…c/Session/GuestSession.php M │', $row);
+        $this->assertSame('▌…rc/Session/GuestSession.php M ', $row);
     }
 
     public function testNoCommitIsAnEmptyPane(): void
@@ -114,9 +129,10 @@ final class CommitDetailsWidgetTest extends TestCase
 
         $rows = self::rows($widget, rows: 3);
 
-        $this->assertSame(['                                       │', '───────────────────────────────────────│', '                                       │'], $rows);
+        $this->assertSame(['                                        ', '────────────────────────────────────────', '                                        '], $rows);
         $this->assertNull($widget->commit());
         $this->assertNull($widget->selectedFile());
+        $this->assertSame(0, $widget->fileCount());
     }
 
     public function testKeysMoveThroughTheFilesAndEnterGoesBack(): void
@@ -136,20 +152,18 @@ final class CommitDetailsWidgetTest extends TestCase
         $this->assertSame('tasks/todo.md', $widget->selectedFile()['path'] ?? null);
     }
 
-    public function testAClickSelectsAFileAndTheCopyButtonCopiesTheSha(): void
+    public function testAClickSelectsAFileAndYCopiesTheSha(): void
     {
         $widget = $this->widget();
         $widget->render(new RenderContext(40, 8));
 
-        $widget->handleClick(4, 5); // the second file
-        $widget->handleClick(1, \mb_strlen(' phcorp · f00dfac ')); // ⧉
-        $widget->handleClick(1, 2); // the author: nothing
-        $widget->handleClick(2, 2); // the rule: nothing
-        $widget->handleClick(6, 2); // past the files: nothing
+        $widget->handleClick(3); // the second file
+        $widget->handleClick(1); // the rule: nothing
+        $widget->handleClick(6); // past the files: nothing
 
-        $this->assertSame(['file:tasks/todo.md', 'copy:'.self::SHA], $this->events);
+        $this->assertSame(['file:tasks/todo.md'], $this->events);
         $widget->handleInput('y');
-        $this->assertSame('copy:'.self::SHA, $this->events[2] ?? null, '`y` copies it too');
+        $this->assertSame('copy:'.self::SHA, $this->events[1] ?? null, '`y` copies it');
     }
 
     public function testWithoutACommitThereIsNothingToCopy(): void
@@ -171,37 +185,24 @@ final class CommitDetailsWidgetTest extends TestCase
         AttachedStyles::attach($widget);
         $widget->render(new RenderContext(40, 8));
 
-        $this->assertFalse($widget->hoverRow(1), 'the header is not a file');
-        $this->assertTrue($widget->hoverRow(4));
-        $this->assertFalse($widget->hoverRow(4), 'same row: no repaint');
-        $this->assertStringContainsString("\x1b[48;5;236m", $widget->render(new RenderContext(40, 8))[4]);
+        $this->assertFalse($widget->hoverRow(0), 'the heading is not a file');
+        $this->assertTrue($widget->hoverRow(3));
+        $this->assertFalse($widget->hoverRow(3), 'same row: no repaint');
+        $this->assertStringContainsString("\x1b[48;5;236m", $widget->render(new RenderContext(40, 8))[3]);
         $this->assertTrue($widget->clearHover());
         $this->assertFalse($widget->clearHover(), 'already clear');
         $this->assertSame([], $this->events, 'hover selects nothing');
     }
 
-    public function testTheHeaderAndACutPathExplainThemselves(): void
+    public function testACutPathExplainsItself(): void
     {
         $widget = $this->widget('Short');
         $widget->setFiles([['status' => 'M', 'path' => 'plugins/assist/src/Session/GuestSession.php'], ['status' => 'A', 'path' => 'a.md']]);
         $widget->render(new RenderContext(32, 8));
 
-        $this->assertSame(self::SHA."\nShort\nphcorp · ".\date('Y-m-d H:i', timestamp: 1_700_000_000), $widget->tooltipAt(0, 3)?->text);
-        $this->assertSame('Copy the full commit hash', $widget->tooltipAt(1, \mb_strlen(' phcorp · f00dfac '))?->text);
-        $this->assertSame('plugins/assist/src/Session/GuestSession.php', $widget->tooltipAt(3, 3)?->text, 'a cut path says itself');
-        $this->assertNull($widget->tooltipAt(4, 3), 'a whole one says nothing');
-    }
-
-    /** Too narrow for the copy button, there is none to press or explain. */
-    public function testANarrowHeaderDropsTheCopyButton(): void
-    {
-        $widget = $this->widget();
-        $widget->render(new RenderContext(12, 8));
-
-        $widget->handleClick(1, 10);
-
-        $this->assertSame([], $this->events);
-        $this->assertNotSame('Copy the full commit hash', $widget->tooltipAt(1, 10)?->text);
+        $this->assertSame('plugins/assist/src/Session/GuestSession.php', $widget->tooltipAt(2, 3)?->text, 'a cut path says itself');
+        $this->assertNull($widget->tooltipAt(3, 3), 'a whole one says nothing');
+        $this->assertNull($widget->tooltipAt(0, 3), 'nor does the heading');
     }
 
     public function testThePaneKeysAndHousekeeping(): void

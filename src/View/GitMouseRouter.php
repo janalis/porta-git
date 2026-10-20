@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\View;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
+use Porta\GitPlugin\Widget\CommitHeaderWidget;
 use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
@@ -42,6 +43,7 @@ final class GitMouseRouter implements ViewPointer
         private readonly GitTabsWidget $tabs,
         private readonly ?GitToolbarWidget $toolbar = null,
         private readonly ?CommitDetailsWidget $details = null,
+        private readonly ?CommitHeaderWidget $header = null,
     ) {} // the region's divider is core's to tint and to drag, as for every view
 
     /** Clear the diff-drag arming on a fresh press (mirrors the other drag resets). */
@@ -107,6 +109,7 @@ final class GitMouseRouter implements ViewPointer
             null !== ($rel = $this->hit->hit($this->changes, $mouse->row, $mouse->col)) => $this->pressChanges($rel['row'], $rel['col']),
             null !== ($rel = $this->hit->hit($this->history, $mouse->row, $mouse->col)) => $this->pressHistory($rel['row']),
             null !== ($at = $this->detailsAt($mouse)) => $this->pressDetails(...$at),
+            null !== ($at = $this->headerAt($mouse)) => $this->pressHeader(...$at),
             null !== ($rel = $this->hit->hit($this->commitBox, $mouse->row, $mouse->col)) => $this->pressCommitBox($rel['row']),
             null !== ($rel = $this->hit->hit($this->diff, $mouse->row, $mouse->col)) => $this->pressDiff($rel['row'], $rel['col']),
             default => false,
@@ -157,19 +160,40 @@ final class GitMouseRouter implements ViewPointer
      * The commit details pane and the cell of it under the pointer, or null
      * off it — and while History is not showing it.
      *
-     * @return array{CommitDetailsWidget, int, int}|null
+     * @return array{CommitDetailsWidget, int}|null
      */
     private function detailsAt(MouseEvent $mouse): ?array
     {
         $rel = null === $this->details ? null : $this->hit->hit($this->details, $mouse->row, $mouse->col);
 
-        return null === $rel || null === $this->details ? null : [$this->details, $rel['row'], $rel['col']];
+        return null === $rel || null === $this->details ? null : [$this->details, $rel['row']];
     }
 
-    private function pressDetails(CommitDetailsWidget $details, int $row, int $col): bool
+    private function pressDetails(CommitDetailsWidget $details, int $row): bool
     {
         $this->host->focus($details);
-        $details->handleClick($row, $col);
+        $details->handleClick($row);
+        $this->host->invalidate();
+
+        return true;
+    }
+
+    /**
+     * The commit header and the cell of it under the pointer, or null off it.
+     *
+     * @return array{CommitHeaderWidget, int, int}|null
+     */
+    private function headerAt(MouseEvent $mouse): ?array
+    {
+        $rel = null === $this->header ? null : $this->hit->hit($this->header, $mouse->row, $mouse->col);
+
+        return null === $rel || null === $this->header ? null : [$this->header, $rel['row'], $rel['col']];
+    }
+
+    /** The commit header: its copy button, and nothing that takes the keys. */
+    private function pressHeader(CommitHeaderWidget $header, int $row, int $col): bool
+    {
+        $header->handleClick($row, $col);
         $this->host->invalidate();
 
         return true;

@@ -11,10 +11,8 @@ use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\I18n\Translator;
 use Porta\Support\AnsiText;
-use Porta\Ui\Glyphs;
 use Porta\Ui\ListNavigation;
 use Porta\Ui\ListSelection;
-use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Ui\Tooltip;
 use Porta\Ui\TooltipProvider;
@@ -39,12 +37,14 @@ use Symfony\Component\Tui\Widget\KeybindingsTrait;
 use Symfony\Component\Tui\Widget\VerticallyExpandableInterface;
 
 /**
- * GitHub Desktop's middle column in History: the selected commit — its
- * subject, its author and short sha with a copy button — over the files it
- * changed. Selecting a file drives the read-only diff beside it.
+ * GitHub Desktop's middle column in History: the files the selected commit
+ * changed, under a `N changed files` heading level with the diff's file
+ * header beside it. Selecting a file drives the read-only diff; the commit
+ * itself is said above both ({@see CommitHeaderWidget}).
  *
- * The pane draws its own right border, a rule rather than a drag handle: it
- * takes a share of the content, not a width someone set.
+ * Stacked over the diff — a window too narrow for three columns — the
+ * heading goes (the commit header's rule names the count instead) and the
+ * list stops at {@see STACKED_ROWS}, closed off by a rule.
  */
 final class CommitDetailsWidget extends AbstractWidget implements FocusableInterface, HoverableList, MenuOverlayHost, TooltipProvider, VerticallyExpandableInterface, WheelScrollable
 {
@@ -57,11 +57,11 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
     use MenuOverlayHostTrait;
     use PanelRowStyle;
 
-    /** The copy button after the short sha. Checked narrow: East Asian Neutral, no emoji presentation. */
-    private const string COPY = '⧉';
+    /** Stacked over the diff, the most file rows the list takes before it scrolls. */
+    private const int STACKED_ROWS = 6;
 
-    /** A long subject wraps to this many rows; the rest is the tooltip's. */
-    private const int SUBJECT_ROWS = 2;
+    /** Whether the column is stacked over the diff rather than beside it. */
+    private bool $stacked = false;
 
     private ?LogEntry $commit = null;
 
@@ -73,26 +73,16 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
     /** The file row under the pointer; visual only. */
     private ?int $hovered = null;
 
-    /** Rows above the first file row in the last render: the header and the rule. */
+    /** Rows above the first file row in the last render: the heading and its rule. */
     private int $headerRows = 0;
 
-    private int $lastRows = 12;
-
-    /**
-     * The copy button's columns [start, end) on the sha row, or null when it was not drawn.
-     *
-     * @var array{int, int}|null
-     */
-    private ?array $copyZone = null;
-
-    /** The sha row's index in the last render. */
-    private int $shaRow = 0;
+    /** File rows the last render had room for. */
+    private int $fileRows = 12;
 
     private int $drawnWidth = 0;
 
     /**
-     * What each drawn row could not fit, keyed by row: the commit in full on
-     * the header rows, a file's path when it was cut.
+     * A file's whole path, keyed by the row it was cut on.
      *
      * @var array<int, array{key: string, text: string}>
      */
@@ -120,6 +110,13 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
         return $this;
     }
 
+    /** Stack the column over the diff, or stand it beside it again. */
+    public function stack(SplitShape $shape): void
+    {
+        $this->stacked = SplitShape::Stacked === $shape;
+        $this->invalidate();
+    }
+
     /** Show $commit, its files still to come; null empties the pane. */
     public function setCommit(?LogEntry $commit): void
     {
@@ -139,6 +136,11 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
     public function commit(): ?LogEntry
     {
         return $this->commit;
+    }
+
+    public function fileCount(): int
+    {
+        return \count($this->files);
     }
 
     /** @return array{status: string, path: string}|null */
@@ -163,14 +165,9 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
         };
     }
 
-    /** A press: a file row selects that file, the copy button copies the sha. */
-    public function handleClick(int $relRow, int $relCol): void
+    /** A press on a file row selects that file. */
+    public function handleClick(int $relRow): void
     {
-        if ($relRow === $this->shaRow && null !== $this->copyZone && $relCol >= $this->copyZone[0] && $relCol < $this->copyZone[1]) {
-            $this->copyHash();
-
-            return;
-        }
         $index = $this->fileAt($relRow);
         if (null !== $index) {
             $this->fileList->select($index);
@@ -226,90 +223,56 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
 
     private function fileRowCount(): int
     {
-        return \max(1, $this->lastRows - $this->headerRows);
+        return \max(1, $this->fileRows);
     }
 
     public function render(RenderContext $context): array
     {
         $width = \max(1, $context->getColumns());
-        $rows = \max(1, $context->getRows() > 0 ? $context->getRows() : 12);
-        $this->lastRows = $rows;
         $this->drawnWidth = $width;
-        // The last column is the pane's border with the diff.
-        $inner = \max(0, $width - 1);
         $this->tips = [];
-        $this->copyZone = null;
-
-        $lines = null === $this->commit ? [AnsiText::blank($inner)] : $this->header($inner);
-        $this->shaRow = \count($lines) - 1;
-        $legend = $this->translator->trans('%count% changed file|%count% changed files', ['%count%' => \count($this->files)]);
-        $lines[] = Rule::horizontal($inner, $this->styles, null === $this->commit ? '' : $legend);
-        $this->headerRows = \count($lines);
-
-        $scroll = $this->fileList->follow($this->fileRowCount());
-        while (\count($lines) < $rows) {
-            $index = $scroll + \count($lines) - $this->headerRows;
-            $file = $this->files[$index] ?? null;
-            if (null === $file) {
-                $lines[] = AnsiText::blank($inner);
-                continue;
-            }
-            if ((AnsiUtils::visibleWidth($file['path']) + 4) > $inner) {
-                $this->tips[\count($lines)] = ['key' => 'file:'.$file['path'], 'text' => $file['path']];
-            }
-            $selected = $this->fileList->isSelected($index);
-            $row = SelectionBar::of($selected, $this->focused)->value.FileRow::render($file['path'], $file['status'], \max(0, $inner - 1), $this->styles);
-            $lines[] = $this->shadeRow(AnsiText::truncate($row, $inner, pad: true), $selected, $index === $this->hovered);
-        }
-        $border = $this->styles->of(Role::Rule)->apply(Glyphs::PANE_DIVIDER);
-
-        return \array_map(static fn (string $line): string => AnsiText::truncate($line, $inner, pad: true).$border, \array_slice($lines, offset: 0, length: $rows));
-    }
-
-    /**
-     * The subject, bold and wrapped, then `author · sha ⧉`.
-     *
-     * @return list<string>
-     */
-    private function header(int $width): array
-    {
-        \assert(null !== $this->commit, description: 'only a shown commit has a header');
-        $commit = $this->commit;
-        $bold = $this->styles->of(Role::Emphasis)->withBold();
-        $subject = AnsiText::wrap(AnsiText::oneLine($commit->subject), \max(1, $width - 1));
-        if (\count($subject) > self::SUBJECT_ROWS) {
-            // The last row it keeps says there is more, the tooltip the rest.
-            $kept = \array_slice($subject, offset: 0, length: self::SUBJECT_ROWS - 1);
-            $kept[] = AnsiText::truncate(\implode(' ', \array_slice($subject, offset: self::SUBJECT_ROWS - 1)), \max(1, $width - 1));
-            $subject = $kept;
-        }
         $lines = [];
-        foreach ($subject as $line) {
-            $lines[] = ' '.$bold->apply($line);
+        if (!$this->stacked) {
+            $heading = null === $this->commit ? '' : $this->translator->trans('%count% changed file|%count% changed files', ['%count%' => \count($this->files)]);
+            $lines[] = AnsiText::truncate(\str_repeat(' ', \max(0, \intdiv($width - AnsiUtils::visibleWidth($heading), num2: 2))).$heading, $width, pad: true);
+            $lines[] = Rule::horizontal($width, $this->styles);
         }
-        $whole = $commit->sha."\n".$commit->subject."\n".$commit->author.' · '.\date('Y-m-d H:i', $commit->timestamp);
-        foreach (\array_keys($lines) as $row) {
-            $this->tips[$row] = ['key' => 'commit:'.$commit->sha, 'text' => $whole];
+        $this->headerRows = \count($lines);
+        $rows = $this->stacked
+            ? \min(self::STACKED_ROWS, \max(1, \count($this->files)))
+            : \max(1, ($context->getRows() > 0 ? $context->getRows() : 12) - $this->headerRows);
+        $this->fileRows = $rows;
+
+        $scroll = $this->fileList->follow($rows);
+        for ($i = 0; $i < $rows; ++$i) {
+            $lines[] = $this->fileRow($scroll + $i, \count($lines), $width);
         }
-        $prefix = ' '.$this->styles->of(Role::Dim)->apply(AnsiText::oneLine($commit->author).' · ');
-        $sha = $this->styles->of(Role::Modified)->apply($commit->shortSha);
-        $start = AnsiUtils::visibleWidth($prefix.$sha) + 1;
-        $line = $prefix.$sha.' '.self::COPY;
-        if (AnsiUtils::visibleWidth($line) <= $width) {
-            $this->copyZone = [$start, $start + 1];
+        if ($this->stacked) {
+            $lines[] = Rule::horizontal($width, $this->styles);
         }
-        $this->tips[\count($lines)] = ['key' => 'commit:'.$commit->sha, 'text' => $whole];
-        $lines[] = AnsiText::truncate($line, $width);
 
         return $lines;
+    }
+
+    /** File $index's row — drawn at $row, $width wide — or a blank past the last file. */
+    private function fileRow(int $index, int $row, int $width): string
+    {
+        $file = $this->files[$index] ?? null;
+        if (null === $file) {
+            return AnsiText::blank($width);
+        }
+        if ((AnsiUtils::visibleWidth($file['path']) + 4) > $width) {
+            $this->tips[$row] = ['key' => 'file:'.$file['path'], 'text' => $file['path']];
+        }
+        $selected = $this->fileList->isSelected($index);
+        $line = SelectionBar::of($selected, $this->focused)->value.FileRow::render($file['path'], $file['status'], \max(0, $width - 1), $this->styles);
+
+        return $this->shadeRow(AnsiText::truncate($line, $width, pad: true), $selected, $index === $this->hovered);
     }
 
     #[\Override]
     public function tooltipAt(int $row, int $col): ?Tooltip
     {
-        if ($row === $this->shaRow && null !== $this->copyZone && $col >= $this->copyZone[0] && $col < $this->copyZone[1]) {
-            return new Tooltip('git:details:copy', $this->translator->trans('Copy the full commit hash'), $row, $this->copyZone[0], $this->copyZone[1]);
-        }
         $tip = $this->tips[$row] ?? null;
 
         return null === $tip ? null : new Tooltip('git:details:'.$tip['key'], $tip['text'], $row, 0, $this->drawnWidth);

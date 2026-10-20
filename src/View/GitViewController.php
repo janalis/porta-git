@@ -17,6 +17,7 @@ use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Diff\DiffSide;
 use Porta\GitPlugin\Diff\DirectoryComparison;
 use Porta\GitPlugin\Diff\WhitespaceMode;
+use Porta\GitPlugin\DiffStat;
 use Porta\GitPlugin\Event\GitChangeDiscardRequested;
 use Porta\GitPlugin\Event\GitChangeSelected;
 use Porta\GitPlugin\Event\GitChangeStageToggleRequested;
@@ -43,8 +44,11 @@ use Porta\GitPlugin\Setting\DiffPrefs;
 use Porta\GitPlugin\Setting\GitSettings;
 use Porta\GitPlugin\StagedState;
 use Porta\GitPlugin\Support\Flash;
+use Porta\GitPlugin\Widget\SplitShape;
 use Porta\I18n\Translator;
 use Porta\Layout\DiffLayout;
+use Porta\Layout\NarrowSplit;
+use Porta\Layout\PaneSplit;
 use Porta\Layout\ViewRegion;
 use Porta\Support\ProjectPaths;
 use Porta\Workbench\Menu\MenuItem;
@@ -54,10 +58,7 @@ use Porta\Workbench\View\ViewHost;
 use Porta\Workbench\View\ViewPointer;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Revolt\EventLoop;
-use Symfony\Component\Tui\Style\Direction;
-use Symfony\Component\Tui\Style\Style;
 use Symfony\Component\Tui\Widget\AbstractWidget;
-use Symfony\Component\Tui\Widget\ContainerWidget;
 use Symfony\Component\Tui\Widget\FocusableInterface;
 
 /**
@@ -132,8 +133,16 @@ final class GitViewController implements ContributedView
 
     private readonly ViewRegion $region;
 
-    /** History's content: the selected commit's details beside its diff. */
-    private readonly ContainerWidget $historyRow;
+    /**
+     * History's files column beside the diff, the divider between them core's
+     * to drag and keep ({@see ViewRegion::split()}); stacked when the window
+     * is too narrow for the two.
+     */
+    private readonly PaneSplit $split;
+
+    /** The files column's least columns, and its share of the content before any drag. */
+    private const int FILES_MIN = 28;
+    private const int FILES_SHARE = 400;
 
     /** The sidebar as one resizable unit — and how wide it draws, for the toolbar over it. */
     private readonly GitSidebar $sidebar;
@@ -198,11 +207,9 @@ final class GitViewController implements ContributedView
             $this->host->invalidate();
         });
         // GitHub Desktop's middle column, in History only: two fifths of the
-        // content, the diff the rest (the two widgets' flex weights).
-        $this->historyRow = new ContainerWidget();
-        $this->historyRow->setId('git-history-content');
-        $this->historyRow->setStyle(new Style(direction: Direction::Horizontal, flex: 1));
-        $this->historyRow->expandVertically(true);
+        // content to start with, the diff the rest, and a divider to move.
+        $this->split = $this->region->split('columns', NarrowSplit::Stacked, self::FILES_SHARE, self::FILES_MIN);
+        $this->split->onNarrow($this->stack(...));
         // How this sidebar resizes. Four stacked widgets each render their own
         // width, so a drag fans the new one out to all of them; core sees a
         // container and cannot know that.
@@ -248,8 +255,26 @@ final class GitViewController implements ContributedView
     private function columns(int $width): array
     {
         $sidebar = \min($this->sidebar->width(), \max(1, $width - 2));
+        $content = $width - $sidebar - 1;
+        if (GitViewMode::History !== $this->mode || $this->split->isNarrow()) {
+            return [$sidebar, $content];
+        }
+        $files = $this->split->leadColumns($content);
 
-        return [$sidebar, $width - $sidebar - 1];
+        return [$sidebar, $files, $content - $files - 1];
+    }
+
+    /**
+     * Too narrow for three columns, History's files go over the diff and the
+     * commit header's rule counts them; with room again, they stand beside it.
+     */
+    // @mago-expect lint:no-boolean-flag-parameter -- PaneSplit::onNarrow()'s listener: the bool is the one fact it hears.
+    private function stack(bool $narrow): void
+    {
+        $this->panes->details->stack($narrow ? SplitShape::Stacked : SplitShape::Beside);
+        $this->panes->header->nameFiles($narrow ? $this->panes->details->fileCount() : null);
+        $this->panes->toolbar->invalidate();
+        $this->host->invalidate();
     }
 
     public function viewId(): string
@@ -747,7 +772,7 @@ final class GitViewController implements ContributedView
         $this->panes->tabs->setActive($mode);
         $this->arrange($mode);
         if (GitViewMode::History === $mode) {
-            $this->panes->details->setCommit(null);
+            $this->showCommit(null);
             $this->panes->diffView->makeReadOnly();
             $this->panes->diffView->setDocument(null, null, 'Select a commit file');
             $this->host->focus($this->panes->history);
@@ -774,12 +799,14 @@ final class GitViewController implements ContributedView
     {
         $this->region->sidebar()->clear();
         $this->region->content()->clear();
-        $this->historyRow->clear();
+        $this->split->release();
         $this->region->sidebar()->add($this->panes->tabs);
+        // The toolbar's cells stand over these columns, and the columns just changed.
+        $this->panes->toolbar->invalidate();
         if (GitViewMode::History === $mode) {
             $this->region->sidebar()->add($this->panes->history);
-            $this->historyRow->add($this->panes->details)->add($this->panes->diffView);
-            $this->region->content()->add($this->historyRow);
+            $this->split->mount($this->panes->details, $this->panes->diffView);
+            $this->region->content()->add($this->panes->header)->add($this->split->area);
 
             return;
         }
@@ -816,7 +843,7 @@ final class GitViewController implements ContributedView
                 // top while the pane kept showing the old commit's diff, with
                 // nothing on screen saying the two no longer went together.
                 $selected = $this->panes->history->selectedCommit();
-                $this->panes->details->setCommit($selected);
+                $this->showCommit($selected);
                 if (null === $selected) {
                     // Filtering to a file with no history at all: say so, or
                     // the pane keeps the last patch it was given.
@@ -905,8 +932,15 @@ final class GitViewController implements ContributedView
     public function onCommitSelected(GitCommitSelected $event): void
     {
         // The header says which commit at once; its files follow from git.
-        $this->panes->details->setCommit($event->commit);
+        $this->showCommit($event->commit);
         $this->loadCommitFiles($event->commit);
+    }
+
+    /** Head both History columns with $commit, its stat and files still to come. */
+    private function showCommit(?LogEntry $commit): void
+    {
+        $this->panes->header->setCommit($commit);
+        $this->panes->details->setCommit($commit);
     }
 
     /** The commit header's copy button: the full sha, said back by its short one. */
@@ -1029,11 +1063,23 @@ final class GitViewController implements ContributedView
 
     private function loadCommitFiles(LogEntry $commit): void
     {
+        // Each answer is for the commit still selected, or for none: arrowing
+        // through the list asks per step, and a big commit answering last
+        // would head another's files with its own count.
+        $this->git->commitStat($commit->sha, function (?DiffStat $stat) use ($commit): void {
+            if ($this->showing($commit)) {
+                $this->panes->header->setStat($stat);
+                $this->host->invalidate();
+            }
+        });
         $this->git->commitFiles($commit->sha, function (array $files) use ($commit): void {
-            if (!$this->open || GitViewMode::History !== $this->mode || $commit->sha !== $this->panes->history->selectedCommit()?->sha) {
+            if (!$this->showing($commit)) {
                 return;
             }
             $this->panes->details->setFiles($files);
+            if ($this->split->isNarrow()) {
+                $this->panes->header->nameFiles(\count($files));
+            }
             if ([] === $files) {
                 $this->panes->diffView->setDocument(null, null, 'No files in this commit');
                 $this->host->invalidate();
@@ -1044,6 +1090,12 @@ final class GitViewController implements ContributedView
             $this->loadCommitFileDiff($commit, $files[0]['path']);
             $this->host->invalidate();
         });
+    }
+
+    /** Whether History is up with $commit the one selected. */
+    private function showing(LogEntry $commit): bool
+    {
+        return $this->open && GitViewMode::History === $this->mode && $commit->sha === $this->panes->history->selectedCommit()?->sha;
     }
 
     private function loadCommitFileDiff(LogEntry $commit, string $path): void
