@@ -822,6 +822,14 @@
         <source>Worktree %name% — click to switch or add one</source>
         <target>Worktree %name% — klicken, um zu wechseln oder einen hinzuzufügen</target>
       </trans-unit>
+      <trans-unit id="211">
+        <source>Commit to %branch%</source>
+        <target>Auf %branch% committen</target>
+      </trans-unit>
+      <trans-unit id="212">
+        <source>Commit %count% file to %branch%|Commit %count% files to %branch%</source>
+        <target>%count% Datei auf %branch% committen|%count% Dateien auf %branch% committen</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

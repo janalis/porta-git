@@ -43,19 +43,19 @@ final class GitTooltipsTest extends TestCase
         $list = $this->changes();
         $letter = 1 + 3 + 1; // the lead space, the box, a space
 
-        $modified = $list->tooltipAt(1, $letter);
-        $this->assertSame(['git:status:src/a.php', "Modified\nStaged", 1, $letter, $letter + 1], [$modified?->key, $modified?->text, $modified?->row, $modified?->colStart, $modified?->colEnd]);
-        $this->assertSame("Untracked: new to git\nNot staged", $list->tooltipAt(2, $letter)?->text, 'untracked shows as A, and is not an addition');
-        $this->assertSame("Modified\nPartly staged", $list->tooltipAt(3, $letter)?->text, 'the worktree side wins the letter');
-        $this->assertSame("Deleted\nNot staged", $list->tooltipAt(4, $letter)?->text);
+        $modified = $list->tooltipAt(2, $letter);
+        $this->assertSame(['git:status:src/a.php', "Modified\nStaged", 2, $letter, $letter + 1], [$modified?->key, $modified?->text, $modified?->row, $modified?->colStart, $modified?->colEnd]);
+        $this->assertSame("Untracked: new to git\nNot staged", $list->tooltipAt(3, $letter)?->text, 'untracked shows as A, and is not an addition');
+        $this->assertSame("Modified\nPartly staged", $list->tooltipAt(4, $letter)?->text, 'the worktree side wins the letter');
+        $this->assertSame("Deleted\nNot staged", $list->tooltipAt(5, $letter)?->text);
     }
 
     public function testTheBoxSaysWhatAClickDoesAndItsKey(): void
     {
         $list = $this->changes();
 
-        $this->assertSame("Unstage this file\tSpace", $list->tooltipAt(1, 2)?->text);
-        $this->assertSame("Stage this file\tSpace", $list->tooltipAt(2, 1)?->text);
+        $this->assertSame("Unstage this file\tSpace", $list->tooltipAt(2, 2)?->text);
+        $this->assertSame("Stage this file\tSpace", $list->tooltipAt(3, 1)?->text);
         $this->assertSame('Stage everything', $list->tooltipAt(0, 2)?->text, "the header's box, over a mix");
     }
 
@@ -63,9 +63,9 @@ final class GitTooltipsTest extends TestCase
     {
         $list = $this->changes();
 
-        $this->assertSame('src/a/very/deep/directory/with/a/long/name/File.php', $list->tooltipAt(4, 20)?->text);
-        $this->assertNull($list->tooltipAt(1, 10), 'src/a.php is drawn whole');
-        $this->assertNull($list->tooltipAt(8, 10), 'past the entries');
+        $this->assertSame('src/a/very/deep/directory/with/a/long/name/File.php', $list->tooltipAt(5, 20)?->text);
+        $this->assertNull($list->tooltipAt(2, 10), 'src/a.php is drawn whole');
+        $this->assertNull($list->tooltipAt(9, 10), 'past the entries');
     }
 
     public function testEveryLetterGitCanShowHasWords(): void
@@ -81,7 +81,7 @@ final class GitTooltipsTest extends TestCase
         ]);
         $list->render(new RenderContext(40, 10));
 
-        $texts = \array_map(static fn (int $row): ?string => $list->tooltipAt($row, 5)?->text, \range(1, end: 6));
+        $texts = \array_map(static fn (int $row): ?string => $list->tooltipAt($row, 5)?->text, \range(2, end: 7));
 
         $this->assertSame(
             [

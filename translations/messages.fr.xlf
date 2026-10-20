@@ -822,6 +822,14 @@
         <source>Worktree %name% — click to switch or add one</source>
         <target>Arbre de travail %name% — cliquer pour en changer ou en ajouter un</target>
       </trans-unit>
+      <trans-unit id="211">
+        <source>Commit to %branch%</source>
+        <target>Valider sur %branch%</target>
+      </trans-unit>
+      <trans-unit id="212">
+        <source>Commit %count% file to %branch%|Commit %count% files to %branch%</source>
+        <target>Valider %count% fichier sur %branch%|Valider %count% fichiers sur %branch%</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

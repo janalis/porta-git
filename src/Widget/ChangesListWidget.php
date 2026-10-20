@@ -28,6 +28,7 @@ use Porta\Widget\Render\FieldState;
 use Porta\Widget\Render\HeaderRenderer;
 use Porta\Widget\Render\MenuOverlayHost;
 use Porta\Widget\Render\MenuOverlayHostTrait;
+use Porta\Widget\Render\Rule;
 use Porta\Widget\Support\ArrowScrollTrait;
 use Porta\Widget\Support\FillsPaneTrait;
 use Porta\Widget\Support\HoverTrait;
@@ -75,6 +76,10 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     private int $lastPage = 1;
     /** Index of the entry an inline discard confirmation is armed for, or null. */
     private ?int $confirmDiscard = null;
+
+    /** The rows over the files: the heading with its select-all box, and the rule under it. */
+    private const int HEAD_ROWS = 2;
+
     /**
      * Which entry each screen row of the last render belongs to — null for the
      * title and the padding — so a click and a hover land on what was drawn:
@@ -417,8 +422,9 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         // and the partial mark for a mix. Untinted: the header's style runs
         // across it, and a tint's closing code would drop it for the title.
         $box = [] === $this->entries ? '' : $this->litBox(FieldBox::checkbox($this->allStaged()), -1).' ';
-        $lines = [HeaderRenderer::title($box.$title, $width, $this->styles)];
-        $this->rowOwner = [null];
+        // GitHub Desktop's list heading, ruled off from the files under it.
+        $lines = [HeaderRenderer::title($box.$title, $width, $this->styles), Rule::horizontal($width, $this->styles)];
+        $this->rowOwner = [null, null];
         $this->confirmButtons = null;
 
         // Every entry is a row, the armed one a block: its question, then
@@ -427,8 +433,8 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         foreach (\array_keys($this->entries) as $index) {
             $heights[] = $index === $this->confirmDiscard ? 1 + FieldBox::rowsFor($this->density->current()) : 1;
         }
-        $scroll = $this->list->followHeights($heights, $rows - 1);
-        $this->lastPage = $this->list->countFitting($heights, $scroll, $rows - 1);
+        $scroll = $this->list->followHeights($heights, $rows - self::HEAD_ROWS);
+        $this->lastPage = $this->list->countFitting($heights, $scroll, $rows - self::HEAD_ROWS);
         for ($index = $scroll; $index < $count && \count($lines) < $rows; ++$index) {
             $block = $index === $this->confirmDiscard ? $this->confirmBlock($this->entries[$index], $width, \count($lines)) : [$this->entryRow($index, $width)];
             foreach ($block as $line) {

@@ -822,6 +822,14 @@
         <source>Worktree %name% — click to switch or add one</source>
         <target>ワークツリー %name% — クリックで切り替え・追加</target>
       </trans-unit>
+      <trans-unit id="211">
+        <source>Commit to %branch%</source>
+        <target>%branch% にコミット</target>
+      </trans-unit>
+      <trans-unit id="212">
+        <source>Commit %count% file to %branch%|Commit %count% files to %branch%</source>
+        <target>%count% 個のファイルを %branch% にコミット|%count% 個のファイルを %branch% にコミット</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

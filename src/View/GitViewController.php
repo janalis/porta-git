@@ -204,6 +204,7 @@ final class GitViewController implements ContributedView
         // empty render.
         $this->repository?->onChange(function (): void {
             $this->panes->toolbar->invalidate();
+            $this->aimCommit();
             $this->host->invalidate();
         });
         // GitHub Desktop's middle column, in History only: two fifths of the
@@ -585,6 +586,7 @@ final class GitViewController implements ContributedView
             $this->lastStatusRaw = $raw;
             $this->entries = $entries;
             $this->panes->changes->setEntries($entries);
+            $this->aimCommit();
             if (null !== $this->selectOnLoad) {
                 $this->panes->changes->selectPath($this->selectOnLoad);
                 $this->selectOnLoad = null;
@@ -1120,6 +1122,13 @@ final class GitViewController implements ContributedView
             },
             $this->hideWhitespace ? WhitespaceMode::Hidden : WhitespaceMode::Shown,
         );
+    }
+
+    /** Tell the commit button what it would commit, and to which branch. */
+    private function aimCommit(): void
+    {
+        $staged = \array_filter($this->entries, static fn (ChangeEntry $entry): bool => StagedState::None !== $entry->stagedState());
+        $this->panes->commitBox->setCommitTarget($this->repository?->branch(), \count($staged));
     }
 
     private function hasStagedChanges(): bool

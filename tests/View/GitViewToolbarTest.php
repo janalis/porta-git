@@ -332,4 +332,21 @@ final class GitViewToolbarTest extends TestCase
     {
         return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $this->header->render(new RenderContext(80, 3))));
     }
+
+    /** The commit button follows what is staged and the branch it would go to. */
+    public function testTheCommitButtonNamesTheStagedFilesAndTheBranch(): void
+    {
+        $controller = $this->controller();
+        $branch = \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD'));
+        $controller->open();
+        $box = fn (): string => AnsiUtils::stripAnsiCodes(\implode("\n", $this->commitBox->render(new RenderContext(44, 30))));
+        $this->await(static fn (): bool => \str_contains($box(), 'Commit to '.$branch), what: 'the branch, nothing staged');
+
+        $this->project->write('a.txt', "staged\n");
+        $this->project->git('add', 'a.txt');
+        Probe::invoke($controller, 'refresh');
+
+        $this->await(static fn (): bool => \str_contains($box(), 'Commit 1 file to '.$branch), what: 'the staged file');
+        $this->assertStringNotContainsString('Commit to branch', $box());
+    }
 }

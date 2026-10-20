@@ -151,7 +151,7 @@ final class GitContextMenusTest extends TestCase
         ]);
         $this->frame();
 
-        $items = $menus->contextItemsAt(row: 1, col: 2);
+        $items = $menus->contextItemsAt(row: 2, col: 2); // under the heading and its rule
         $this->assertNotNull($items, 'the row is real once the list has an entry');
         $this->assertSame('Stage', $items[0]->label, 'not fully staged: the checkbox action is to stage it');
         $this->assertSame($this->changes, $this->tui->getFocus(), 'a right-click also focuses the list it hit');
@@ -159,7 +159,7 @@ final class GitContextMenusTest extends TestCase
         $this->changes->setEntries([
             new ChangeEntry('staged.txt', indexStatus: 'M', worktreeStatus: ' '),
         ]);
-        $items = $menus->contextItemsAt(row: 1, col: 2);
+        $items = $menus->contextItemsAt(row: 2, col: 2); // under the heading and its rule
         $this->assertSame('Unstage', $items[0]->label, 'fully staged: the checkbox action is to unstage it');
     }
 }

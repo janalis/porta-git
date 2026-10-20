@@ -213,6 +213,42 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertStringContainsString('Summary (required)', $this->rendered($widget));
     }
 
+    /** GitHub Desktop's button says what it commits and where: the staged files, the branch. */
+    public function testTheButtonNamesTheFilesAndTheBranch(): void
+    {
+        $widget = new CommitBoxWidget(new Translator('en'));
+        $widget->setStagedChangesProvider(static fn (): bool => true);
+
+        $widget->setCommitTarget('main', 2);
+        $this->assertStringContainsString('Commit 2 files to main', $this->rendered($widget));
+        $widget->setCommitTarget('main', 1);
+        $this->assertStringContainsString('Commit 1 file to main', $this->rendered($widget));
+        $widget->setCommitTarget('feature', 0);
+        $this->assertStringContainsString('Commit to feature', $this->rendered($widget), 'nothing staged yet: the branch alone');
+        $widget->setCommitTarget(null, 3);
+        $this->assertStringContainsString('Commit to branch', $this->rendered($widget), 'a detached HEAD, or a branch not read yet');
+
+        $widget->setCommitTarget("ma\x1b[2Jin", 1);
+        $this->assertStringNotContainsString("\x1b[2J", \implode('', $widget->render(new RenderContext(44, 30))), 'a branch name is shown, never obeyed');
+
+        $widget->setCommitTarget('main', 2);
+        $this->rendered($widget);
+        $widget->handleClick($widget->buttonRow() - 2); // the amend box's label row
+        $this->assertStringContainsString('Amend last commit', $this->rendered($widget), 'amending names the commit it rewrites, not the files');
+    }
+
+    /** The same target again repaints nothing. */
+    public function testTheSameTargetIsNoRepaint(): void
+    {
+        $widget = new CommitBoxWidget(new Translator('en'));
+        $widget->setCommitTarget('main', 2);
+        $revision = $widget->getRenderRevision();
+
+        $widget->setCommitTarget('main', 2);
+
+        $this->assertSame($revision, $widget->getRenderRevision());
+    }
+
     public function testSummaryBackspaceAndResetField(): void
     {
         $widget = $this->widget();

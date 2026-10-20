@@ -81,6 +81,12 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     /** Whether there is a commit to amend: a branch with none shows the checkbox disabled. */
     private bool $amendable = true;
 
+    /** The branch a commit goes to, for the button; null while unknown. */
+    private ?string $branch = null;
+
+    /** How many files are staged, for the button. */
+    private int $files = 0;
+
     /** @var (callable(): bool)|null anything staged to commit? */
     private $stagedChangesProvider;
     /** @var (callable(string, CommitMode): void)|null commit with the assembled message (+ amend mode) */
@@ -100,6 +106,32 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         $this->density = $density ?? new ScreenDensity();
         $this->summary = new TextField(style: $cursorStyle);
         $this->description = new MultilineInput($cursorStyle);
+    }
+
+    /**
+     * What the button commits, for its label: the staged files and the
+     * branch they go to — GitHub Desktop's "Commit 2 files to main". An
+     * unknown branch (detached, or not read yet) leaves the plain label.
+     */
+    public function setCommitTarget(?string $branch, int $files): void
+    {
+        if ([$branch, $files] === [$this->branch, $this->files]) {
+            return;
+        }
+        $this->branch = $branch;
+        $this->files = $files;
+        $this->invalidate();
+    }
+
+    /** The button's label: what it commits and where, as far as it is known. */
+    private function commitLabel(): string
+    {
+        return match (true) {
+            CommitMode::Amend === $this->amend => $this->translator->trans('Amend last commit'),
+            null === $this->branch => $this->translator->trans('Commit to branch'),
+            0 === $this->files => $this->translator->trans('Commit to %branch%', ['%branch%' => AnsiText::oneLine($this->branch)]),
+            default => $this->translator->trans('Commit %count% file to %branch%|Commit %count% files to %branch%', ['%count%' => $this->files, '%branch%' => AnsiText::oneLine($this->branch)]),
+        };
     }
 
     /** @param callable(): bool $predicate */
@@ -423,7 +455,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         // The form's submit button, its key in its border: dashed while
         // there is nothing to commit, so "not now" reads without colour.
         \array_push($lines, ...FieldBox::button(
-            $amend ? $this->translator->trans('Amend last commit') : $this->translator->trans('Commit to branch'),
+            $this->commitLabel(),
             $this->commitEnabled() ? FieldState::Idle : FieldState::Disabled,
             $this->hoveredIndex === $this->buttonRow(),
             $width,

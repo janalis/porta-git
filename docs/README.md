@@ -86,9 +86,10 @@ for them all: `[✓]` every change staged, `[ ]` none,
 ### Diff pane
 
 Unified (dual gutters) or side-by-side, added rows on a green band and deleted
-ones on a red one, the changed words a shade stronger. The ⚙ at the end of its
-toolbar drops the display settings — *Hide whitespace changes*, *Unified*,
-*Split* — and the ⇕ before a hunk's header shows more of the file around it.
+ones on a red one, the changed words a shade stronger. Its file header is one
+bar row — the path, its folder dimmed — and the ⚙ ▾ at its end drops the
+display settings: *Hide whitespace changes*, *Unified*, *Split*. The ⇕ before
+a hunk's header shows more of the file around it.
 
 | Key | Action |
 | --- | --- |
@@ -102,7 +103,8 @@ toolbar drops the display settings — *Hide whitespace changes*, *Unified*,
 ### Commit box
 
 `Ctrl+Enter` commits the staged changes (the button enables only when
-something is staged); `Alt+M` toggles **amend**, prefilling the last
+something is staged, and says what it commits: *Commit 2 files to main*);
+`Alt+M` toggles **amend**, prefilling the last
 commit's message. `Tab` walks the summary, the description and the amend
 checkbox, where `Space` toggles it; `Shift+Tab` walks back. On a branch with no commit yet the
 checkbox is dashed and says *No commit to amend*, and `Tab` passes it by.
@@ -110,11 +112,17 @@ checkbox is dashed and says *No commit to amend*, and `Tab` passes it by.
 ### History
 
 Three columns, as in GitHub Desktop: the commits, each its subject over
-`author · 5 hours ago`; the selected commit's subject, author and short sha
-(⧉ or `y` copies the full one) over the files it changed; and the diff,
-read-only here. Selecting a commit shows its first file's patch; `Enter` moves
-between the commits and the files, and `Tab` walks commits → files → diff.
-`1` returns to Changes.
+`author · 5 hours ago` (a hairline between two on a roomy screen); the files
+the selected commit changed; and the diff, read-only here. Over the files and
+the diff, the commit itself: its subject, `author · sha ⧉` (⧉ or `y` copies
+the full sha) and, at the far end, the lines it added and removed. The divider
+between the files and the diff drags (or `Shift+F11`/`F12` from either), and
+the view keeps where you left it. Too narrow for three columns, the files
+stack over the diff, six rows at most.
+
+Selecting a commit shows its first file's patch; `Enter` moves between the
+commits and the files, and `Tab` walks commits → files → diff. `1` returns to
+Changes.
 
 The view covers changes, staging (including line-level), commit/amend and
 history browsing. History loads 200 commits at a time — moving past the last
