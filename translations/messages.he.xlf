@@ -86,10 +86,6 @@
         <source>Untracked: stage the whole file with Space in the changes list</source>
         <target>לא במעקב: העלה את הקובץ כולו עם רווח ברשימת השינויים</target>
       </trans-unit>
-      <trans-unit id="26">
-        <source>[→%count%]</source>
-        <target>[→%count%]</target>
-      </trans-unit>
       <trans-unit id="27">
         <source>git apply refused the partial patch</source>
         <target>git apply דחה את התיקון החלקי</target>
@@ -109,10 +105,6 @@
       <trans-unit id="31">
         <source>±10 lines</source>
         <target>±10 שורות</target>
-      </trans-unit>
-      <trans-unit id="32">
-        <source>No changes selected</source>
-        <target>לא נבחרו שינויים</target>
       </trans-unit>
       <trans-unit id="33">
         <source>Working tree clean</source>
@@ -450,10 +442,6 @@
         <source>Stage everything</source>
         <target>הכנת הכול</target>
       </trans-unit>
-      <trans-unit id="117">
-        <source>Side-by-side diff</source>
-        <target>השוואה זה לצד זה</target>
-      </trans-unit>
       <trans-unit id="119">
         <source>Write a summary first</source>
         <target>יש לכתוב תקציר תחילה</target>
@@ -738,33 +726,13 @@
         <source>Copy the full commit hash</source>
         <target>להעתיק את גיבוב הקומיט המלא</target>
       </trans-unit>
-      <trans-unit id="190">
-        <source>Diff settings: %layout%, %whitespace%</source>
-        <target>הגדרות diff: %layout%, %whitespace%</target>
-      </trans-unit>
       <trans-unit id="191">
         <source>Hide whitespace changes</source>
         <target>להסתיר שינויי רווחים</target>
       </trans-unit>
-      <trans-unit id="192">
-        <source>Show more of the file around the changes (c)</source>
-        <target>להציג עוד מהקובץ סביב השינויים (c)</target>
-      </trans-unit>
       <trans-unit id="193">
         <source>Unified</source>
         <target>מאוחד</target>
-      </trans-unit>
-      <trans-unit id="194">
-        <source>Unified diff</source>
-        <target>diff מאוחד</target>
-      </trans-unit>
-      <trans-unit id="195">
-        <source>whitespace changes hidden</source>
-        <target>שינויי רווחים מוסתרים</target>
-      </trans-unit>
-      <trans-unit id="196">
-        <source>whitespace changes shown</source>
-        <target>שינויי רווחים מוצגים</target>
       </trans-unit>
       <trans-unit id="197">
         <source>Fetch</source>

@@ -86,10 +86,6 @@
         <source>Untracked: stage the whole file with Space in the changes list</source>
         <target>Non tracciato: metti in stage l’intero file con Spazio nell’elenco modifiche</target>
       </trans-unit>
-      <trans-unit id="26">
-        <source>[→%count%]</source>
-        <target>[→%count%]</target>
-      </trans-unit>
       <trans-unit id="27">
         <source>git apply refused the partial patch</source>
         <target>git apply ha rifiutato la patch parziale</target>
@@ -109,10 +105,6 @@
       <trans-unit id="31">
         <source>±10 lines</source>
         <target>±10 righe</target>
-      </trans-unit>
-      <trans-unit id="32">
-        <source>No changes selected</source>
-        <target>Nessuna modifica selezionata</target>
       </trans-unit>
       <trans-unit id="33">
         <source>Working tree clean</source>
@@ -450,10 +442,6 @@
         <source>Stage everything</source>
         <target>Metti tutto in stage</target>
       </trans-unit>
-      <trans-unit id="117">
-        <source>Side-by-side diff</source>
-        <target>Diff affiancato</target>
-      </trans-unit>
       <trans-unit id="119">
         <source>Write a summary first</source>
         <target>Scrivi prima un riepilogo</target>
@@ -738,33 +726,13 @@
         <source>Copy the full commit hash</source>
         <target>Copia l’hash completo del commit</target>
       </trans-unit>
-      <trans-unit id="190">
-        <source>Diff settings: %layout%, %whitespace%</source>
-        <target>Impostazioni del diff: %layout%, %whitespace%</target>
-      </trans-unit>
       <trans-unit id="191">
         <source>Hide whitespace changes</source>
         <target>Nascondi le modifiche agli spazi</target>
       </trans-unit>
-      <trans-unit id="192">
-        <source>Show more of the file around the changes (c)</source>
-        <target>Mostra più file attorno alle modifiche (c)</target>
-      </trans-unit>
       <trans-unit id="193">
         <source>Unified</source>
         <target>Unificato</target>
-      </trans-unit>
-      <trans-unit id="194">
-        <source>Unified diff</source>
-        <target>Diff unificato</target>
-      </trans-unit>
-      <trans-unit id="195">
-        <source>whitespace changes hidden</source>
-        <target>modifiche agli spazi nascoste</target>
-      </trans-unit>
-      <trans-unit id="196">
-        <source>whitespace changes shown</source>
-        <target>modifiche agli spazi visibili</target>
       </trans-unit>
       <trans-unit id="197">
         <source>Fetch</source>

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\View;
 
+use Porta\DiffPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\CommitHeaderWidget;
-use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;

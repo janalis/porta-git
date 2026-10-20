@@ -9,11 +9,6 @@ use Porta\GitPlugin\Event\GitChangeSelected;
 use Porta\GitPlugin\Event\GitChangeStageToggleRequested;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitSelected;
-use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
-use Porta\GitPlugin\Event\GitDiffCopyRequested;
-use Porta\GitPlugin\Event\GitDiffLayoutToggled;
-use Porta\GitPlugin\Event\GitDiffStagingRequested;
-use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
@@ -39,11 +34,6 @@ final class GitWidgetEvents
         ?callable $onSelectCommit = null,
         ?callable $onSelectFile = null,
         ?callable $onLoadMore = null,
-        ?callable $onStageSelection = null,
-        ?callable $onCycleContext = null,
-        ?callable $onLayoutToggle = null,
-        ?callable $onToggleWhitespace = null,
-        ?callable $onCopy = null,
     ): void {
         if (null !== $onSelect) {
             $events->addListener(GitChangeSelected::class, static fn (GitChangeSelected $event) => $onSelect($event->entry));
@@ -62,21 +52,6 @@ final class GitWidgetEvents
         }
         if (null !== $onLoadMore) {
             $events->addListener(GitHistoryEndReached::class, static fn (GitHistoryEndReached $event) => $onLoadMore());
-        }
-        if (null !== $onStageSelection) {
-            $events->addListener(GitDiffStagingRequested::class, static fn (GitDiffStagingRequested $event) => $onStageSelection($event->selection));
-        }
-        if (null !== $onCycleContext) {
-            $events->addListener(GitDiffContextCycleRequested::class, static fn (GitDiffContextCycleRequested $event) => $onCycleContext());
-        }
-        if (null !== $onLayoutToggle) {
-            $events->addListener(GitDiffLayoutToggled::class, static fn (GitDiffLayoutToggled $event) => $onLayoutToggle());
-        }
-        if (null !== $onToggleWhitespace) {
-            $events->addListener(GitDiffWhitespaceToggleRequested::class, static fn (GitDiffWhitespaceToggleRequested $event) => $onToggleWhitespace());
-        }
-        if (null !== $onCopy) {
-            $events->addListener(GitDiffCopyRequested::class, static fn (GitDiffCopyRequested $event) => $onCopy($event->text));
         }
     }
 }

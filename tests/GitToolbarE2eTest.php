@@ -60,7 +60,7 @@ final class GitToolbarE2eTest extends TestCase
     {
         $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit('main');
         $project->commitAll('first');
         // An upstream one commit behind: the remote button offers a push.
@@ -147,7 +147,7 @@ final class GitToolbarE2eTest extends TestCase
     {
         $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['src/a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit('main');
         $project->commitAll('first');
         $project->write('src/a.txt', "one\ntwo\n");

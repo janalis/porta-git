@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\View;
 
+use Porta\DiffPlugin\Event\DiffContextCycleRequested;
+use Porta\DiffPlugin\Event\DiffCopyRequested;
+use Porta\DiffPlugin\Event\DiffLayoutToggled;
+use Porta\DiffPlugin\Event\DiffSettingsRequested;
+use Porta\DiffPlugin\Event\DiffStagingRequested;
+use Porta\DiffPlugin\Event\DiffWhitespaceToggleRequested;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
 use Porta\Event\WorkingTreeChanged;
@@ -13,12 +19,6 @@ use Porta\GitPlugin\Event\GitChangeStageToggleRequested;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitHashCopyRequested;
 use Porta\GitPlugin\Event\GitCommitSelected;
-use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
-use Porta\GitPlugin\Event\GitDiffCopyRequested;
-use Porta\GitPlugin\Event\GitDiffLayoutToggled;
-use Porta\GitPlugin\Event\GitDiffSettingsRequested;
-use Porta\GitPlugin\Event\GitDiffStagingRequested;
-use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
 use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitRemoteRequested;
@@ -58,12 +58,12 @@ final class GitWiring
         GitCommitFileSelected::class => 'onCommitFileSelected',
         GitCommitHashCopyRequested::class => 'onCommitHashCopyRequested',
         GitCommitSelected::class => 'onCommitSelected',
-        GitDiffContextCycleRequested::class => 'onDiffContextCycled',
-        GitDiffCopyRequested::class => 'onDiffTextCopied',
-        GitDiffLayoutToggled::class => 'onDiffLayoutToggled',
-        GitDiffSettingsRequested::class => 'onDiffSettingsRequested',
-        GitDiffStagingRequested::class => 'onDiffLinesStaged',
-        GitDiffWhitespaceToggleRequested::class => 'onDiffWhitespaceToggled',
+        DiffContextCycleRequested::class => 'onDiffContextCycled',
+        DiffCopyRequested::class => 'onDiffTextCopied',
+        DiffLayoutToggled::class => 'onDiffLayoutToggled',
+        DiffSettingsRequested::class => 'onDiffSettingsRequested',
+        DiffStagingRequested::class => 'onDiffLinesStaged',
+        DiffWhitespaceToggleRequested::class => 'onDiffWhitespaceToggled',
         GitFileHistoryRequested::class => 'onFileHistoryRequested',
         GitHistoryEndReached::class => 'onHistoryEndReached',
         GitRemoteRequested::class => 'onRemoteRequested',

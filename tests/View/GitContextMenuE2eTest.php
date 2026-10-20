@@ -42,7 +42,7 @@ final class GitContextMenuE2eTest extends TestCase
             $this->markTestSkipped('git not available');
         }
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
 

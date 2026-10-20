@@ -6,6 +6,7 @@ namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Porta\DiffPlugin\Widget\DiffViewWidget;
 use Porta\Event\GitRemoteCompleted;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\RefreshMode;
@@ -16,7 +17,6 @@ use Porta\GitPlugin\View\GitViewController;
 use Porta\GitPlugin\View\GitViewMode;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
-use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\Tests\Support\Presence;
 use Porta\Tests\Support\Probe;

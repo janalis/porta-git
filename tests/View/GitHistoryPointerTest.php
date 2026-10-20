@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\TestCase;
+use Porta\DiffPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitHashCopyRequested;
 use Porta\GitPlugin\LogEntry;
@@ -14,7 +15,6 @@ use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\CommitHeaderWidget;
-use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;

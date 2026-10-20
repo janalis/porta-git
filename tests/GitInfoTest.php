@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\DiffPlugin\HunkParser;
 use Porta\GitPlugin\DiffStat;
 use Porta\GitPlugin\GitInfo;
-use Porta\GitPlugin\Parse\HunkParser;
 use Porta\GitPlugin\Setting\GitSettings;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;

@@ -40,7 +40,7 @@ final class WorktreeE2eTest extends TestCase
     protected function setUp(): void
     {
         $this->skipWithoutGit();
-        $this->project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $this->project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $this->project->initGit(branch: 'main');
         // Untracked, so a worktree checks out no `.porta.json` — one would
         // put the trust question between the pick and the switch.
@@ -76,7 +76,7 @@ final class WorktreeE2eTest extends TestCase
 
     public function testInALinkedWorktreeTheStatusBarSaysWhich(): void
     {
-        $this->linked->write('.porta.json', '{"enabledPlugins":["git"]}');
+        $this->linked->write('.porta.json', '{"enabledPlugins":["diff","git"]}');
         $name = \basename($this->linked->dir);
 
         $this->runIde(

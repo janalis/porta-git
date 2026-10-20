@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Diff;
 
+use Porta\DiffPlugin\DiffHunk;
+use Porta\DiffPlugin\DiffLine;
+
 /**
  * Builds the partial patches behind line/hunk staging: given a file's diff
  * hunks and a per-hunk set of selected ± lines, emit a valid unified diff

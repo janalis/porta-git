@@ -86,10 +86,6 @@
         <source>Untracked: stage the whole file with Space in the changes list</source>
         <target>追跡外: 変更リストで Space を押してファイル全体をステージします</target>
       </trans-unit>
-      <trans-unit id="26">
-        <source>[→%count%]</source>
-        <target>[→%count%]</target>
-      </trans-unit>
       <trans-unit id="27">
         <source>git apply refused the partial patch</source>
         <target>git apply が部分パッチを拒否しました</target>
@@ -109,10 +105,6 @@
       <trans-unit id="31">
         <source>±10 lines</source>
         <target>±10 行</target>
-      </trans-unit>
-      <trans-unit id="32">
-        <source>No changes selected</source>
-        <target>変更が選択されていません</target>
       </trans-unit>
       <trans-unit id="33">
         <source>Working tree clean</source>
@@ -450,10 +442,6 @@
         <source>Stage everything</source>
         <target>すべてステージ</target>
       </trans-unit>
-      <trans-unit id="117">
-        <source>Side-by-side diff</source>
-        <target>左右に並べた差分</target>
-      </trans-unit>
       <trans-unit id="119">
         <source>Write a summary first</source>
         <target>まず概要を入力してください</target>
@@ -738,33 +726,13 @@
         <source>Copy the full commit hash</source>
         <target>コミットハッシュ全体をコピー</target>
       </trans-unit>
-      <trans-unit id="190">
-        <source>Diff settings: %layout%, %whitespace%</source>
-        <target>差分の設定: %layout%、%whitespace%</target>
-      </trans-unit>
       <trans-unit id="191">
         <source>Hide whitespace changes</source>
         <target>空白の変更を隠す</target>
       </trans-unit>
-      <trans-unit id="192">
-        <source>Show more of the file around the changes (c)</source>
-        <target>変更の周囲をさらに表示 (c)</target>
-      </trans-unit>
       <trans-unit id="193">
         <source>Unified</source>
         <target>統合</target>
-      </trans-unit>
-      <trans-unit id="194">
-        <source>Unified diff</source>
-        <target>統合差分</target>
-      </trans-unit>
-      <trans-unit id="195">
-        <source>whitespace changes hidden</source>
-        <target>空白の変更を非表示</target>
-      </trans-unit>
-      <trans-unit id="196">
-        <source>whitespace changes shown</source>
-        <target>空白の変更を表示</target>
       </trans-unit>
       <trans-unit id="197">
         <source>Fetch</source>

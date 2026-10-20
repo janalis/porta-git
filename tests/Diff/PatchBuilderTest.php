@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\Diff;
 
 use PHPUnit\Framework\TestCase;
-use Porta\GitPlugin\Diff\DiffDocument;
+use Porta\DiffPlugin\DiffDocument;
 use Porta\GitPlugin\Diff\PatchBuilder;
 use Porta\GitPlugin\GitInfo;
 use Porta\Support\Outcome;

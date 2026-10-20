@@ -10,7 +10,6 @@ use Porta\GitPlugin\LogEntry;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
-use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\RendersWidget;
@@ -112,28 +111,6 @@ final class GitTooltipsTest extends TestCase
         $list->render(new RenderContext(40, 5));
 
         $this->assertNull($list->tooltipAt(0, 1));
-    }
-
-    public function testTheGearSaysWhatTheDiffShows(): void
-    {
-        $diff = new DiffViewWidget(new Translator('en'));
-        $diff->render(new RenderContext(80, 10));
-        $anchor = $diff->settingsAnchor();
-        $this->assertNotNull($anchor);
-
-        $tip = $diff->tooltipAt(0, $anchor[0] + 1);
-        $this->assertSame(
-            ['git:diff:settings', 'Diff settings: Unified diff, whitespace changes shown', 0, 1],
-            [$tip?->key, $tip?->text, $tip?->row, $tip?->rows],
-            'the gear on the bar row',
-        );
-        $this->assertNull($diff->tooltipAt(0, 2), 'the title');
-        $this->assertNull($diff->tooltipAt(1, $anchor[0] + 1), 'the close under the bar');
-        $this->assertNull($diff->tooltipAt(5, $anchor[0] + 1), 'below the toolbar');
-
-        $diff->useSplitView();
-        $diff->hideWhitespace();
-        $this->assertSame('Diff settings: Side-by-side diff, whitespace changes hidden', $diff->tooltipAt(0, $anchor[0] + 1)?->text);
     }
 
     public function testADisabledCommitButtonSaysWhy(): void

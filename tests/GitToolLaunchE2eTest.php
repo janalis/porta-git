@@ -40,7 +40,7 @@ final class GitToolLaunchE2eTest extends TestCase
     {
         $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // git diff --no-index needs git
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.php' => "<?php\necho 'working tree';\n"]);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.php' => "<?php\necho 'working tree';\n"]);
         $project->initGit();
         $project->commitAll('init');
         // Git hands the old side over as a temp blob OUTSIDE the repository.
@@ -68,7 +68,7 @@ final class GitToolLaunchE2eTest extends TestCase
     {
         $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH);
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.php' => "<?php\necho 'as it is';\n"]);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.php' => "<?php\necho 'as it is';\n"]);
         $project->initGit();
         $project->commitAll('init');
         $proposal = new TempProject(['a.php' => "<?php\necho 'as proposed';\n"]);
@@ -96,7 +96,7 @@ final class GitToolLaunchE2eTest extends TestCase
     {
         $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH);
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.php' => "<?php\necho 'base';\n"]);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.php' => "<?php\necho 'base';\n"]);
         $project->initGit(branch: 'main');
         $project->commitAll('base');
         $project->git('checkout', '-q', '-b', 'feature');

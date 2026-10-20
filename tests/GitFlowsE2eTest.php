@@ -6,9 +6,9 @@ namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
+use Porta\DiffPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
-use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\Ide;
@@ -54,7 +54,7 @@ final class GitFlowsE2eTest extends TestCase
     public function testRightClickingTheStatusBarBranchOpensTheBranchMenu(): void
     {
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // a real branch needs git
-        $project = new TempProject(['a.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['a.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->commitAll('init');
 
@@ -102,7 +102,7 @@ final class GitFlowsE2eTest extends TestCase
             $this->markTestSkipped('git not available');
         }
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
         // A seeded percent is a share of the window's inner width: on a
@@ -148,7 +148,7 @@ final class GitFlowsE2eTest extends TestCase
             $this->markTestSkipped('git binary not available');
         }
 
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t'); // 'tester' is asserted as the blame author
         $project->write('src/A.php', "<?php\n\$a = 1;\n");
         $project->git('add', '-A');
@@ -233,7 +233,7 @@ final class GitFlowsE2eTest extends TestCase
         // noticed: it was simply dead from inside the view.
         $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
 
@@ -305,7 +305,7 @@ final class GitFlowsE2eTest extends TestCase
         // when run. Outside a repository they now do not exist: not in the
         // palette, not on a key, and their menu group is not built — which is
         // also why the menu bar here is one shorter than in a repo.
-        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["git"]}']); // not a git repo
+        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']); // not a git repo
 
         $this->runIde(
             $project,
@@ -333,7 +333,7 @@ final class GitFlowsE2eTest extends TestCase
         // display order, and every plugin commits as one block. Asserted
         // here because it needs a repository; IdeHelpersTest owns the rest.
         $this->skipWithoutGit();
-        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
 
         $this->runIde(
@@ -367,13 +367,13 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testGitBranchPickerSwitchesAndCreatesBranches(): void
     {
-        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
         $project->git('branch', 'feature');
         // A local bare remote with a branch no local shadows: the picker must
         // list it with a "remote" hint and check it out as a tracking branch.
-        $bare = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $bare = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $bare->git('init', '-q', '--bare');
         $project->git('remote', 'add', 'origin', $bare->dir);
         $project->git('push', '-q', 'origin', 'HEAD:remote-only');
@@ -495,7 +495,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testDeleteBranchWithOnlyOneLocalBranchFlashes(): void
     {
-        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
 
@@ -531,7 +531,7 @@ final class GitFlowsE2eTest extends TestCase
         }
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // git must be reachable
 
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->write('src/A.php', "<?php\n\$a = 1;\n\$b = 2;\n");
         $project->git('add', '-A');
@@ -572,7 +572,7 @@ final class GitFlowsE2eTest extends TestCase
             $this->markTestSkipped('git not available');
         }
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
         $project->write('src/A.php', "<?php\n\$a = 2;\n"); // unstaged edit
@@ -638,7 +638,7 @@ final class GitFlowsE2eTest extends TestCase
             $this->markTestSkipped('git not available');
         }
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
         $project->write('src/A.php', "<?php\n\$a = 2;\n"); // unstaged edit
@@ -708,7 +708,7 @@ final class GitFlowsE2eTest extends TestCase
             $this->markTestSkipped('git not available');
         }
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['f.txt' => "alpha\nbeta\ngamma\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['f.txt' => "alpha\nbeta\ngamma\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
         $project->write('f.txt', "alpha CHANGED\nbeta\ngamma CHANGED\n");
@@ -755,7 +755,7 @@ final class GitFlowsE2eTest extends TestCase
             $this->markTestSkipped('git not available');
         }
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['a.txt' => "one\ntwo\nthree\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['a.txt' => "one\ntwo\nthree\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
         $project->write('a.txt', "one!\ntwo\nthree changed\n");
@@ -921,7 +921,7 @@ final class GitFlowsE2eTest extends TestCase
             $this->markTestSkipped('git not available');
         }
         \putenv('PATH='.\dirname((string) $this->whichGit()));
-        $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('first commit');
         $project->write('a.txt', "one\nmore\n");
@@ -989,7 +989,7 @@ final class GitFlowsE2eTest extends TestCase
         }
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // git must be reachable
 
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->write('a.php', "<?php\n\$a = 1;\n");
 
@@ -1060,7 +1060,7 @@ final class GitFlowsE2eTest extends TestCase
         // removing blame broke it, which means it was never really awaiting the
         // history load at all.
         $this->skipWithoutGit();
-        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->commitAll('init');
         $project->write('other.txt', '');

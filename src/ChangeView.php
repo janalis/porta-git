@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
-use Porta\GitPlugin\Diff\DiffDocument;
-use Porta\GitPlugin\Diff\DiffHunk;
-use Porta\GitPlugin\Diff\DiffLine;
+use Porta\DiffPlugin\DiffDocument;
+use Porta\DiffPlugin\DiffHunk;
+use Porta\DiffPlugin\DiffLine;
 use Porta\Overlay\State\ToastSeverity;
 use Porta\Plugin\Api\PluginApi;
 

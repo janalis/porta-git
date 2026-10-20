@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
+use Porta\DiffPlugin\DiffDocument;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitStagingService;
-use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Diff\DiffSide;
 use Porta\GitPlugin\Diff\WhitespaceMode;
 use Porta\GitPlugin\GitInfo;

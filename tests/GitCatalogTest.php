@@ -27,7 +27,7 @@ final class GitCatalogTest extends TestCase
     {
         $ide = $this->bootIde([
             'composer.json' => '{}',
-            '.porta.json' => '{"enabledPlugins":["git"],"settings":{"language":"fr"}}',
+            '.porta.json' => '{"enabledPlugins":["diff","git"],"settings":{"language":"fr"}}',
         ]);
 
         $translator = Services::resolve($ide, Translator::class);

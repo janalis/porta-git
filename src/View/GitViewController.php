@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\View;
 
+use Porta\DiffPlugin\DiffDocument;
+use Porta\DiffPlugin\Event\DiffContextCycleRequested;
+use Porta\DiffPlugin\Event\DiffCopyRequested;
+use Porta\DiffPlugin\Event\DiffLayoutToggled;
+use Porta\DiffPlugin\Event\DiffSettingsRequested;
+use Porta\DiffPlugin\Event\DiffStagingRequested;
+use Porta\DiffPlugin\Event\DiffWhitespaceToggleRequested;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
 use Porta\Event\WorkingTreeChanged;
@@ -13,7 +20,6 @@ use Porta\GitPlugin\Command\GitRemoteCommands;
 use Porta\GitPlugin\Command\GitStagingService;
 use Porta\GitPlugin\Command\HistoryReload;
 use Porta\GitPlugin\Command\RefreshMode;
-use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Diff\DiffSide;
 use Porta\GitPlugin\Diff\DirectoryComparison;
 use Porta\GitPlugin\Diff\WhitespaceMode;
@@ -24,12 +30,6 @@ use Porta\GitPlugin\Event\GitChangeStageToggleRequested;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitHashCopyRequested;
 use Porta\GitPlugin\Event\GitCommitSelected;
-use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
-use Porta\GitPlugin\Event\GitDiffCopyRequested;
-use Porta\GitPlugin\Event\GitDiffLayoutToggled;
-use Porta\GitPlugin\Event\GitDiffSettingsRequested;
-use Porta\GitPlugin\Event\GitDiffStagingRequested;
-use Porta\GitPlugin\Event\GitDiffWhitespaceToggleRequested;
 use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\Event\GitHistoryEndReached;
 use Porta\GitPlugin\Event\GitRemoteRequested;
@@ -964,12 +964,12 @@ final class GitViewController implements ContributedView
         $this->loadMoreHistory();
     }
 
-    public function onDiffLinesStaged(GitDiffStagingRequested $event): void
+    public function onDiffLinesStaged(DiffStagingRequested $event): void
     {
         $this->stageSelection($event->selection);
     }
 
-    public function onDiffContextCycled(GitDiffContextCycleRequested $event): void
+    public function onDiffContextCycled(DiffContextCycleRequested $event): void
     {
         $this->cycleContext();
     }
@@ -978,7 +978,7 @@ final class GitViewController implements ContributedView
      * The diff's ⚙: whitespace hidden or shown, and unified or split — each
      * item runs what its key (w, s) runs, and is checked while it holds.
      */
-    public function onDiffSettingsRequested(GitDiffSettingsRequested $event): void
+    public function onDiffSettingsRequested(DiffSettingsRequested $event): void
     {
         $diff = $this->panes->diffView;
         $this->menus->openDiffSettings([
@@ -989,17 +989,17 @@ final class GitViewController implements ContributedView
         ]);
     }
 
-    public function onDiffLayoutToggled(GitDiffLayoutToggled $event): void
+    public function onDiffLayoutToggled(DiffLayoutToggled $event): void
     {
         $this->persistDiffPrefs();
     }
 
-    public function onDiffWhitespaceToggled(GitDiffWhitespaceToggleRequested $event): void
+    public function onDiffWhitespaceToggled(DiffWhitespaceToggleRequested $event): void
     {
         $this->toggleWhitespace();
     }
 
-    public function onDiffTextCopied(GitDiffCopyRequested $event): void
+    public function onDiffTextCopied(DiffCopyRequested $event): void
     {
         $this->copyDiffText($event->text);
     }

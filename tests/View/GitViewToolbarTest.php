@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\TestCase;
+use Porta\DiffPlugin\Event\DiffContextCycleRequested;
 use Porta\Event\GitRemoteCompleted;
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\Command\GitRemoteOperation;
 use Porta\GitPlugin\Command\HistoryReload;
 use Porta\GitPlugin\Event\GitCommitFileSelected;
 use Porta\GitPlugin\Event\GitCommitHashCopyRequested;
-use Porta\GitPlugin\Event\GitDiffContextCycleRequested;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\LogEntry;
@@ -133,7 +133,7 @@ final class GitViewToolbarTest extends TestCase
         $this->changes->handleInput('2');
         $this->await(fn (): bool => \str_contains($this->diffText(), '+.porta/'), what: "the commit's patch");
 
-        $controller->onDiffContextCycled(new GitDiffContextCycleRequested());
+        $controller->onDiffContextCycled(new DiffContextCycleRequested());
         $this->pump(0.3);
 
         $this->assertStringNotContainsString('+changed', $this->diffText());

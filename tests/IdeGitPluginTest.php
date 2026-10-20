@@ -53,7 +53,7 @@ final class IdeGitPluginTest extends TestCase
     {
         $project = new TempProject([
             'src/A.php' => "<?php\n\$x = 1;\n",
-            '.porta.json' => '{"enabledPlugins":["git"]}',
+            '.porta.json' => '{"enabledPlugins":["diff","git"]}',
         ]);
         $project->initGit(name: 'tester', email: 't@t');
         $project->commitAll('init');
@@ -141,7 +141,7 @@ final class IdeGitPluginTest extends TestCase
         // PluginApi::setChangeMarks now, so this only passes with the plugin
         // loaded — which is why it lives here rather than in core's git suite.
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->write('src/A.php', "<?php\n\$a = 1;\n\$b = 2;\n");
         $project->git('add', '-A');
@@ -175,7 +175,7 @@ final class IdeGitPluginTest extends TestCase
     public function testTheFileTreeMarksChangedFilesTheUserHasNotOpened(): void
     {
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->write('tracked.php', "<?php\n");
         $project->write('untouched.php', "<?php\n");
@@ -220,7 +220,7 @@ final class IdeGitPluginTest extends TestCase
     public function testMovingAFileMarksItWithoutWaitingForASave(): void
     {
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->write('src/moved.php', "<?php\n");
         $project->write('anchor.php', "<?php\n");
@@ -267,7 +267,7 @@ final class IdeGitPluginTest extends TestCase
         // dispatches BufferReloaded and the plugin listens through
         // onFileReloaded, which is the hook this handover needed.
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.txt' => "one\ntwo\n"]);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "one\ntwo\n"]);
         $project->initGit();
         $project->commitAll('init');
 
@@ -349,7 +349,7 @@ final class IdeGitPluginTest extends TestCase
             'src/A.php' => "<?php\n",
             '.porta.json' => \json_encode(
                 [
-                    'enabledPlugins' => ['git'],
+                    'enabledPlugins' => ['diff', 'git'],
                     // Where the pre-move writer actually put them: inside the
                     // `settings` block, never at the top level.
                     'settings' => [
@@ -747,7 +747,7 @@ final class IdeGitPluginTest extends TestCase
         $project = new TempProject([
             'a.php' => "<?php\n\$x = 1;\n",
             'b.php' => "<?php\n\$x = 2;\n",
-            '.porta.json' => '{"enabledPlugins":["git"]}',
+            '.porta.json' => '{"enabledPlugins":["diff","git"]}',
         ]);
         $project->initGit(name: 'tester', email: 't@t');
         $project->commitAll('init');
@@ -823,7 +823,7 @@ final class IdeGitPluginTest extends TestCase
     public function testTheGutterMarksMoveWithAnUnsavedEdit(): void
     {
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}']);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->write('src/A.php', "<?php\n\$a = 1;\n\$b = 2;\n");
         $project->git('add', '-A');

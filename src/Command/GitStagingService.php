@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Command;
 
+use Porta\DiffPlugin\DiffDocument;
 use Porta\GitPlugin\ChangeEntry;
-use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\Diff\DiffSide;
 use Porta\GitPlugin\Diff\PatchBuilder;
 use Porta\GitPlugin\Diff\WhitespaceMode;

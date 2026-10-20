@@ -37,7 +37,7 @@ final class ChangeNavigationE2eTest extends TestCase
     public function testTheChangesAreWalkedShownAndReverted(): void
     {
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.txt' => "a\nb\nc\nd\ne\nf\n"]);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "a\nb\nc\nd\ne\nf\n"]);
         $project->initGit();
         $project->commitAll('init');
         $project->write('a.txt', "a\nB\nc\nd\nE\nf\n");
@@ -115,7 +115,7 @@ final class ChangeNavigationE2eTest extends TestCase
     public function testACleanFileHasNoChangeToWalkTo(): void
     {
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.txt' => "a\n"]);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "a\n"]);
         $project->initGit();
         $project->commitAll('init');
 
@@ -137,7 +137,7 @@ final class ChangeNavigationE2eTest extends TestCase
     public function testADeletionIsShownAndPutBack(): void
     {
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.txt' => "a\nb\nc\n"]);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "a\nb\nc\n"]);
         $project->initGit();
         $project->commitAll('init');
         $project->write('a.txt', "a\nc\n");
@@ -167,7 +167,7 @@ final class ChangeNavigationE2eTest extends TestCase
     public function testWithNoFileOpenTheVerbsDoNothing(): void
     {
         $this->skipWithoutGit();
-        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["git"]}', 'a.txt' => "a\n"]);
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "a\n"]);
         $project->initGit();
         $project->commitAll('init');
 

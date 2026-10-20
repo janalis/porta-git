@@ -7,7 +7,6 @@ namespace Porta\GitPlugin\Tests\Widget;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
-use Porta\GitPlugin\Diff\DiffDocument;
 use Porta\GitPlugin\DiffStat;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\LogEntry;
@@ -17,7 +16,6 @@ use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\GitPlugin\Widget\CommitDetailsWidget;
 use Porta\GitPlugin\Widget\CommitHeaderWidget;
-use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
@@ -44,10 +42,8 @@ use Symfony\Component\Tui\Widget\AbstractWidget;
  *
  * - `HeaderRenderer::render()`'s key-hint suffix: the commit box's `Esc` came
  *   out four columns wide into a one-column pane.
- * - `DiffViewWidget::renderToolbar()`: the two display toggles are a fixed
- *   twenty-two columns and were drawn whatever the pane could seat.
- * - `DiffViewRenderer`'s row gutters, unified and split: eleven and five fixed
- *   columns with the TEXT clamped and the row unbounded.
+ * - The diff pane's toolbar and row gutters — swept now by the diff
+ *   plugin's own `NarrowDiffPaneRenderTest`, where the pane moved.
  *
  * A `RenderException` does not garble a line — it escapes the render loop and
  * takes the session with it.
@@ -55,17 +51,6 @@ use Symfony\Component\Tui\Widget\AbstractWidget;
 final class NarrowGitPaneRenderTest extends TestCase
 {
     use RendersExactWidth;
-
-    private const string RAW = <<<'DIFF'
-        diff --git a/src/demo.php b/src/demo.php
-        --- a/src/demo.php
-        +++ b/src/demo.php
-        @@ -1,3 +1,4 @@
-         context
-        -$old = 2;
-        +$new = 2;
-        +$extra = 3;
-        DIFF;
 
     /**
      * Every widget the git view mounts, each given something to DRAW — the
@@ -126,22 +111,6 @@ final class NarrowGitPaneRenderTest extends TestCase
         $box = new CommitBoxWidget(new Translator('en'));
         $box->setMessage('a commit message long enough to need the width');
         yield 'commit box' => [$box];
-
-        // Three states, because they are three different assemblers: the
-        // placeholder path draws only the toolbar, and split builds each row
-        // from two halves rather than one gutter.
-        $unified = new DiffViewWidget(new Translator('en'));
-        $unified->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
-        yield 'diff (unified)' => [$unified];
-
-        $split = new DiffViewWidget(new Translator('en'));
-        $split->setDocument(DiffDocument::parse(self::RAW), 'src/demo.php');
-        $split->useSplitView();
-        yield 'diff (split)' => [$split];
-
-        $empty = new DiffViewWidget(new Translator('en'));
-        $empty->setDocument(null, null);
-        yield 'diff (no selection)' => [$empty];
     }
 
     #[DataProvider('gitWidgets')]

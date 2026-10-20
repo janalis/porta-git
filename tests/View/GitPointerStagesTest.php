@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Tests\View;
 
 use PHPUnit\Framework\TestCase;
+use Porta\DiffPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\View\GitMouseRouter;
 use Porta\GitPlugin\Widget\ChangesListWidget;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
-use Porta\GitPlugin\Widget\DiffViewWidget;
 use Porta\GitPlugin\Widget\GitTabsWidget;
 use Porta\GitPlugin\Widget\HistoryListWidget;
 use Porta\I18n\Translator;
