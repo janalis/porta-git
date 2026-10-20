@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\Widget;
 use Porta\GitPlugin\Command\GitRemoteOperation;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitToolbarMenuRequested;
+use Porta\GitPlugin\GitOperation;
 use Porta\GitPlugin\RepositoryState;
 use Porta\GitPlugin\Support\RelativeTime;
 use Porta\GitPlugin\View\ToolbarCell;
@@ -300,15 +301,28 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
         );
     }
 
-    /** Empty until git has answered: an unread branch is not a detached one. */
+    /** Empty until git has answered: an unread branch is not a detached one. A merge or rebase in progress follows it. */
     private function branchName(): string
     {
         $branch = $this->repository->branch();
-        if (null !== $branch) {
-            return AnsiText::oneLine($branch);
+        $name = match (true) {
+            null !== $branch => AnsiText::oneLine($branch),
+            $this->repository->branchRead() => $this->translator->trans('Detached HEAD'),
+            default => '',
+        };
+        $state = $this->repository->operation();
+        if (null === $state) {
+            return $name;
         }
+        $progress =
+            $this->translator->trans(match ($state->operation) {
+                GitOperation::Merging => 'merging',
+                GitOperation::Rebasing => 'rebasing',
+                GitOperation::CherryPicking => 'cherry-picking',
+                GitOperation::Reverting => 'reverting',
+            }).(null === $state->step || null === $state->total ? '' : " {$state->step}/{$state->total}");
 
-        return $this->repository->branchRead() ? $this->translator->trans('Detached HEAD') : '';
+        return \trim($name.' — '.$this->styles->of(Role::Modified)->apply($progress), characters: ' —');
     }
 
     private function pullRequest(): string

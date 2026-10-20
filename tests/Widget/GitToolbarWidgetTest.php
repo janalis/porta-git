@@ -10,6 +10,8 @@ use Porta\GitPlugin\Command\GitRemoteOperation;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitToolbarMenuRequested;
 use Porta\GitPlugin\GitInfo;
+use Porta\GitPlugin\GitOperation;
+use Porta\GitPlugin\OperationState;
 use Porta\GitPlugin\RepositoryState;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\Tracking;
@@ -18,6 +20,7 @@ use Porta\GitPlugin\Widget\GitToolbarWidget;
 use Porta\I18n\Translator;
 use Porta\Tests\Support\CompactScreen;
 use Porta\Tests\Support\Probe;
+use Porta\Ui\Role;
 use Porta\Ui\ScreenDensity;
 use Porta\Ui\Theme\Styles;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -35,9 +38,16 @@ final class GitToolbarWidgetTest extends TestCase
     /** @var list<object> */
     private array $dispatched = [];
 
-    private function repository(?string $branch = 'main', ?Tracking $tracking = null, ?int $pullRequest = null, ?int $lastFetched = null, ?string $remote = null, int $worktrees = 1): RepositoryState
-    {
-        $repository = GitDoubles::repository(new GitInfo(\sys_get_temp_dir()), '/work/porta');
+    private function repository(
+        ?string $branch = 'main',
+        ?Tracking $tracking = null,
+        ?int $pullRequest = null,
+        ?int $lastFetched = null,
+        ?string $remote = null,
+        int $worktrees = 1,
+        ?OperationState $operation = null,
+    ): RepositoryState {
+        $repository = GitDoubles::repository(new GitInfo(\sys_get_temp_dir()), '/work/porta', static fn (): ?OperationState => $operation);
         Probe::set($repository, 'branch', $branch);
         Probe::set($repository, 'branchRead', true);
         Probe::set($repository, 'tracking', $tracking);
@@ -178,6 +188,31 @@ final class GitToolbarWidgetTest extends TestCase
 
         $this->assertStringNotContainsString('Detached HEAD', $lines[1]);
         $this->assertMatchesRegularExpression('/│ +│/u', $lines[1], 'the branch cell is blank');
+    }
+
+    public function testABranchMidRebaseSaysHowFarAlong(): void
+    {
+        $lines = self::plain($this->toolbar($this->repository(null, operation: new OperationState(GitOperation::Rebasing, 2, 5))));
+
+        $this->assertStringContainsString('Detached HEAD — rebasing 2/5', $lines[1]);
+    }
+
+    public function testAMergeOnABranchSaysSoInTheOperationsColour(): void
+    {
+        $toolbar = $this->toolbar($this->repository('main', operation: new OperationState(GitOperation::Merging, conflicts: 2)));
+        $raw = \implode("\n", $toolbar->render(new RenderContext(120, 4)));
+
+        $this->assertStringContainsString('main — merging', self::plain($toolbar)[1]);
+        $this->assertStringContainsString(Styles::dark()->of(Role::Modified)->apply('merging'), $raw);
+    }
+
+    public function testEveryOperationHasItsWord(): void
+    {
+        $words = \array_map(fn (GitOperation $operation): string => self::plain($this->toolbar($this->repository('x', operation: new OperationState($operation))))[1], GitOperation::cases());
+
+        foreach (['merging', 'rebasing', 'cherry-picking', 'reverting'] as $n => $word) {
+            $this->assertStringContainsString('x — '.$word, $words[$n]);
+        }
     }
 
     public function testADetachedHeadAndANeverFetchedRepositorySaySo(): void

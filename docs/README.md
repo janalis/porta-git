@@ -39,6 +39,8 @@ All async and non-blocking:
 - **Git: Undo Last Commit** — soft-reset the last commit
 - **Git: Blame Current Line** — author/date/summary for the caret's line
 - **Git: Worktrees…** / **Git: New Worktree…** — see [Worktrees](#worktrees)
+- **Git: Continue Merge or Rebase** / **Git: Skip This Step** / **Git: Abort
+  Merge or Rebase…** — see [Merges and rebases in progress](#merges-and-rebases-in-progress)
 
 ## The Git view (`Ctrl+Alt+D`)
 
@@ -196,6 +198,31 @@ the phar, or the script you ran — so git finds it whatever its own `PATH` is:
 A tool run leaves your project exactly as it was — no session restored or
 saved, no entry in the recent-projects list, no Welcome screen. With the git
 plugin disabled, Porta opens the file in the editor and says why.
+
+## Merges and rebases in progress
+
+When a `git merge`, `git rebase`, `git cherry-pick` or `git revert` stops —
+on a conflict, usually — the branch cell in the status bar says so, with how
+far a rebase has got and how many files are still conflicted: `⑂ main ·
+rebasing 3/7 · 2 conflicts`. The Git view's Branch cell says it too. It is
+read from git's own files, whoever ran the command — Porta or a terminal.
+
+- **Resolve** each conflicted file: it opens in the
+  [merge view](../../diff/docs/README.md#the-merge-view). Then save it and
+  stage it (`Space` in the changes list) — that is what marks it resolved, so
+  a file still holding a conflict marker is not staged.
+- **Continue** from the branch cell's menu, the Git view's Branch menu or the
+  palette. It waits until no file is conflicted, as git counts them then, and
+  keeps the message git prepared rather than opening an editor. A rebase that
+  stops on its next conflict says so on the cell again.
+- **Skip This Step** drops the commit that stopped and carries on — a rebase,
+  cherry-pick or revert; a merge has no step to skip.
+- **Abort** asks first, then puts everything back as it was before the
+  command: what you resolved is lost.
+
+Mid-rebase, git's "ours" is the branch you are rebasing ONTO and "theirs" the
+commit being replayed — the reverse of a merge. The merge view labels each
+side with the name git gave it, so read the labels rather than the sides.
 
 ## Remote & branches
 

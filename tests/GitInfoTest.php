@@ -14,6 +14,7 @@ use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
+use Symfony\Component\Process\Process;
 
 final class GitInfoTest extends TestCase
 {
@@ -431,5 +432,38 @@ final class GitInfoTest extends TestCase
 
         \ksort($answers);
         $this->assertSame(['local' => null, 'main' => 'origin', 'unpublished' => null], $answers, 'a branch tracking a local one names no remote');
+    }
+
+    public function testAConflictedFilesDiffIsTakenAgainstOurSide(): void
+    {
+        // A plain `git diff` of an unmerged path is a combined diff the pane
+        // cannot read; against ours, the markers and their side are additions.
+        $this->skipWithoutGit();
+        $project = new TempProject(['a.txt' => "base\n"]);
+        $project->initGit(branch: 'main');
+        $project->commitAll('base');
+        $project->git('checkout', '-q', '-b', 'topic');
+        $project->write('a.txt', "theirs\n");
+        $project->commitAll('theirs');
+        $project->git('checkout', '-q', 'main');
+        $project->write('a.txt', "ours\n");
+        $project->commitAll('ours');
+        new Process(['git', 'merge', '-q', 'topic'], $project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH])->run();
+
+        $diff = null;
+        new GitInfo($project->dir)->conflictFileDiff(
+            $project->path('a.txt'),
+            static function (string $out) use (&$diff): void {
+                $diff = $out;
+            },
+            context: 0,
+        );
+        $this->await(static function () use (&$diff): bool {
+            return null !== $diff;
+        }, what: 'the diff');
+
+        $this->assertStringContainsString('+<<<<<<< HEAD', (string) $diff);
+        $this->assertStringContainsString('+theirs', (string) $diff);
+        $this->assertStringNotContainsString('@@@', (string) $diff, 'not the combined form');
     }
 }

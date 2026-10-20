@@ -20,6 +20,7 @@ use Porta\GitPlugin\ChangeView;
 use Porta\GitPlugin\Command\GitCommands;
 use Porta\GitPlugin\Command\GitRemoteCommands;
 use Porta\GitPlugin\Command\IndexCommands;
+use Porta\GitPlugin\Command\OperationCommands;
 use Porta\GitPlugin\Command\Stash;
 use Porta\GitPlugin\Command\WorktreeCommands;
 use Porta\GitPlugin\GitBranchSegment;
@@ -27,6 +28,7 @@ use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitMenu;
 use Porta\GitPlugin\GitRefresher;
 use Porta\GitPlugin\GitTools;
+use Porta\GitPlugin\OperationState;
 use Porta\GitPlugin\Process\GitProcesses;
 use Porta\GitPlugin\Process\GitProcessRunner;
 use Porta\GitPlugin\Process\GitRemote;
@@ -56,6 +58,7 @@ use Porta\GitPlugin\WorkingTreeStatus;
 use Porta\GitPlugin\Worktree;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\DisposablePlugin;
+use Porta\Plugin\Api\LegacyCoreSettings;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Support\ProjectPaths;
 use Porta\Workbench\Menu\MenuSurface;
@@ -170,15 +173,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         // command with no restart. '' means "discover", which the runners spell
         // as null.
         $gitPath = static fn (): ?string => '' === $settings->path ? null : $settings->path;
-        // Write whatever was adopted through, so the file stops answering the
-        // same question twice and the settings page shows what is in force.
-        // From onReady, because persisting is an IDE action and activate() may
-        // take none.
-        $api->onReady(static function () use ($api, $legacy): void {
-            foreach ($legacy->adoptions() as $key => $value) {
-                $api->changeSetting($key, $value);
-            }
-        });
+        self::writeAdoptions($api, $legacy);
 
         // ONE handle on git and ONE set of process lanes, shared by both halves.
         // The editor half used to carry its own `GitClient` and its own runner,
@@ -215,19 +210,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         $modals = new Modals($api->pick(...), $api->prompt(...), $api->activeFile(...));
         $repaint = $api->refreshStatusSegments(...);
         $trans = new Translate($api->trans(...));
-        $events = new EventDispatcher();
-        // Three of the events this plugin dispatches are CORE facts —
-        // `PluginObservable`, the frozen set anything may observe — and they go
-        // out on the plugin's own bus like everything else, because the code
-        // that raises them cannot tell the difference. So the bus forwards them
-        // to core's, which is what keeps the gutter stripe refreshing after a
-        // commit and a pull. Without this they would reach only this plugin's
-        // own listeners, and nothing would say so.
-        foreach ([GitCommitted::class, GitRemoteCompleted::class, WorkingTreeChanged::class] as $fact) {
-            $events->addListener($fact, static function (PluginObservable $event) use ($api): void {
-                $api->emit($event);
-            });
-        }
+        $events = self::forwardingFacts($api);
 
         $refresher = new GitRefresher($git, $repaint);
         $worktrees = new WorktreeCommands(
@@ -250,38 +233,18 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             $api->copyToClipboard(...),
             $events,
             $api->selectedFiles(...),
-            static function (array $lines, string $title) use ($api): void {
-                $rows = [];
-                foreach ($lines as $line) {
-                    // Location-less: a diff line has no place to jump to, and
-                    // the panel prints no `file:line` rather than inventing one.
-                    $rows[] = ['path' => '', 'line' => 0, 'text' => $line];
-                }
-                $api->showList(self::COMPARE_TOOL, $rows);
-                $api->flash($title);
-            },
+            self::showComparison($api),
             $worktrees,
         );
         $remote = new GitRemoteCommands(new GitRemote($root, $gitPath, $processes->remote), $flash, $trans, $events, $modals, $repaint);
 
         $api->registerListTool(self::COMPARE_TOOL, 'Compare');
-        $this->registerCommands($api, $commands, $remote);
-        $api->registerCommand('worktrees', 'Git: Worktrees…', $worktrees->worktrees(...));
-        $api->registerCommand('new_worktree', 'Git: New Worktree…', $worktrees->newWorktree(...));
-        // On the tree row's own right-click, where a pair is built — dimmed
-        // until there are exactly two, which is the command's precondition
-        // said in the surface rather than only in a flash afterwards.
-        $api->addMenuItem('git_compare_files', static fn (): bool => 2 === \count($api->selectedFiles()), MenuSurface::FileContext);
-        $api->registerMenu(
-            title: 'Git',
-            after: GitMenu::AFTER,
-            items: GitMenu::items(),
-            viewId: 'git',
-            viewSafe: GitMenu::viewSafe(),
-        );
+        $this->registerCommands($api, $commands, $remote, $worktrees);
+        self::registerMenus($api);
 
-        $branchMenu = self::registerBranchCell($api, $refresher, $settings, new BranchMenu($commands, $worktrees, $trans), $trans);
-        $repository = self::repositoryState($git, $root, $processes->general);
+        $operations = self::registerOperations($api, new OperationCommands($git, $refresher, $modals, $flash, $trans, $events, $repaint));
+        $branchMenu = self::registerBranchCell($api, $refresher, $settings, new BranchMenu($commands, $worktrees, $trans, $operations, $refresher), $trans);
+        $repository = self::repositoryState($git, $root, $processes->general, $refresher->operation(...));
 
         // The view is built LATER — its factory runs after plugins have
         // committed — but every listener has to be registered now, because the
@@ -390,9 +353,95 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
      * What the view's toolbar reads. `gh` is looked up per ask, so installing
      * it needs no restart, and a missing one is simply no pull request.
      */
-    private static function repositoryState(GitInfo $git, string $root, ProcessLane $lane): RepositoryState
+    /**
+     * Write whatever was adopted through, so the file stops answering the
+     * same question twice and the settings page shows what is in force. From
+     * onReady, because persisting is an IDE action and activate() may take
+     * none.
+     */
+    private static function writeAdoptions(PluginApi $api, LegacyCoreSettings $legacy): void
     {
-        return new RepositoryState($git, new PullRequestLookup($root, static fn (): ?string => new ExecutableFinder()->find('gh'), $lane), $root);
+        $api->onReady(static function () use ($api, $legacy): void {
+            foreach ($legacy->adoptions() as $key => $value) {
+                $api->changeSetting($key, $value);
+            }
+        });
+    }
+
+    /**
+     * This plugin's own bus. Three of the events it dispatches are CORE facts
+     * — `PluginObservable`, the frozen set anything may observe — and they go
+     * out on it like everything else, because the code that raises them cannot
+     * tell the difference. So the bus forwards them to core's, which is what
+     * keeps the gutter stripe refreshing after a commit and a pull. Without
+     * this they would reach only this plugin's own listeners, and nothing
+     * would say so.
+     */
+    private static function forwardingFacts(PluginApi $api): EventDispatcher
+    {
+        $events = new EventDispatcher();
+        foreach ([GitCommitted::class, GitRemoteCompleted::class, WorkingTreeChanged::class] as $fact) {
+            $events->addListener($fact, static function (PluginObservable $event) use ($api): void {
+                $api->emit($event);
+            });
+        }
+
+        return $events;
+    }
+
+    /** The Git menu, and Compare Files on a tree row's own right-click. */
+    private static function registerMenus(PluginApi $api): void
+    {
+        // Where a pair is built — dimmed until there are exactly two, which is
+        // the command's precondition said in the surface rather than only in a
+        // flash afterwards.
+        $api->addMenuItem('git_compare_files', static fn (): bool => 2 === \count($api->selectedFiles()), MenuSurface::FileContext);
+        $api->registerMenu(
+            title: 'Git',
+            after: GitMenu::AFTER,
+            items: GitMenu::items(),
+            viewId: 'git',
+            viewSafe: GitMenu::viewSafe(),
+        );
+    }
+
+    /**
+     * What Compare Files does with the lines it compared: the Compare panel,
+     * titled by a flash.
+     *
+     * @return \Closure(list<string>, string): void
+     */
+    private static function showComparison(PluginApi $api): \Closure
+    {
+        return (
+            /** @param list<string> $lines */
+            static function (array $lines, string $title) use ($api): void {
+                $rows = [];
+                foreach ($lines as $line) {
+                    // Location-less: a diff line has no place to jump to, and
+                    // the panel prints no `file:line` rather than inventing one.
+                    $rows[] = ['path' => '', 'line' => 0, 'text' => $line];
+                }
+                $api->showList(self::COMPARE_TOOL, $rows);
+                $api->flash($title);
+            }
+        );
+    }
+
+    /** Continue, skip and abort a merge or rebase in progress, on the palette — handed back for the branch menus. */
+    private static function registerOperations(PluginApi $api, OperationCommands $operations): OperationCommands
+    {
+        $api->registerCommand('continue', 'Git: Continue Merge or Rebase', $operations->continue(...));
+        $api->registerCommand('skip', 'Git: Skip This Step', $operations->skip(...));
+        $api->registerCommand('abort', 'Git: Abort Merge or Rebase…', $operations->abort(...));
+
+        return $operations;
+    }
+
+    /** @param \Closure(): ?OperationState $operation what git is in the middle of, as the status cell knows it */
+    private static function repositoryState(GitInfo $git, string $root, ProcessLane $lane, \Closure $operation): RepositoryState
+    {
+        return new RepositoryState($git, new PullRequestLookup($root, static fn (): ?string => new ExecutableFinder()->find('gh'), $lane), $root, $operation);
     }
 
     /**
@@ -498,9 +547,11 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         }
     }
 
-    /** The nine palette verbs, keeping the ids and labels core's ActionCatalog still names. */
-    private function registerCommands(PluginApi $api, GitCommands $commands, GitRemoteCommands $remote): void
+    /** The palette verbs: the ten core's ActionCatalog still names, keeping their ids and labels, and the worktrees' own. */
+    private function registerCommands(PluginApi $api, GitCommands $commands, GitRemoteCommands $remote, WorktreeCommands $worktrees): void
     {
+        $api->registerCommand('worktrees', 'Git: Worktrees…', $worktrees->worktrees(...));
+        $api->registerCommand('new_worktree', 'Git: New Worktree…', $worktrees->newWorktree(...));
         $api->adoptCommand('git_commit', $commands->commit(...));
         $api->adoptCommand('git_branches', $commands->branches(...));
         $api->adoptCommand('git_stashes', $commands->stashes(...));

@@ -794,6 +794,114 @@
         <source>Commit %count% file to %branch%|Commit %count% files to %branch%</source>
         <target>Valider %count% fichier sur %branch%|Valider %count% fichiers sur %branch%</target>
       </trans-unit>
+      <trans-unit id="213">
+        <source>Git: Continue Merge or Rebase</source>
+        <target>Git : Continuer la fusion ou le rebase</target>
+      </trans-unit>
+      <trans-unit id="214">
+        <source>Git: Skip This Step</source>
+        <target>Git : Passer cette étape</target>
+      </trans-unit>
+      <trans-unit id="215">
+        <source>Git: Abort Merge or Rebase…</source>
+        <target>Git : Abandonner la fusion ou le rebase…</target>
+      </trans-unit>
+      <trans-unit id="216">
+        <source>Resolve the conflicts first: %count% left</source>
+        <target>Résolvez d’abord les conflits : il en reste %count%</target>
+      </trans-unit>
+      <trans-unit id="217">
+        <source>A merge has no step to skip: continue or abort it</source>
+        <target>Une fusion n’a pas d’étape à passer : continuez-la ou abandonnez-la</target>
+      </trans-unit>
+      <trans-unit id="218">
+        <source>Abort the %operation%? What you resolved is lost</source>
+        <target>Abandonner le %operation% ? Ce que vous avez résolu sera perdu</target>
+      </trans-unit>
+      <trans-unit id="219">
+        <source>Abort</source>
+        <target>Abandonner</target>
+      </trans-unit>
+      <trans-unit id="220">
+        <source>merge</source>
+        <target>fusion</target>
+      </trans-unit>
+      <trans-unit id="221">
+        <source>rebase</source>
+        <target>rebase</target>
+      </trans-unit>
+      <trans-unit id="222">
+        <source>cherry-pick</source>
+        <target>cherry-pick</target>
+      </trans-unit>
+      <trans-unit id="223">
+        <source>revert</source>
+        <target>revert</target>
+      </trans-unit>
+      <trans-unit id="224">
+        <source>No merge or rebase in progress</source>
+        <target>Aucune fusion ni rebase en cours</target>
+      </trans-unit>
+      <trans-unit id="225">
+        <source>Continued the %operation%</source>
+        <target>%operation% continué</target>
+      </trans-unit>
+      <trans-unit id="226">
+        <source>Skipped the step and continued the %operation%</source>
+        <target>Étape passée, %operation% continué</target>
+      </trans-unit>
+      <trans-unit id="227">
+        <source>Aborted the %operation%</source>
+        <target>%operation% abandonné</target>
+      </trans-unit>
+      <trans-unit id="228">
+        <source>git refused</source>
+        <target>git a refusé</target>
+      </trans-unit>
+      <trans-unit id="229">
+        <source>Continue %operation%</source>
+        <target>Continuer le %operation%</target>
+      </trans-unit>
+      <trans-unit id="230">
+        <source>Skip This Step</source>
+        <target>Passer cette étape</target>
+      </trans-unit>
+      <trans-unit id="231">
+        <source>Abort %operation%…</source>
+        <target>Abandonner le %operation%…</target>
+      </trans-unit>
+      <trans-unit id="232">
+        <source>merging</source>
+        <target>fusion en cours</target>
+      </trans-unit>
+      <trans-unit id="233">
+        <source>rebasing</source>
+        <target>rebase en cours</target>
+      </trans-unit>
+      <trans-unit id="234">
+        <source>cherry-picking</source>
+        <target>cherry-pick en cours</target>
+      </trans-unit>
+      <trans-unit id="235">
+        <source>reverting</source>
+        <target>revert en cours</target>
+      </trans-unit>
+      <trans-unit id="236">
+        <source>%count% conflict|%count% conflicts</source>
+        <target>%count% conflit|%count% conflits</target>
+      </trans-unit>
+      <trans-unit id="237">
+        <source>Resolved — click to continue or abort</source>
+        <target>Résolu — cliquez pour continuer ou abandonner</target>
+      </trans-unit>
+      <trans-unit id="238">
+        <source>Resolve the conflicts, then click to continue — or skip or abort</source>
+        <target>Résolvez les conflits, puis cliquez pour continuer — ou passer, ou abandonner</target>
+      </trans-unit>
+      <trans-unit id="239">
+        <source>%file% still has conflict markers: resolve them first</source>
+        <target>%file% contient encore des marqueurs de conflit : résolvez-les d’abord</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

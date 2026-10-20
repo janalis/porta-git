@@ -794,6 +794,114 @@
         <source>Commit %count% file to %branch%|Commit %count% files to %branch%</source>
         <target>%count% 個のファイルを %branch% にコミット|%count% 個のファイルを %branch% にコミット</target>
       </trans-unit>
+      <trans-unit id="213">
+        <source>Git: Continue Merge or Rebase</source>
+        <target>Git: マージまたはリベースを続行</target>
+      </trans-unit>
+      <trans-unit id="214">
+        <source>Git: Skip This Step</source>
+        <target>Git: このステップをスキップ</target>
+      </trans-unit>
+      <trans-unit id="215">
+        <source>Git: Abort Merge or Rebase…</source>
+        <target>Git: マージまたはリベースを中止…</target>
+      </trans-unit>
+      <trans-unit id="216">
+        <source>Resolve the conflicts first: %count% left</source>
+        <target>先に競合を解決してください: 残り %count%</target>
+      </trans-unit>
+      <trans-unit id="217">
+        <source>A merge has no step to skip: continue or abort it</source>
+        <target>マージにはスキップするステップがありません: 続行するか中止してください</target>
+      </trans-unit>
+      <trans-unit id="218">
+        <source>Abort the %operation%? What you resolved is lost</source>
+        <target>%operation% を中止しますか? 解決した内容は失われます</target>
+      </trans-unit>
+      <trans-unit id="219">
+        <source>Abort</source>
+        <target>中止</target>
+      </trans-unit>
+      <trans-unit id="220">
+        <source>merge</source>
+        <target>マージ</target>
+      </trans-unit>
+      <trans-unit id="221">
+        <source>rebase</source>
+        <target>リベース</target>
+      </trans-unit>
+      <trans-unit id="222">
+        <source>cherry-pick</source>
+        <target>チェリーピック</target>
+      </trans-unit>
+      <trans-unit id="223">
+        <source>revert</source>
+        <target>リバート</target>
+      </trans-unit>
+      <trans-unit id="224">
+        <source>No merge or rebase in progress</source>
+        <target>進行中のマージやリベースはありません</target>
+      </trans-unit>
+      <trans-unit id="225">
+        <source>Continued the %operation%</source>
+        <target>%operation% を続行しました</target>
+      </trans-unit>
+      <trans-unit id="226">
+        <source>Skipped the step and continued the %operation%</source>
+        <target>ステップをスキップして %operation% を続行しました</target>
+      </trans-unit>
+      <trans-unit id="227">
+        <source>Aborted the %operation%</source>
+        <target>%operation% を中止しました</target>
+      </trans-unit>
+      <trans-unit id="228">
+        <source>git refused</source>
+        <target>git が拒否しました</target>
+      </trans-unit>
+      <trans-unit id="229">
+        <source>Continue %operation%</source>
+        <target>%operation% を続行</target>
+      </trans-unit>
+      <trans-unit id="230">
+        <source>Skip This Step</source>
+        <target>このステップをスキップ</target>
+      </trans-unit>
+      <trans-unit id="231">
+        <source>Abort %operation%…</source>
+        <target>%operation% を中止…</target>
+      </trans-unit>
+      <trans-unit id="232">
+        <source>merging</source>
+        <target>マージ中</target>
+      </trans-unit>
+      <trans-unit id="233">
+        <source>rebasing</source>
+        <target>リベース中</target>
+      </trans-unit>
+      <trans-unit id="234">
+        <source>cherry-picking</source>
+        <target>チェリーピック中</target>
+      </trans-unit>
+      <trans-unit id="235">
+        <source>reverting</source>
+        <target>リバート中</target>
+      </trans-unit>
+      <trans-unit id="236">
+        <source>%count% conflict|%count% conflicts</source>
+        <target>競合 %count% 件|競合 %count% 件</target>
+      </trans-unit>
+      <trans-unit id="237">
+        <source>Resolved — click to continue or abort</source>
+        <target>解決済み — クリックして続行または中止</target>
+      </trans-unit>
+      <trans-unit id="238">
+        <source>Resolve the conflicts, then click to continue — or skip or abort</source>
+        <target>競合を解決してからクリックで続行 — またはスキップ、中止</target>
+      </trans-unit>
+      <trans-unit id="239">
+        <source>%file% still has conflict markers: resolve them first</source>
+        <target>%file% にはまだ競合マーカーがあります: 先に解決してください</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

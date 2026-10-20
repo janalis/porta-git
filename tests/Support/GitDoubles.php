@@ -8,6 +8,7 @@ use Porta\Editor\BufferManager;
 use Porta\Editor\EditorPanes;
 use Porta\GitPlugin\Command\WorktreeCommands;
 use Porta\GitPlugin\GitInfo;
+use Porta\GitPlugin\OperationState;
 use Porta\GitPlugin\Process\ProcessLane;
 use Porta\GitPlugin\Process\PullRequestLookup;
 use Porta\GitPlugin\RepositoryState;
@@ -152,8 +153,9 @@ final class GitDoubles
      * The toolbar's repository state over a real git, with no `gh`: a test of
      * the view wants the branch and the upstream, never a network call.
      */
-    public static function repository(GitInfo $git, string $root): RepositoryState
+    /** @param (\Closure(): ?OperationState)|null $operation what the status cell would say is in progress */
+    public static function repository(GitInfo $git, string $root, ?\Closure $operation = null): RepositoryState
     {
-        return new RepositoryState($git, new PullRequestLookup($root, static fn (): ?string => null, new ProcessLane()), $root);
+        return new RepositoryState($git, new PullRequestLookup($root, static fn (): ?string => null, new ProcessLane()), $root, $operation);
     }
 }

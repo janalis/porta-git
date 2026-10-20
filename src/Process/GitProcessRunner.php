@@ -82,14 +82,19 @@ final readonly class GitProcessRunner
 
     /**
      * The child's environment: inherited as is, or — for an untrusted
-     * repository — with its attributes read from the empty tree. Per spawn, so
-     * a PATH changed since boot is the one git sees.
+     * repository — with its attributes read from the empty tree, and with
+     * $extra on top. Per spawn, so a PATH changed since boot is the one git
+     * sees.
+     *
+     * @param array<string, string> $extra
      *
      * @return array<string, string>|null
      */
-    private function environment(): ?array
+    private function environment(array $extra = []): ?array
     {
-        return [] === $this->untrusted ? null : [...\getenv(), 'GIT_ATTR_SOURCE' => self::EMPTY_TREE];
+        $own = [] === $this->untrusted ? $extra : ['GIT_ATTR_SOURCE' => self::EMPTY_TREE, ...$extra];
+
+        return [] === $own ? null : [...\getenv(), ...$own];
     }
 
     public function isAvailable(): bool
@@ -187,6 +192,30 @@ final readonly class GitProcessRunner
      */
     public function runCapturing(array $args, callable $onDone): void
     {
+        $this->capture($args, $onDone, []);
+    }
+
+    /**
+     * Like {@see runWithErrors()}, for a verb that would stop for an editor —
+     * a merge or a rebase carrying on — where nobody is at one: `true` as the
+     * editor keeps the message git prepared. The environment's own editor
+     * would win over `core.editor`, so it is the environment that says so.
+     *
+     * @param list<string>                    $args
+     * @param callable(Outcome, string): void $onDone (ok, trimmed first stderr line)
+     */
+    public function runUnattended(array $args, callable $onDone): void
+    {
+        $this->capture($args, static fn (Outcome $ok, string $out, string $errors) => $onDone($ok, Text::firstLine($errors)), ['GIT_EDITOR' => 'true', 'GIT_SEQUENCE_EDITOR' => 'true']);
+    }
+
+    /**
+     * @param list<string>                            $args
+     * @param callable(Outcome, string, string): void $onDone
+     * @param array<string, string>                   $env    on top of the child's own
+     */
+    private function capture(array $args, callable $onDone, array $env): void
+    {
         $git = $this->binary();
         if (null === $git || !$this->repository) {
             $none = '';
@@ -201,7 +230,7 @@ final readonly class GitProcessRunner
         // concurrent add/commit's MANDATORY index.lock and fails the mutation.
         $command = [$git, ...$this->untrusted, '--no-optional-locks', '-C', $this->rootDir, ...$args];
         $started = $this->lane->start(
-            new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $this->environment()),
+            new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $this->environment($env)),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
                 $onDone(Outcome::of(0 === $code), $out, $process->errorOutput());
             },

@@ -35,14 +35,25 @@ final readonly class GitBranchSegment
         private ?string $worktree = null,
     ) {}
 
-    /** The cell, or null when the setting is off or git has not answered yet. */
+    /**
+     * The cell, or null when the setting is off or git has not answered yet.
+     * A merge or rebase in progress is said on it, branch or no branch — a
+     * rebase runs on a detached HEAD.
+     */
     public function statusCell(): ?StatusCell
     {
         $branch = $this->settings->showBranch ? $this->refresher->branch() : null;
-        if (null === $branch) {
-            return null;
-        }
+        $operation = $this->settings->showBranch ? $this->refresher->operation() : null;
 
+        return match (true) {
+            null !== $operation => $this->operationCell($branch, $operation),
+            null === $branch => null,
+            default => $this->branchCell($branch),
+        };
+    }
+
+    private function branchCell(string $branch): StatusCell
+    {
         // In a linked worktree, which one: several of them open at once read
         // as the same project otherwise, each on its own branch.
         $where = null === $this->worktree ? '' : ' '.Glyphs::WORKTREE." {$this->worktree}";
@@ -54,6 +65,31 @@ final readonly class GitBranchSegment
             null === $this->worktree
                 ? $this->translator->trans('Git branch %branch% — click to switch, create or delete a branch', ['%branch%' => $branch])
                 : $this->translator->trans('Git branch %branch% in worktree %name% — click to switch branch or worktree', ['%branch%' => $branch, '%name%' => $this->worktree]),
+        );
+    }
+
+    /** "⑂ main · rebasing 3/7 · 2 conflicts": what is in progress, and what its menu does about it. */
+    private function operationCell(?string $branch, OperationState $state): StatusCell
+    {
+        $progress = $this->translator->trans(match ($state->operation) {
+            GitOperation::Merging => 'merging',
+            GitOperation::Rebasing => 'rebasing',
+            GitOperation::CherryPicking => 'cherry-picking',
+            GitOperation::Reverting => 'reverting',
+        });
+        $parts = [
+            ...(null === $branch ? [] : [$branch]),
+            $progress.(null === $state->step || null === $state->total ? '' : " {$state->step}/{$state->total}"),
+            ...(0 === $state->conflicts ? [] : [$this->translator->trans('%count% conflict|%count% conflicts', ['%count%' => (string) $state->conflicts])]),
+        ];
+
+        return new StatusCell(
+            Glyphs::STATUS_BRANCH.' '.\implode(' · ', $parts),
+            StatusTone::Active,
+            $this->menu->all(...),
+            0 === $state->conflicts
+                ? $this->translator->trans('Resolved — click to continue or abort')
+                : $this->translator->trans('Resolve the conflicts, then click to continue — or skip or abort'),
         );
     }
 }

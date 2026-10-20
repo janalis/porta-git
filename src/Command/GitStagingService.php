@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin\Command;
 
 use Porta\DiffPlugin\DiffDocument;
+use Porta\Editor\ConflictMarkers;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Diff\DiffSide;
 use Porta\GitPlugin\Diff\PatchBuilder;
@@ -87,6 +88,13 @@ final readonly class GitStagingService
     public function toggleStage(ChangeEntry $entry, \Closure $onChanged): void
     {
         $abs = $this->paths->absolute($entry->path);
+        // Staging a conflicted file is what marks it resolved, and git would
+        // take the markers too: not while any is left in it.
+        if ($entry->isUnmerged() && self::hasMarkers($abs)) {
+            $this->notifier->warn($this->translator->trans('%file% still has conflict markers: resolve them first', ['%file%' => \basename($entry->path)]));
+
+            return;
+        }
         $done = function (Outcome $ok) use ($onChanged): void {
             if (!$ok->isOk()) {
                 $this->notifier->error($this->translator->trans('git refused the staging change'));
@@ -171,5 +179,13 @@ final readonly class GitStagingService
             },
             $mode,
         );
+    }
+
+    /** Whether the file on disk still holds any of a conflict — a whole block, or a marker one left. */
+    private static function hasMarkers(string $abs): bool
+    {
+        $text = \is_file($abs) ? \file_get_contents($abs) : false;
+
+        return false !== $text && ConflictMarkers::unresolved(\explode("\n", $text));
     }
 }

@@ -111,4 +111,59 @@ final class GitStagingServiceTest extends TestCase
 
         $this->assertStringContainsString('Discard failed', $this->flashText($status));
     }
+
+    public function testAConflictedFileWithMarkersLeftIsNotMarkedResolved(): void
+    {
+        // Staging an unmerged file is what marks it resolved — git would take
+        // the markers with it.
+        $project = new TempProject(['m.php' => "<?php\n<<<<<<< HEAD\na\n=======\nb\n>>>>>>> topic\n"]);
+        $status = new StatusBarWidget();
+        $changed = false;
+
+        $this->service($project->dir, $status)->toggleStage(new ChangeEntry('m.php', 'U', 'U'), static function () use (&$changed): void {
+            $changed = true;
+        });
+
+        $this->assertStringContainsString('m.php still has conflict markers: resolve them first', $this->flashText($status));
+        $this->assertFalse($changed, 'nothing asked of git');
+    }
+
+    public function testAConflictedFileResolvedOrGoneIsStagedAsAnyOther(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['m.php' => "<?php\nresolved\n"]);
+        $project->initGit();
+        $status = new StatusBarWidget();
+        $changed = 0;
+        $service = $this->service($project->dir, $status);
+
+        // One at a time: two adds at once would race for the index lock.
+        foreach ([new ChangeEntry('m.php', 'U', 'U'), new ChangeEntry('gone.php', 'D', 'D')] as $n => $entry) {
+            $service->toggleStage($entry, static function () use (&$changed): void {
+                ++$changed;
+            });
+            $this->await(static function () use (&$changed, $n): bool {
+                return ($n + 1) === $changed;
+            }, what: 'staged');
+        }
+
+        $this->assertSame('m.php', $project->git('diff', '--cached', '--name-only'));
+    }
+
+    public function testAMarkerInAFileNotInConflictIsNoneOfItsBusiness(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['doc.md' => "<<<<<<< an example in prose\n"]);
+        $project->initGit();
+        $changed = false;
+
+        $this->service($project->dir, new StatusBarWidget())->toggleStage(new ChangeEntry('doc.md', '?', '?'), static function () use (&$changed): void {
+            $changed = true;
+        });
+        $this->await(static function () use (&$changed): bool {
+            return $changed;
+        }, what: 'staged');
+
+        $this->assertSame('doc.md', $project->git('diff', '--cached', '--name-only'));
+    }
 }

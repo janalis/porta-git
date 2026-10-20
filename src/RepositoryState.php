@@ -53,10 +53,12 @@ final class RepositoryState
     /** @var \Closure(): void */
     private \Closure $repaint;
 
+    /** @param (\Closure(): ?OperationState)|null $operation what git is in the middle of — the status cell's, kept by the refresher */
     public function __construct(
         private readonly GitInfo $git,
         private readonly PullRequestLookup $pullRequests,
         string $rootDir,
+        private readonly ?\Closure $operation = null,
     ) {
         $this->name = \basename($rootDir);
         $this->worktree = $this->name;
@@ -159,6 +161,12 @@ final class RepositoryState
     public function name(): string
     {
         return $this->name;
+    }
+
+    /** The merge, rebase, cherry-pick or revert in progress, or null. */
+    public function operation(): ?OperationState
+    {
+        return null === $this->operation ? null : ($this->operation)();
     }
 
     /** The branch, or null on a detached HEAD — or before git has answered; see {@see branchRead()}. */
