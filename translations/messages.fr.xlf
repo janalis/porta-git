@@ -451,8 +451,8 @@
         <target>Indexez d'abord une modification</target>
       </trans-unit>
       <trans-unit id="121">
-        <source>Esc to edit the file · F7 next conflict · Alt+M resolve · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
-        <target>Échap pour éditer le fichier · F7 conflit suivant · Alt+M résoudre · Ctrl+S, puis Ctrl+Q — des conflits restants font échouer la fusion</target>
+        <source>Ours | result | theirs — a keeps a side, b both · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
+        <target>La nôtre | résultat | la leur — a garde un côté, b les deux · Ctrl+S, puis Ctrl+Q — des conflits restants font échouer la fusion</target>
       </trans-unit>
       <trans-unit id="122">
         <source>%name% has changes. Delete it anyway, and them?</source>

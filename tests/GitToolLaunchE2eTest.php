@@ -92,7 +92,7 @@ final class GitToolLaunchE2eTest extends TestCase
         ]);
     }
 
-    public function testAMergetoolLaunchOpensTheConflictedFileUnderTheGitView(): void
+    public function testAMergetoolLaunchOpensTheConflictedFileInTheMergeView(): void
     {
         $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH);
@@ -114,21 +114,16 @@ final class GitToolLaunchE2eTest extends TestCase
             null,
             [
                 0 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
-                    $this->await(static fn (): bool => true === Services::resolve($ide, ViewRegistry::class)->find('git')?->isOpen(), what: 'the git view');
+                    // Ours | result | theirs, labelled by the markers git wrote.
+                    $this->awaitPainted($tui, $terminal, '⇤ feature');
+                    $grid = \implode("\n", $this->screenGrid($tui, $terminal));
+                    $this->assertStringContainsString('⇥ HEAD', $grid);
+                    $this->assertStringContainsString('<<<<<<< HEAD', $grid, 'the result, in the editor');
                     $this->await(static fn (): bool => \array_any(Toasts::all($ide), static fn (string $toast): bool => \str_contains(
                         $toast,
-                        'Alt+M resolve',
+                        'a keeps a side',
                     )), what: 'the hint saying how to resolve and finish');
-
-                    // The conflicted file's diff, against our side: a plain `git diff`
-                    // of an unmerged path is a combined diff the pane cannot read.
-                    // Read off the CURRENT screen: the editor painted the markers
-                    // before the view covered it, so the output so far proves nothing.
-                    $this->await(fn (): bool => \str_contains(\implode("\n", $this->screenGrid($tui, $terminal)), '<<<<<<< HEAD'), what: 'the conflict in the diff pane');
-
-                    $tui->handleInput("\x1b"); // close the view: the conflicted file is underneath
-                    $this->awaitPainted($tui, $terminal, "echo 'theirs';");
-                    $this->assertFalse(Services::resolve($ide, ViewRegistry::class)->find('git')?->isOpen(), 'the editor, not the view');
+                    $this->assertNotTrue(Services::resolve($ide, ViewRegistry::class)->find('git')?->isOpen(), 'nothing over it');
                 },
             ],
             tool: ToolLaunch::merge($project->path('a_LOCAL.php'), $project->path('a_REMOTE.php'), $project->path('a_BASE.php'), $project->path('a.php')),

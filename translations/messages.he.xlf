@@ -451,8 +451,8 @@
         <target>יש להכין שינוי תחילה</target>
       </trans-unit>
       <trans-unit id="121">
-        <source>Esc to edit the file · F7 next conflict · Alt+M resolve · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
-        <target>Esc לעריכת הקובץ · F7 ההתנגשות הבאה · Alt+M פתרון · Ctrl+S ואז Ctrl+Q — התנגשויות שנותרו מכשילות את המיזוג</target>
+        <source>Ours | result | theirs — a keeps a side, b both · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
+        <target>שלנו | תוצאה | שלהם — a שומר צד, b את שניהם · Ctrl+S ואז Ctrl+Q — התנגשויות שנותרו מכשילות את המיזוג</target>
       </trans-unit>
       <trans-unit id="122">
         <source>%name% has changes. Delete it anyway, and them?</source>

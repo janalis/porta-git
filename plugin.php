@@ -401,11 +401,9 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
      */
     private function answerComparisons(PluginApi $api, ViewSlot $slot): void
     {
-        // Porta launched as git's difftool or mergetool: this view is the answer.
-        // A difftool comparison ends the session when it closes — git is waiting
-        // on the process before it moves to the next file. A merge opens the
-        // conflicted file in the editor UNDER the view, so Esc lands on its
-        // markers; core decides the exit code from what is left in the file.
+        // Porta launched as git's difftool: this view is the answer. A difftool
+        // comparison ends the session when it closes — git is waiting on the
+        // process before it moves to the next file.
         $api->on(DiffToolLaunched::class, static function (PluginObservable $launch) use ($api, $slot): void {
             \assert($launch instanceof DiffToolLaunched, description: 'registered for this class only');
             $slot->view?->openComparison($launch->left, $launch->right, static fn () => $api->emit(new QuitRequested()));
@@ -416,11 +414,13 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
             \assert($proposal instanceof ChangeProposed, description: 'registered for this class only');
             $slot->view?->openComparison($proposal->path, $proposal->proposedPath, static function (): void {});
         });
-        $api->on(MergeToolLaunched::class, static function (PluginObservable $launch) use ($api, $slot): void {
+        // A merge opens the conflicted file, which the diff plugin's merge view
+        // shows as ours | result | theirs; core decides the exit code from what
+        // is left in the file.
+        $api->on(MergeToolLaunched::class, static function (PluginObservable $launch) use ($api): void {
             \assert($launch instanceof MergeToolLaunched, description: 'registered for this class only');
             $api->openFile($launch->merged);
-            $slot->view?->openOn($launch->merged);
-            $api->flash($api->trans('Esc to edit the file · F7 next conflict · Alt+M resolve · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails'), 8.0);
+            $api->flash($api->trans('Ours | result | theirs — a keeps a side, b both · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails'), 8.0);
         });
     }
 

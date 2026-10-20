@@ -451,8 +451,8 @@
         <target>Metti prima in stage una modifica</target>
       </trans-unit>
       <trans-unit id="121">
-        <source>Esc to edit the file · F7 next conflict · Alt+M resolve · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
-        <target>Esc per modificare il file · F7 conflitto successivo · Alt+M risolvi · Ctrl+S, poi Ctrl+Q — se restano conflitti il merge fallisce</target>
+        <source>Ours | result | theirs — a keeps a side, b both · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails</source>
+        <target>Nostra | risultato | loro — a mantiene un lato, b entrambi · Ctrl+S, poi Ctrl+Q — se restano conflitti il merge fallisce</target>
       </trans-unit>
       <trans-unit id="122">
         <source>%name% has changes. Delete it anyway, and them?</source>

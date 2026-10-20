@@ -184,10 +184,11 @@ the phar, or the script you ran — so git finds it whatever its own `PATH` is:
   changed files fill the changes list, and each one you select is compared.
   In a comparison the stage, discard and commit keys do nothing — the rows are
   git's copies, not your working tree.
-- **`git mergetool`** opens each conflicted file twice over: the git view on its
-  row, showing the conflict against your side, and the file itself in the
-  editor underneath. `Esc` to edit it, `F7` / `Shift+F7` between conflicts,
-  `Alt+M` to keep yours, theirs or both, `Ctrl+S`, then `Ctrl+Q`.
+- **`git mergetool`** opens each conflicted file in the
+  [merge view](../../diff/docs/README.md#the-merge-view): yours on the left,
+  the result in the editor, theirs on the right. `a` from a side keeps it, `b`
+  both — or click a side's label, or edit the result yourself — then `Ctrl+S`,
+  then `Ctrl+Q`.
 - **The exit code is the verdict.** Porta exits 0 only when the saved file holds
   no conflict block, and `trustExitCode` makes git believe it: a file you quit
   with markers left stays unresolved (`merge of … failed`).

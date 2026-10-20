@@ -169,9 +169,6 @@ final class GitViewController implements ContributedView
      */
     private ?array $comparedDirs = null;
 
-    /** The repo-relative path to select when the next status lands — a mergetool launch. */
-    private ?string $selectOnLoad = null;
-
     public function __construct(
         private readonly GitInfo $git,
         private readonly ProjectPaths $paths,
@@ -352,16 +349,6 @@ final class GitViewController implements ContributedView
         $this->armPoll();
         $this->spinWhileRunning();
         $this->host->invalidate();
-    }
-
-    /**
-     * Open on $absPath's row once the status lands — git mergetool's `$MERGED`,
-     * the conflicted file, with its diff in the pane.
-     */
-    public function openOn(string $absPath): void
-    {
-        $this->selectOnLoad = $this->paths->relative($absPath);
-        $this->open();
     }
 
     /**
@@ -587,10 +574,6 @@ final class GitViewController implements ContributedView
             $this->entries = $entries;
             $this->panes->changes->setEntries($entries);
             $this->aimCommit();
-            if (null !== $this->selectOnLoad) {
-                $this->panes->changes->selectPath($this->selectOnLoad);
-                $this->selectOnLoad = null;
-            }
             $this->panes->commitBox->invalidate(); // the button's enabled state may flip
 
             if (GitViewMode::History === $this->mode) {
