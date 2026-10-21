@@ -19,6 +19,30 @@
         "porta": {
             "requires": [
                 "diff"
+            ],
+            "tools": [
+                {
+                    "name": "git",
+                    "purpose": "every git feature",
+                    "setting": "path",
+                    "sources": [
+                        [
+                            "brew",
+                            "git"
+                        ]
+                    ]
+                },
+                {
+                    "name": "gh",
+                    "role": "suggested",
+                    "purpose": "pull-request numbers beside the branch",
+                    "sources": [
+                        [
+                            "brew",
+                            "gh"
+                        ]
+                    ]
+                }
             ]
         }
     }
