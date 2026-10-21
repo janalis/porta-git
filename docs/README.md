@@ -191,10 +191,8 @@ the phar, or the script you ran — so git finds it whatever its own `PATH` is:
   the result in the editor, theirs on the right. `a` from a side keeps it, `b`
   both — or click a side's label, or edit the result yourself — then `Ctrl+S`,
   then `Ctrl+Q`.
-- **By hand**, the same two: `porta diff a.php b.php` compares two files, and
-  `porta merge LOCAL REMOTE BASE MERGED` resolves MERGED — the words for
-  `--diff` and `--merge`. A file or folder named `diff` or `merge` opens as
-  `porta ./diff`.
+- **By hand**, the same two: `porta --diff a.php b.php` compares two files,
+  and `porta --merge LOCAL REMOTE BASE MERGED` resolves MERGED.
 - **The exit code is the verdict.** Porta exits 0 only when the saved file holds
   no conflict block, and `trustExitCode` makes git believe it: a file you quit
   with markers left stays unresolved (`merge of … failed`).
