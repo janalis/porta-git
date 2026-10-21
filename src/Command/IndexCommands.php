@@ -37,6 +37,19 @@ final readonly class IndexCommands
 
             return;
         }
+        // Staging a conflicted file marks it resolved: not with a marker left in it.
+        $this->git->conflictsLeft(function (array $left) use ($path): void {
+            if (\in_array($this->relative($path), $left, strict: true)) {
+                $this->api->flash($this->api->trans('%file% still has conflict markers: resolve them first', ['%file%' => \basename($path)]));
+
+                return;
+            }
+            $this->stage($path);
+        });
+    }
+
+    private function stage(string $path): void
+    {
         $this->git->stage($path, function (Outcome $ok) use ($path): void {
             $this->api->flash(
                 $ok->isOk()

@@ -121,8 +121,21 @@ final readonly class GitStagingService
             }
             $onChanged();
         };
+        if (!$stage) {
+            $this->git->unstageAll($done);
 
-        $stage ? $this->git->stageAll($done) : $this->git->unstageAll($done);
+            return;
+        }
+        // Everything staged would mark every conflicted file resolved — not
+        // while one still holds a marker.
+        $this->git->conflictsLeft(function (array $left) use ($done): void {
+            if ([] === $left) {
+                $this->git->stageAll($done);
+
+                return;
+            }
+            $this->notifier->warn($this->translator->trans('%file% still has conflict markers: resolve them first', ['%file%' => \basename($left[0])]));
+        });
     }
 
     /**

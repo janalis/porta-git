@@ -25,6 +25,7 @@ use Porta\Tests\Support\TempProject;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\StatusBarWidget;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Process\Process;
 use Symfony\Component\Tui\Tui;
 
 /**
@@ -94,6 +95,29 @@ final class BlameTest extends TestCase
         $this->assertStringContainsString('a.txt', $this->flashText($this->status), 'the flash names the file');
         $this->assertStringNotContainsString($this->project->dir, $this->flashText($this->status), 'relative to the project, not absolute');
         $this->assertNotSame('', $this->project->git('diff', '--cached', '--name-only'), 'and it really staged');
+    }
+
+    public function testAConflictedFileWithAMarkerLeftIsNotStaged(): void
+    {
+        // Staging it would mark it resolved, markers and all.
+        $api = $this->api();
+        $this->skipWithoutGit();
+        $this->project->initGit(branch: 'main', name: 'tester', email: 't@t');
+        $this->project->commitAll('init');
+        $this->project->git('checkout', '-q', '-b', 'topic');
+        $this->project->write('a.txt', "one\ntheirs\n");
+        $this->project->commitAll('theirs');
+        $this->project->git('checkout', '-q', 'main');
+        $this->project->write('a.txt', "one\nours\n");
+        $this->project->commitAll('ours');
+        new Process(['git', 'merge', '-q', 'topic'], $this->project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH])->run();
+        $this->buffers->open($this->project->path('a.txt'), (string) \file_get_contents($this->project->path('a.txt')));
+
+        new IndexCommands(new GitInfo($this->project->dir), $api)->stageCurrent();
+        $this->await(fn (): bool => \str_contains($this->flashText($this->status), 'conflict markers'), what: 'the refusal');
+
+        $this->assertStringContainsString('a.txt still has conflict markers: resolve them first', $this->flashText($this->status));
+        $this->assertSame('a.txt', $this->project->git('diff', '--name-only', '--diff-filter=U'), 'still conflicted');
     }
 
     public function testStagingWithNoFileOpenSaysSo(): void

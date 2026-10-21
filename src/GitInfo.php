@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\GitPlugin;
 
 use Porta\DiffPlugin\HunkParser;
+use Porta\Editor\ConflictMarkers;
 use Porta\GitPlugin\Command\CommitMode;
 use Porta\GitPlugin\Diff\WhitespaceMode;
 use Porta\GitPlugin\Parse\BranchParser;
@@ -30,6 +31,8 @@ final readonly class GitInfo
 {
     private GitProcessRunner $runner;
 
+    private string $rootDir;
+
     /**
      * $lane is optional and TRAILING so direct construction keeps working;
      * `plugin.php` passes {@see GitProcesses::$general}, which is what puts
@@ -43,6 +46,7 @@ final readonly class GitInfo
         ?ProcessLane $lane = null,
     ) {
         $this->runner = new GitProcessRunner($rootDir, $gitPath, $lane);
+        $this->rootDir = $rootDir;
     }
 
     /** The resolved `git` binary ({@see GitProcessRunner::binary()}), or null when none was found. */
@@ -167,6 +171,25 @@ final readonly class GitInfo
     public function conflictCount(callable $onDone): void
     {
         $this->runner->run(['diff', '--name-only', '--diff-filter=U', '-z'], static fn (string $out) => $onDone(\count(\array_filter(\explode("\0", $out)))));
+    }
+
+    /**
+     * The conflicted files under the project that still hold a conflict
+     * marker, project-relative: what staging them — marking them resolved —
+     * would carry into the commit.
+     *
+     * @param callable(list<string>): void $onDone
+     */
+    public function conflictsLeft(callable $onDone): void
+    {
+        $root = $this->rootDir;
+        $this->runner->run(['diff', '--name-only', '--relative', '--diff-filter=U', '-z'], static function (string $out) use ($onDone, $root): void {
+            $paths = \array_filter(
+                \explode("\0", $out),
+                static fn (string $path): bool => '' !== $path && \is_file($root.'/'.$path) && ConflictMarkers::unresolved(\explode("\n", (string) \file_get_contents($root.'/'.$path))),
+            );
+            $onDone(\array_values($paths));
+        });
     }
 
     /**

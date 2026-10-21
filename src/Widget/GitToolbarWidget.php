@@ -322,7 +322,9 @@ final class GitToolbarWidget extends AbstractWidget implements MenuOverlayHost, 
                 GitOperation::Reverting => 'reverting',
             }).(null === $state->step || null === $state->total ? '' : " {$state->step}/{$state->total}");
 
-        return \trim($name.' — '.$this->styles->of(Role::Modified)->apply($progress), characters: ' —');
+        // Joined, never trimmed: trim() strips BYTES, and a branch name may
+        // start with one of the dash's.
+        return \implode(' — ', \array_filter([$name, $this->styles->of(Role::Modified)->apply($progress)], static fn (string $part): bool => '' !== $part));
     }
 
     private function pullRequest(): string

@@ -21,6 +21,7 @@ use Porta\Tests\Support\StatusReads;
 use Porta\Tests\Support\TempProject;
 use Porta\Widget\StatusBarWidget;
 use Porta\Workbench\Notifier;
+use Symfony\Component\Process\Process;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
 
@@ -165,5 +166,40 @@ final class GitStagingServiceTest extends TestCase
         }, what: 'staged');
 
         $this->assertSame('doc.md', $project->git('diff', '--cached', '--name-only'));
+    }
+
+    public function testStagingEverythingWaitsForEveryMarkerToGo(): void
+    {
+        // The header box stages every file — and so marks every conflicted
+        // one resolved, markers and all.
+        $this->skipWithoutGit();
+        $project = new TempProject(['a.txt' => "base\n", 'b.txt' => "b\n"]);
+        $project->initGit(branch: 'main');
+        $project->commitAll('base');
+        $project->git('checkout', '-q', '-b', 'topic');
+        $project->write('a.txt', "theirs\n");
+        $project->commitAll('theirs');
+        $project->git('checkout', '-q', 'main');
+        $project->write('a.txt', "ours\n");
+        $project->commitAll('ours');
+        new Process(['git', 'merge', '-q', 'topic'], $project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH])->run();
+        $project->write('b.txt', "b2\n");
+        $status = new StatusBarWidget();
+        $service = $this->service($project->dir, $status);
+
+        $service->stageAll(true, static function (): void {});
+        $this->await(fn (): bool => \str_contains($this->flashText($status), 'conflict markers'), what: 'the refusal');
+        $this->assertSame('a.txt', $project->git('diff', '--name-only', '--diff-filter=U'), 'still conflicted');
+        $this->assertSame('', $project->git('diff', '--cached', '--name-only', '--', 'b.txt'), 'nothing staged');
+
+        $project->write('a.txt', "both\n");
+        $changed = false;
+        $service->stageAll(true, static function () use (&$changed): void {
+            $changed = true;
+        });
+        $this->await(static function () use (&$changed): bool {
+            return $changed;
+        }, what: 'the stage');
+        $this->assertSame('', $project->git('diff', '--name-only', '--diff-filter=U'), 'resolved now');
     }
 }

@@ -206,6 +206,16 @@ final class GitToolbarWidgetTest extends TestCase
         $this->assertStringContainsString(Styles::dark()->of(Role::Modified)->apply('merging'), $raw);
     }
 
+    public function testABranchNameThatStartsLikeTheDashKeepsItsFirstCharacter(): void
+    {
+        // ✨ is E2 9C A8: the em dash is E2 80 94, and trimming its bytes
+        // would have cut the name's first character in half.
+        $toolbar = $this->toolbar($this->repository('✨x', operation: new OperationState(GitOperation::Merging)));
+
+        $this->assertStringContainsString('✨x — merging', self::plain($toolbar)[1]);
+        $this->assertTrue(\mb_check_encoding(\implode("\n", $toolbar->render(new RenderContext(120, 4))), encoding: 'UTF-8'));
+    }
+
     public function testEveryOperationHasItsWord(): void
     {
         $words = \array_map(fn (GitOperation $operation): string => self::plain($this->toolbar($this->repository('x', operation: new OperationState($operation))))[1], GitOperation::cases());
