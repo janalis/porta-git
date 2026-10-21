@@ -12,6 +12,7 @@ use Porta\DiffPlugin\Event\DiffStagingRequested;
 use Porta\DiffPlugin\Event\DiffWhitespaceToggleRequested;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
+use Porta\Event\SoftWrapChanged;
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\Event\GitChangeDiscardRequested;
 use Porta\GitPlugin\Event\GitChangeSelected;
@@ -76,13 +77,15 @@ final class GitWiring
      * Facts anything may observe, so they stay core `PluginObservable`s rather
      * than moving onto this plugin's dispatcher with the widget events above:
      * a fetch finishing, and the working tree moving under the view (a branch
-     * switch from the toolbar's own menu, a stash), which the toolbar answers.
+     * switch from the toolbar's own menu, a stash), which the toolbar answers,
+     * and the soft-wrap setting, which the diff pane follows.
      *
      * @var array<class-string, string>
      */
     public const array VIEW_CORE = [
         GitRemoteCompleted::class => 'onRemoteCompleted',
         WorkingTreeChanged::class => 'onWorkingTreeChanged',
+        SoftWrapChanged::class => 'onSoftWrapChanged',
     ];
 
     /**

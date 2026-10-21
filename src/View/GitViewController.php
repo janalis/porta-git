@@ -13,6 +13,7 @@ use Porta\DiffPlugin\Event\DiffStagingRequested;
 use Porta\DiffPlugin\Event\DiffWhitespaceToggleRequested;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
+use Porta\Event\SoftWrapChanged;
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\CommitMode;
@@ -1001,6 +1002,12 @@ final class GitViewController implements ContributedView
     public function onViewModeRequested(GitViewModeRequested $event): void
     {
         $this->switchMode($event->mode);
+    }
+
+    /** The soft-wrap setting changed: the diff pane breaks its long lines as the editor does, or stops. */
+    public function onSoftWrapChanged(SoftWrapChanged $event): void
+    {
+        $event->on ? $this->panes->diffView->useSoftWrap() : $this->panes->diffView->useHorizontalScroll();
     }
 
     public function onRemoteCompleted(GitRemoteCompleted $event): void

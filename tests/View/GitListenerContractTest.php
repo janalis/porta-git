@@ -62,7 +62,7 @@ final class GitListenerContractTest extends TestCase
         }
     }
 
-    public function testTheSetIsTwentyThreeReactionsAcrossTwoClasses(): void
+    public function testTheSetIsTwentyFourReactionsAcrossTwoClasses(): void
     {
         // A count as well as a map: it is the number to check the registration
         // against at a glance, and it makes "one of these was dropped" a
@@ -74,10 +74,11 @@ final class GitListenerContractTest extends TestCase
         // Back to nineteen with the changes list's stage-all box; twenty-three
         // with the toolbar, whose menu cells ask the controller and which
         // follows the working tree moving under the open view, the commit
-        // header's copy button, and the diff's settings gear.
+        // header's copy button, and the diff's settings gear; twenty-four with
+        // core's soft wrap, which the diff pane follows.
         $total = \count(GitWiring::VIEW) + \count(GitWiring::VIEW_CORE) + \count(GitWiring::REFRESHER);
 
-        $this->assertSame(23, $total);
+        $this->assertSame(24, $total);
         $this->assertCount(18, GitWiring::VIEW, 'the widget → controller set, on this plugin’s own dispatcher');
     }
 

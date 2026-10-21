@@ -6,12 +6,15 @@ namespace Porta\GitPlugin\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
+use Porta\Config\ConfigScope;
+use Porta\DiffPlugin\Widget\DiffViewWidget;
 use Porta\Event\GitCommitted;
 use Porta\Event\GitRemoteCompleted;
 use Porta\Event\IdeShuttingDown;
 use Porta\Event\TreeDropRequested;
 use Porta\Ide;
 use Porta\Plugin\Lifecycle\PluginLifecycle;
+use Porta\Settings\SettingsScope;
 use Porta\Support\AsyncProcess;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\GitBinary;
@@ -640,6 +643,46 @@ final class IdeGitPluginTest extends TestCase
 
                     $this->assertSame(0, $general->inFlight(), 'shutdown stopped the general lane');
                     $this->assertSame(0, $remote->inFlight(), 'and the remote one, which it used not to');
+                },
+            ],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * The diff pane follows core's soft wrap: wrapped from the boot when the
+     * setting is on — the view is built after the settings apply — and
+     * unwrapped and wrapped again as Alt+Z flips it.
+     */
+    public function testTheDiffPaneFollowsTheSoftWrapSetting(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject([
+            'src/A.php' => "<?php\n\$x = 1;\n",
+            '.porta.json' => '{"enabledPlugins":["diff","git"],"settings":{"softWrap":true}}',
+        ]);
+        $project->initGit(name: 'tester', email: 't@t');
+        $project->commitAll('init');
+
+        $this->runIde(
+            $project,
+            $project->path('src/A.php'),
+            [
+                300 => function ($tui, $terminal, Ide $ide): void {
+                    // Into the project, never the committed fixture home.
+                    Services::resolve($ide, SettingsScope::class)->set(ConfigScope::Project);
+                    $view = Services::resolve($ide, ViewRegistry::class)->find('git');
+                    $this->assertInstanceOf(ContributedView::class, $view);
+                    $diff = Probe::get($view, 'panes')->diffView;
+                    $this->assertInstanceOf(DiffViewWidget::class, $diff);
+                    $this->assertTrue($diff->isWrapped(), 'built wrapped: the setting was on at boot');
+
+                    $commands = Services::resolve($ide, CommandRegistry::class);
+                    $commands->run('toggle_soft_wrap');
+                    $this->assertFalse($diff->isWrapped(), 'Alt+Z unwraps the diff with the editor');
+                    $commands->run('toggle_soft_wrap');
+                    $this->assertTrue($diff->isWrapped());
                 },
             ],
         );

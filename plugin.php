@@ -502,6 +502,10 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         $panes->changes->setId('git-changes')->setStyle(new Style(flex: 0));
         // Beside History's files the split sizes it; alone in Changes, it takes the column.
         $panes->diffView->setId('git-diff')->setStyle(new Style(flex: 1));
+        // Wrapped from the start when the setting is on; SoftWrapChanged follows a switch.
+        if ($api->softWrap()) {
+            $panes->diffView->useSoftWrap();
+        }
         $panes->commitBox->setId('git-commit');
         $panes->history->setId('git-history');
         $panes->tabs->setId('git-tabs')->setStyle(new Style(flex: 0));
