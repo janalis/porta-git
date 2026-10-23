@@ -28,7 +28,7 @@ final class GitToolsTest extends TestCase
     private static function api(TempProject $project, ?string $gitPath = null): PluginApi
     {
         $settings = new PluginSettings($project->dir, []);
-        $api = new PluginApi('git', new PluginManager(new EventDispatcher(), $settings), $project->dir, $settings);
+        $api = new PluginManager(new EventDispatcher(), $settings)->api('git', $project->dir, $settings);
         new GitTools($api, new GitProcessRunner($project->dir, $gitPath))->register();
 
         return $api;

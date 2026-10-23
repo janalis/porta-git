@@ -93,7 +93,7 @@ final readonly class GitPluginHarness
             TestParticipants::create(),
             TestProjectSwitcher::create(),
         ));
-        $api = new PluginApi('git', $manager, $project->dir, $settings);
+        $api = $manager->api('git', $project->dir, $settings);
         $manager->commit($api);
 
         return new self($api, $project, $tui, $status, $editor, $events, $buffers, $marks, $statuses);
