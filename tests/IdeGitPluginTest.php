@@ -29,6 +29,7 @@ use Porta\Ui\ClickIntent;
 use Porta\Ui\Glyphs;
 use Porta\Widget\ContextMenu;
 use Porta\Widget\FileTreeWidget;
+use Porta\Workbench\DropAction;
 use Porta\Workbench\View\ContributedView;
 use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -240,7 +241,7 @@ final class IdeGitPluginTest extends TestCase
                     );
 
                     Services::resolve($ide, EventDispatcherInterface::class)->dispatch(
-                        new TreeDropRequested([$project->path('src/moved.php')], $project->dir, copy: false),
+                        new TreeDropRequested([$project->path('src/moved.php')], $project->dir, action: DropAction::Move),
                     );
 
                     $this->assertFileExists($project->path('moved.php'), 'the move itself happened');
