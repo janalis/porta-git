@@ -41,15 +41,14 @@ trait DrivesPickers
     }
 
     /**
-     * Pump the event loop until $until holds, then drain a few follow-up
-     * turns. With no predicate it just waits for a flash to land — the signal
-     * the simple actions end on; the overlay flows wait for the list to open.
+     * Pump the event loop until $until holds. With no predicate it waits for a
+     * flash to land — the signal the simple actions end on; the overlay flows
+     * wait for the list to open. No fixed drain follows: a test that needs a
+     * refresher's effect awaits that effect.
      */
     private function pumpUntil(?callable $until = null, float $timeout = 10.0, string $what = 'a flash to land'): void
     {
         $this->await($until ?? fn (): bool => '' !== \trim($this->statusRow($this->statusBar)), $timeout, $what);
-        // Drain any callbacks the resolved op queued behind it (refreshers).
-        $this->pump(0.06);
     }
 
     /**
