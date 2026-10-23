@@ -34,7 +34,6 @@ use Porta\Workbench\View\ViewRegistry;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
-use Symfony\Component\Tui\Render\Renderer;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
 
@@ -829,7 +828,7 @@ final class IdeGitPluginTest extends TestCase
                 600 => function (Tui $tui, $terminal, Ide $ide): void {
                     // And the way a person finds it: the tree row's own
                     // right-click, on the pair that is still selected.
-                    $rect = Widgets::rect(Services::resolve($ide, Renderer::class), $tui->getById('tree'));
+                    $rect = Widgets::rectIn($ide, $tui->getById('tree'));
                     $terminal->clearOutput();
                     $this->frame($tui);
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 3, $rect->row + 3));

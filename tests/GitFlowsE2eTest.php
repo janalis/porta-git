@@ -98,9 +98,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testGitSidebarDragResizesAndPersists(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git not available');
-        }
+        $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
@@ -144,9 +142,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testCommitViaThePaletteAsksForAMessage(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git binary not available');
-        }
+        $this->skipWithoutGit();
 
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t'); // 'tester' is asserted as the blame author
@@ -526,9 +522,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testTheBranchResolvesIntoTheStatusBar(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git binary not available');
-        }
+        $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // git must be reachable
 
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
@@ -568,9 +562,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testGitViewStagesCommitsDiscardsAndRestores(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git not available');
-        }
+        $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
@@ -634,9 +626,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testGitChangesRowContextMenuStagesAndArmsDiscard(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git not available');
-        }
+        $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
@@ -704,9 +694,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testGitViewStagesASingleLineFromTheDiffPane(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git not available');
-        }
+        $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['f.txt' => "alpha\nbeta\ngamma\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
@@ -751,9 +739,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testGitViewMouseAndTheMenuOverItsWindow(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git not available');
-        }
+        $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['a.txt' => "one\ntwo\nthree\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
@@ -917,9 +903,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testGitViewHistoryTabBrowsesCommits(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git not available');
-        }
+        $this->skipWithoutGit();
         \putenv('PATH='.\dirname((string) $this->whichGit()));
         $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
@@ -984,9 +968,7 @@ final class GitFlowsE2eTest extends TestCase
 
     public function testF6InsideTheGitViewWalksItsPanes(): void
     {
-        if (!$this->gitAvailable()) {
-            $this->markTestSkipped('git binary not available');
-        }
+        $this->skipWithoutGit();
         \putenv('PATH='.\PORTA_TEST_PRISTINE_PATH); // git must be reachable
 
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
