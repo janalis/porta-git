@@ -32,7 +32,6 @@ final class DirectoryComparison
                 default => null,
             };
             if (null !== $status) {
-                // @mago-expect analysis:redundant-cast -- PHP turns a numeric key into an int, so a file named `1` arrives as one.
                 $entries[] = new ChangeEntry((string) $path, ' ', $status);
             }
         }
@@ -50,7 +49,7 @@ final class DirectoryComparison
         return false !== $real && \is_file($real) ? $real : '/dev/null';
     }
 
-    /** @return array<string, string> relative path => absolute path, every regular file (followed through symlinks) */
+    /** @return array<array-key, string> relative path (an int when it is digits) => absolute path, every regular file (followed through symlinks) */
     private static function files(string $root): array
     {
         $root = \rtrim($root, characters: '/');
