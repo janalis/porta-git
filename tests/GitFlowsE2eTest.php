@@ -92,8 +92,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testGitSidebarDragResizesAndPersists(): void
@@ -136,8 +134,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testCommitViaThePaletteAsksForAMessage(): void
@@ -212,8 +208,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1); // the throwing awaits above are the assertions
     }
 
     /** @return list<\Porta\Workbench\Menu\Menu> */
@@ -268,8 +262,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /**
@@ -319,8 +311,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testInsideARepositoryTheGitVerbsRegisterLast(): void
@@ -357,8 +347,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testGitBranchPickerSwitchesAndCreatesBranches(): void
@@ -485,7 +473,6 @@ final class GitFlowsE2eTest extends TestCase
             ],
         );
 
-        $this->addToAssertionCount(1); // the throwing awaits above are the assertions
         $bare->path('.'); // hold the bare remote alive through the run
     }
 
@@ -556,8 +543,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testGitViewStagesCommitsDiscardsAndRestores(): void
@@ -620,8 +605,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1); // the throwing awaits above are the assertions
     }
 
     public function testGitChangesRowContextMenuStagesAndArmsDiscard(): void
@@ -688,8 +671,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testGitViewStagesASingleLineFromTheDiffPane(): void
@@ -733,8 +714,6 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1); // the throwing awaits above are the assertions
     }
 
     public function testGitViewMouseAndTheMenuOverItsWindow(): void
@@ -1072,7 +1051,5 @@ final class GitFlowsE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 }

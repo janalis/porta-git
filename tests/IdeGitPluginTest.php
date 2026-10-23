@@ -89,8 +89,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testAFactRaisedOnThePluginBusReachesCoreListeners(): void
@@ -133,8 +131,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testTheGutterStripeMarksModifiedAndAddedLines(): void
@@ -164,8 +160,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /**
@@ -206,8 +200,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /**
@@ -259,8 +251,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testADiskReloadRefreshesTheStripe(): void
@@ -289,8 +279,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testBlamingTheCaretLineFlashesTheCommit(): void
@@ -312,8 +300,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testTogglingAnnotationsPaintsThemIntoTheEditor(): void
@@ -335,8 +321,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testAProjectConfiguredBeforeTheMoveKeepsItsChoicesAndIsRewritten(): void
@@ -369,9 +353,7 @@ final class IdeGitPluginTest extends TestCase
             $project,
             $project->path('src/A.php'),
             [
-                400 => function (): void {
-                    $this->addToAssertionCount(1);
-                },
+                400 => static function (): void {},
             ],
         );
 
@@ -416,8 +398,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testEveryOtherSettingReachesTheHolderTheReadersShare(): void
@@ -501,8 +481,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testTheGitPathSettingAppliesWithoutARestart(): void
@@ -534,8 +512,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testTogglingTheBranchSettingHidesTheCellWithoutARestart(): void
@@ -562,8 +538,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /**
@@ -645,8 +619,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /**
@@ -685,8 +657,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testTheGitViewTogglesLiveWithItsMenuAndBranchCell(): void
@@ -738,8 +708,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testALiveDisableStopsBothLanesTheShutdownHookNoLongerCovers(): void
@@ -775,8 +743,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testComparingTwoFilesPickedInTheTreeLandsInAPanel(): void
@@ -842,8 +808,6 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /**
@@ -912,7 +876,5 @@ final class IdeGitPluginTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 }

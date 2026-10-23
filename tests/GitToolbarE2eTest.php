@@ -133,8 +133,6 @@ final class GitToolbarE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /**

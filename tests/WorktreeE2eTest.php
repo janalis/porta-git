@@ -70,8 +70,6 @@ final class WorktreeE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testInALinkedWorktreeTheStatusBarSaysWhich(): void
@@ -89,8 +87,6 @@ final class WorktreeE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     private function palette(Tui $tui, string $label): void

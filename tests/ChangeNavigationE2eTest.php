@@ -108,8 +108,6 @@ final class ChangeNavigationE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testACleanFileHasNoChangeToWalkTo(): void
@@ -129,8 +127,6 @@ final class ChangeNavigationE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /** A pure deletion is marked on the line above it, and reverting puts the deleted line back under it. */
@@ -159,8 +155,6 @@ final class ChangeNavigationE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /** With no file open there is no change to show, and nothing breaks. */
@@ -182,7 +176,5 @@ final class ChangeNavigationE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 }

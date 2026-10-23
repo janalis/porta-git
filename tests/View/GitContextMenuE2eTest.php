@@ -81,7 +81,5 @@ final class GitContextMenuE2eTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 }
