@@ -906,7 +906,7 @@ final class GitViewController implements ContributedView
         if ($this->comparing()) {
             return;
         }
-        $this->staging->stageAll($event->stage, $this->refresh(...));
+        $event->stage ? $this->staging->stageAll($this->refresh(...)) : $this->staging->unstageAll($this->refresh(...));
     }
 
     public function onChangeDiscarded(GitChangeDiscardRequested $event): void

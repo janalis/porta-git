@@ -187,19 +187,42 @@ final class GitStagingServiceTest extends TestCase
         $status = new StatusBarWidget();
         $service = $this->service($project->dir, $status);
 
-        $service->stageAll(true, static function (): void {});
+        $service->stageAll(static function (): void {});
         $this->await(fn (): bool => \str_contains($this->flashText($status), 'conflict markers'), what: 'the refusal');
         $this->assertSame('a.txt', $project->git('diff', '--name-only', '--diff-filter=U'), 'still conflicted');
         $this->assertSame('', $project->git('diff', '--cached', '--name-only', '--', 'b.txt'), 'nothing staged');
 
         $project->write('a.txt', "both\n");
         $changed = false;
-        $service->stageAll(true, static function () use (&$changed): void {
+        $service->stageAll(static function () use (&$changed): void {
             $changed = true;
         });
         $this->await(static function () use (&$changed): bool {
             return $changed;
         }, what: 'the stage');
         $this->assertSame('', $project->git('diff', '--name-only', '--diff-filter=U'), 'resolved now');
+    }
+
+    public function testUnstagingEverythingEmptiesTheIndex(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['a.txt' => "a\n", 'b.txt' => "b\n"]);
+        $project->initGit(branch: 'main');
+        $project->commitAll('base');
+        $project->write('a.txt', "a2\n");
+        $project->write('b.txt', "b2\n");
+        $project->git('add', 'a.txt', 'b.txt');
+        $service = $this->service($project->dir, new StatusBarWidget());
+        $changed = false;
+
+        $service->unstageAll(static function () use (&$changed): void {
+            $changed = true;
+        });
+        $this->await(static function () use (&$changed): bool {
+            return $changed;
+        }, what: 'the unstage');
+
+        $this->assertSame('', $project->git('diff', '--cached', '--name-only'), 'nothing staged');
+        $this->assertSame("a.txt\nb.txt", $project->git('diff', '--name-only'), 'the changes are still in the working tree');
     }
 }

@@ -95,39 +95,22 @@ final readonly class GitStagingService
 
             return;
         }
-        $done = function (Outcome $ok) use ($onChanged): void {
-            if (!$ok->isOk()) {
-                $this->notifier->error($this->translator->trans('git refused the staging change'));
-            }
-            $onChanged();
-        };
+        $done = $this->afterStaging($onChanged);
 
         StagedState::Full === $entry->stagedState() ? $this->git->unstageFile($abs, $done) : $this->git->stage($abs, $done);
     }
 
     /**
-     * Stage every change, or unstage every one — the changes list's header
-     * checkbox, whose mixed state stages, as a browser's indeterminate box
-     * checks.
+     * Stage every change — the changes list's header checkbox when it is
+     * clear or mixed (a mixed state stages, as a browser's indeterminate box
+     * checks). Not while a conflicted file still holds a marker: everything
+     * staged would mark it resolved.
      *
      * @param \Closure(): void $onChanged re-read status after the index moves
      */
-    // @mago-expect lint:no-boolean-flag-parameter -- stage or unstage IS the request, the header box's one bit.
-    public function stageAll(bool $stage, \Closure $onChanged): void
+    public function stageAll(\Closure $onChanged): void
     {
-        $done = function (Outcome $ok) use ($onChanged): void {
-            if (!$ok->isOk()) {
-                $this->notifier->error($this->translator->trans('git refused the staging change'));
-            }
-            $onChanged();
-        };
-        if (!$stage) {
-            $this->git->unstageAll($done);
-
-            return;
-        }
-        // Everything staged would mark every conflicted file resolved — not
-        // while one still holds a marker.
+        $done = $this->afterStaging($onChanged);
         $this->git->conflictsLeft(function (array $left) use ($done): void {
             if ([] === $left) {
                 $this->git->stageAll($done);
@@ -136,6 +119,31 @@ final readonly class GitStagingService
             }
             $this->notifier->warn($this->translator->trans('%file% still has conflict markers: resolve them first', ['%file%' => \basename($left[0])]));
         });
+    }
+
+    /**
+     * Unstage every change — the header checkbox when it is checked.
+     *
+     * @param \Closure(): void $onChanged re-read status after the index moves
+     */
+    public function unstageAll(\Closure $onChanged): void
+    {
+        $this->git->unstageAll($this->afterStaging($onChanged));
+    }
+
+    /**
+     * @param \Closure(): void $onChanged
+     *
+     * @return \Closure(Outcome): void
+     */
+    private function afterStaging(\Closure $onChanged): \Closure
+    {
+        return function (Outcome $ok) use ($onChanged): void {
+            if (!$ok->isOk()) {
+                $this->notifier->error($this->translator->trans('git refused the staging change'));
+            }
+            $onChanged();
+        };
     }
 
     /**
