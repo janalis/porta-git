@@ -7,6 +7,7 @@ namespace Porta\GitPlugin\Tests\Process;
 use PHPUnit\Framework\TestCase;
 use Porta\Config\WorkspaceTrust;
 use Porta\GitPlugin\Process\GitProcessRunner;
+use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
@@ -38,7 +39,7 @@ final class GitProcessRunnerTrustTest extends TestCase
         $project->commitAll('init');
         $project->git('config', 'core.fsmonitor', $project->path('hook.sh'));
 
-        $this->pollStatus(new GitProcessRunner($project->dir));
+        $this->assertSame(0, $this->pollStatus(new GitProcessRunner($project->dir)), 'untrusted git still answers — a git that failed outright would run no hook either');
         $this->assertSame([], \glob($project->path('ran-*')), 'untrusted: the hook never ran');
 
         new WorkspaceTrust($this->untrustingHome->dir)->trust($project->dir);
@@ -93,7 +94,7 @@ final class GitProcessRunnerTrustTest extends TestCase
         };
 
         $touch();
-        $this->pollStatus(new GitProcessRunner($project->dir));
+        $this->assertSame(0, $this->pollStatus(new GitProcessRunner($project->dir)), 'untrusted git still answers');
         $this->assertSame([], \glob($project->path('ran-*')), 'untrusted: the filter never ran');
 
         new WorkspaceTrust($this->untrustingHome->dir)->trust($project->dir);
@@ -102,14 +103,55 @@ final class GitProcessRunnerTrustTest extends TestCase
         $this->assertNotSame([], \glob($project->path('ran-*')), 'trusted: it does — so the first half was not luck');
     }
 
-    private function pollStatus(GitProcessRunner $runner): void
+    /**
+     * Untrusted is a narrower git, not a stripped one: what the IDE inherited
+     * reaches it, and so does what a verb puts on top — the unattended
+     * editor, without which a continue would wait on one nobody is at.
+     */
+    public function testAnUntrustedGitKeepsItsEnvironment(): void
     {
-        $done = false;
-        $runner->runStatus(['status', '--porcelain'], static function () use (&$done): void {
-            $done = true;
+        $this->untrustProjects();
+        $project = new TempProject(['a.txt' => "a\n"]);
+        $project->initGit();
+        $project->commitAll('init');
+        $runner = new GitProcessRunner($project->dir);
+
+        $saved = \array_map(\getenv(...), ['GIT_AUTHOR_NAME' => 'GIT_AUTHOR_NAME', 'GIT_EDITOR' => 'GIT_EDITOR']);
+        \putenv('GIT_AUTHOR_NAME=Inherited Name');
+        \putenv('GIT_EDITOR=false'); // an editor that fails: only the verb's own lets the amend through
+        try {
+            $ident = null;
+            $runner->run(['var', 'GIT_AUTHOR_IDENT'], static function (string $out) use (&$ident): void {
+                $ident = $out;
+            });
+            $amended = null;
+            $runner->runUnattended(['commit', '--amend'], static function (Outcome $ok) use (&$amended): void {
+                $amended = $ok;
+            });
+            $this->await(static function () use (&$ident, &$amended): bool {
+                return null !== $ident && null !== $amended;
+            }, what: 'both to answer');
+        } finally {
+            foreach ($saved as $name => $value) {
+                \putenv(false === $value ? $name : $name.'='.$value);
+            }
+        }
+
+        $this->assertStringStartsWith('Inherited Name <', (string) $ident, 'the environment it inherits');
+        $this->assertTrue($amended?->isOk(), 'and the editor the verb sets over it');
+    }
+
+    /** @return int the status's exit code */
+    private function pollStatus(GitProcessRunner $runner): int
+    {
+        $code = null;
+        $runner->runStatus(['status', '--porcelain'], static function (int $exit) use (&$code): void {
+            $code = $exit;
         });
-        $this->await(static function () use (&$done): bool {
-            return $done;
+        $this->await(static function () use (&$code): bool {
+            return null !== $code;
         }, what: 'the status to answer');
+
+        return (int) $code;
     }
 }

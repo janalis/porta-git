@@ -190,6 +190,18 @@ final class GitToolbarWidgetTest extends TestCase
         $this->assertMatchesRegularExpression('/│ +│/u', $lines[1], 'the branch cell is blank');
     }
 
+    /** Mid-merge before the branch is read: the operation alone, with no dash before it. */
+    public function testAnUnreadBranchMidMergeSaysJustTheMerge(): void
+    {
+        $repository = $this->repository(null, operation: new OperationState(GitOperation::Merging));
+        Probe::set($repository, 'branchRead', false);
+
+        $line = self::plain($this->toolbar($repository))[1];
+
+        $this->assertStringContainsString('merging', $line);
+        $this->assertStringNotContainsString('— merging', $line);
+    }
+
     public function testABranchMidRebaseSaysHowFarAlong(): void
     {
         $lines = self::plain($this->toolbar($this->repository(null, operation: new OperationState(GitOperation::Rebasing, 2, 5))));
@@ -240,7 +252,9 @@ final class GitToolbarWidgetTest extends TestCase
         $span = $toolbar->span(ToolbarCell::Branch);
         $this->assertNotNull($span);
 
+        $revision = $toolbar->getRenderRevision();
         $this->assertTrue($toolbar->hoverAt($span[0]));
+        $this->assertNotSame($revision, $toolbar->getRenderRevision(), 'a lit cell is repainted');
         $this->assertFalse($toolbar->hoverAt($span[0] + 1), 'same cell: nothing to repaint');
         $this->assertNotSame($before, $toolbar->render(new RenderContext(120, 3)), 'the hovered cell is shaded');
         $this->assertTrue($toolbar->hoverAt(null));
@@ -307,7 +321,7 @@ final class GitToolbarWidgetTest extends TestCase
         $this->assertNotNull($span);
 
         $tip = $toolbar->tooltipAt(0, $span[0]);
-        $this->assertSame([$span[0], $span[1]], [$tip?->colStart, $tip?->colEnd]);
+        $this->assertSame(['git:toolbar:Branch', $span[0], $span[1]], [$tip?->key, $tip?->colStart, $tip?->colEnd]);
     }
 
     /** Narrow, the remote button keeps saying what it would do and move; the time gives way. */

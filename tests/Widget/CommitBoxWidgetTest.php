@@ -519,4 +519,41 @@ final class CommitBoxWidgetTest extends TestCase
 
         $this->assertSame('Fix', $widget->message());
     }
+
+    /** A click on the button or the amend box is that control's alone: the caret does not jump to the description too. */
+    public function testAControlsClickLeavesTheCaretWhereItBelongs(): void
+    {
+        $widget = $this->widget($committed);
+        $this->type($widget, 'Sum');
+
+        $widget->handleClick($widget->buttonRow() - 2); // the amend box: it takes the focus
+        $this->type($widget, 'x');
+        $this->assertSame('Sum', $widget->message(), 'a checkbox takes no text');
+
+        $widget->handleClick(1); // back to the summary
+        $widget->handleClick($widget->buttonRow()); // commit
+        $this->assertSame('Sum', $committed);
+        $this->type($widget, '!');
+        $this->assertSame('Sum!', $widget->message(), 'the caret is still in the summary');
+    }
+
+    public function testShiftTabRepaintsTheFieldItLeaves(): void
+    {
+        $widget = $this->widget();
+        $widget->handleInput("\t");
+        $revision = $widget->getRenderRevision();
+
+        $widget->handleInput("\x1b[Z");
+
+        $this->assertNotSame($revision, $widget->getRenderRevision());
+    }
+
+    public function testTheDisabledButtonsCardSpansTheButton(): void
+    {
+        $widget = new CommitBoxWidget(new Translator('en'));
+        $widget->render(new RenderContext(40, 20));
+
+        $tip = $widget->tooltipAt($widget->buttonRow(), 5);
+        $this->assertSame([0, 40], [$tip?->colStart, $tip?->colEnd]);
+    }
 }

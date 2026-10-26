@@ -162,6 +162,21 @@ final class OperationCommandsTest extends TestCase
         $this->assertGreaterThan(0, $this->moved, 'the working tree said moved');
     }
 
+    /** Each operation continues under its own verb: a revert is `git revert --continue`, not a near miss. */
+    public function testAResolvedRevertContinues(): void
+    {
+        $commands = $this->stopped('revert', '--no-edit', 'main~1');
+        $this->resolve("both\n");
+        $this->refreshed(new OperationState(GitOperation::Reverting));
+
+        $commands->continue();
+        $this->pumpUntil();
+        $this->refreshed(null);
+
+        $this->assertStringContainsString('Continued the revert', $this->statusRow($this->statusBar));
+        $this->assertFileDoesNotExist($this->project->path('.git/REVERT_HEAD'), 'the revert is over');
+    }
+
     public function testAMergeHasNoStepToSkip(): void
     {
         $commands = $this->stopped('merge', 'topic');

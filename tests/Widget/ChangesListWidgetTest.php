@@ -540,4 +540,62 @@ final class ChangesListWidgetTest extends TestCase
         $this->assertFalse($widget->selectPath('c.php'));
         $this->assertSame('b.php', $widget->selectedEntry()?->path, 'no row, no move');
     }
+
+    /**
+     * The armed buttons to their edges: Discard's top border at its first
+     * column is Discard, and the row under the block is the next entry's, not
+     * a button's.
+     */
+    public function testTheArmedButtonsReachTheirEdgesAndNoFurther(): void
+    {
+        $events = new EventDispatcher();
+        $widget = new ChangesListWidget(new Translator('en'), events: $events);
+        $widget->setEntries($this->entries());
+        $discarded = [];
+        GitWidgetEvents::wire($events, onDiscard: static function (ChangeEntry $entry) use (&$discarded): void {
+            $discarded[] = $entry->path;
+        });
+
+        $widget->handleInput('d');
+        $widget->render(new RenderContext(44, 9));
+        $widget->handleClick(6, 3); // src/b.php, the row under the block
+        $this->assertSame([], $discarded, 'under the buttons: no button');
+
+        $widget->handleInput("\x1b[A"); // back to src/a.php, which the click moved off
+        $widget->handleInput('d');
+        $widget->render(new RenderContext(44, 9));
+        $widget->handleClick(3, 1); // Discard's top-left corner
+        $this->assertSame(['src/a.php'], $discarded, 'the top row and the first column are the button');
+    }
+
+    /** What the pointer and a quiet select change is drawn again: a cached pane would keep the old frame. */
+    public function testWhatTheyChangeIsRepainted(): void
+    {
+        $widget = new ChangesListWidget(new Translator('en'));
+        $widget->setEntries($this->entries());
+        $widget->render(new RenderContext(44, 9));
+        $repaints = static function (callable $change) use ($widget): bool {
+            $revision = $widget->getRenderRevision();
+            $change();
+
+            return $revision !== $widget->getRenderRevision();
+        };
+
+        $widget->handleInput('d'); // src/a.php's question, on row 2
+        $widget->render(new RenderContext(44, 9));
+        $this->assertTrue($repaints(static fn () => $widget->handleClick(2, 5)), 'an armed discard answered');
+        $this->assertTrue($repaints(static fn (): bool => $widget->hoverBoxAt(3, 2)), 'a box lit');
+        $this->assertTrue($repaints(static fn (): bool => $widget->selectPath('c.txt')), 'a row selected');
+    }
+
+    /** The header's box says what it does over the box itself: the card points at it, not the row. */
+    public function testTheHeadersBoxTipSpansTheBox(): void
+    {
+        $widget = new ChangesListWidget(new Translator('en'));
+        $widget->setEntries($this->entries());
+        $widget->render(new RenderContext(44, 9));
+
+        $tip = $widget->tooltipAt(0, 2);
+        $this->assertSame(['git:box:all', 0, 1, 4], [$tip?->key, $tip?->row, $tip?->colStart, $tip?->colEnd]);
+    }
 }

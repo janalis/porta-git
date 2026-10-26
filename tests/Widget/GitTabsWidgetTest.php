@@ -87,7 +87,10 @@ final class GitTabsWidgetTest extends TestCase
         $widget = new GitTabsWidget(new Translator('en'), density: CompactScreen::density());
         $widget->render(new RenderContext(44, 1)); // the pointer lands on what was drawn
 
+        $revision = $widget->getRenderRevision();
         $this->assertTrue($widget->hoverMode(GitViewMode::History), 'hovering the inactive tab changes the tint');
+        $this->assertNotSame($revision, $widget->getRenderRevision(), 'and repaints it');
+        $this->assertSame(30, $widget->minWidth(), 'the narrowest the sidebar it heads may be');
         $this->assertFalse($widget->hoverMode(GitViewMode::History), 'same tab: no change');
         $line = $widget->render(new RenderContext(44, 1))[0];
         $this->assertStringContainsString("\x1b[48;5;240m", $line, 'the hovered tab sits on the bar-chrome hover shade');

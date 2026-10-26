@@ -118,8 +118,16 @@ final class CommitHeaderWidgetTest extends TestCase
         $header->handleClick(1, $copy);
 
         $this->assertSame([self::SHA], $this->copied);
-        $this->assertSame('Copy the full commit hash', $header->tooltipAt(1, $copy)?->text);
-        $this->assertSame(self::SHA."\nRecord the parallel flake fixes\nphcorp · ".\date('Y-m-d H:i', timestamp: 1_700_000_000), $header->tooltipAt(0, 3)?->text, 'the commit in full');
+        $button = $header->tooltipAt(1, $copy);
+        $this->assertSame(['git:header:copy', 'Copy the full commit hash', 1, $copy, $copy + 1], [$button?->key, $button?->text, $button?->row, $button?->colStart, $button?->colEnd]);
+        $header->handleClick(1, $copy + 1); // just past the button
+        $this->assertSame([self::SHA], $this->copied, 'past the button: nothing more');
+        $commit = $header->tooltipAt(0, 3);
+        $this->assertSame(
+            ['git:header:'.self::SHA, self::SHA."\nRecord the parallel flake fixes\nphcorp · ".\date('Y-m-d H:i', timestamp: 1_700_000_000), 0, 0, 50],
+            [$commit?->key, $commit?->text, $commit?->row, $commit?->colStart, $commit?->colEnd],
+            'the commit in full, across the header',
+        );
         $this->assertNull($header->tooltipAt(2, 3), 'the rule says nothing');
     }
 

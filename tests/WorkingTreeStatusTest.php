@@ -64,6 +64,23 @@ final class WorkingTreeStatusTest extends TestCase
         $this->assertNotSame([], $this->statuses->statuses, 'the marks landed');
     }
 
+    public function testOutsideARepositoryNothingIsPublished(): void
+    {
+        // No repository, so no status: whatever the tree shows stays. Asked
+        // anyway, the runner answers an empty status — published, it would
+        // wipe marks nobody asked to clear.
+        $api = $this->api();
+        $api->setFileStatuses([$this->project->path('a.txt') => 'added']);
+        $marked = $this->statuses->statuses;
+        $this->assertNotSame([], $marked, 'the control: the mark is there');
+
+        new WorkingTreeStatus(new GitInfo($this->project->dir), $api, $this->project->dir)->refresh();
+
+        // Synchronous either way: with no repository the runner answers in
+        // the same call, so a publish would already have landed.
+        $this->assertSame($marked, $this->statuses->statuses);
+    }
+
     private function api(): PluginApi
     {
         $harness = GitPluginHarness::build(['a.txt' => "one\ntwo\n"]);

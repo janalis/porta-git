@@ -344,4 +344,14 @@ final class HistoryListWidgetTest extends TestCase
         $this->assertNull($widget->selectCommitAt(0), 'not the heading');
         $this->assertSame(2, $widget->selectedCommitRow());
     }
+
+    public function testAKeyAHookTookGoesNoFurther(): void
+    {
+        $widget = $this->widget();
+        $widget->onInput(static fn (string $data): bool => true);
+
+        $widget->handleInput("\x1b[B");
+
+        $this->assertSame('full1', $widget->selectedCommit()?->sha);
+    }
 }

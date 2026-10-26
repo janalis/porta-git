@@ -15,6 +15,7 @@ use Porta\GitPlugin\ChangeMarks;
 use Porta\GitPlugin\Command\IndexCommands;
 use Porta\GitPlugin\Command\Stash;
 use Porta\GitPlugin\GitInfo;
+use Porta\GitPlugin\Process\ProcessLane;
 use Porta\GitPlugin\Tests\Support\GitPluginHarness;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Tests\Support\GitBinary;
@@ -270,6 +271,7 @@ final class BlameTest extends TestCase
         new Stash(new GitInfo($this->project->dir), $api)->pop();
         $this->await(fn (): bool => '' !== $this->flashText($this->status), what: 'the failure to flash');
         $this->assertStringNotContainsString('Stash popped', $this->flashText($this->status));
+        $this->assertStringContainsString('No stash entries found', $this->flashText($this->status), "git's own words, not a generic failure");
         $this->assertSame(0, $announced, 'a refused pop moved nothing, so it announced nothing');
     }
 
@@ -475,10 +477,9 @@ final class BlameTest extends TestCase
         // guard still drops the answer. See the note on that method.
         $api->setLineAnnotations([0 => 'sentinel']);
         new BlameAnnotations($blame, $api)->refreshIfEnabled();
-        // 0.5s, which is the longest span any POSITIVE in this file needs (the
-        // stale-response case below) — so a run that would have written has
-        // had as long as a run that does. 2.0s was four times that and bought
-        // the same evidence.
+        // 0.5s, longer than a blame of this two-line file takes — so a run
+        // that would have written has had as long as a run that does. 2.0s
+        // was four times that and bought the same evidence.
         $this->pump(0.5);
 
         $this->assertSame([0 => 'sentinel'], $this->editor->decorations->lineAnnotations, 'disabled: no blame is run, so nothing replaced the sentinel');
@@ -487,12 +488,17 @@ final class BlameTest extends TestCase
     public function testAStaleResponseAfterTogglingOffIsDropped(): void
     {
         $api = $this->api();
-        $blame = $this->openCommittedFile();
-        $annotations = new BlameAnnotations($blame, $api);
+        $this->openCommittedFile();
+        $lane = new ProcessLane();
+        $annotations = new BlameAnnotations(new BlameClient($this->project->dir, lane: $lane), $api);
 
         $annotations->toggle(); // on: the batch blame is now in flight
         $annotations->toggle(); // off, before it can answer
-        $this->pump(0.5);
+        $this->assertSame(1, $lane->inFlight(), 'the control: the answer is still on its way');
+        // Its arrival is the barrier. A fixed pump let a slow blame land after
+        // the assertion, and an answer that has not come looks just like one
+        // that was dropped.
+        $this->await(static fn (): bool => 0 === $lane->inFlight(), what: 'the stale answer to arrive');
 
         $this->assertSame([], $this->editor->decorations->lineAnnotations, 'the answer to a cancelled run is dropped');
     }

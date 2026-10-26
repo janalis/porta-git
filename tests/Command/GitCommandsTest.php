@@ -12,6 +12,7 @@ use Porta\GitPlugin\Command\WorktreeCommands;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\GitRefresher;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\Process\ProcessLane;
 use Porta\GitPlugin\Tests\Support\DrivesPickers;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\I18n\Translator;
@@ -95,6 +96,7 @@ final class GitCommandsTest extends TestCase
         $this->pumpUntil();
 
         $this->assertStringContainsString('Git not available', $this->statusRow($this->statusBar));
+        $this->assertFalse(EditorState::promptOpen($this->editor), 'refused: no message is asked for');
     }
 
     /**
@@ -109,6 +111,7 @@ final class GitCommandsTest extends TestCase
         yield 'cherryPick' => [static fn (GitCommands $c) => $c->cherryPick(self::commitEntry('0000000000000000000000000000000000000000'))];
         yield 'revertCommit' => [static fn (GitCommands $c) => $c->revertCommit(self::commitEntry('0000000000000000000000000000000000000000'))];
         yield 'resetToCommit' => [static fn (GitCommands $c) => $c->resetToCommit(self::commitEntry('0000000000000000000000000000000000000000'))];
+        yield 'branches' => [static fn (GitCommands $c) => $c->branches()];
     }
 
     private static function commitEntry(string $sha): LogEntry
@@ -126,6 +129,10 @@ final class GitCommandsTest extends TestCase
         $this->pumpUntil();
 
         $this->assertStringContainsString('Git not available', $this->statusRow($this->statusBar));
+        // The flash alone passed with the refusal falling through: the verb
+        // flashed, then asked for its list or its name anyway.
+        $this->assertFalse(EditorState::pickerOpen($this->editor), 'and nothing is offered after it');
+        $this->assertFalse(EditorState::promptOpen($this->editor), 'or asked for');
     }
 
     public function testStashesFlashesWhenThereAreNone(): void
@@ -242,8 +249,12 @@ final class GitCommandsTest extends TestCase
 
         $commands->branchFromCommit(self::commitEntry(\trim($this->project->git('rev-parse', 'HEAD'))));
         $this->key("\r"); // submit an empty name — the prompt returns early
+        $this->gitSettles();
 
         $this->assertSame($before, \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD')), 'no branch created or switched');
+        // git refuses an empty name on its own, so the branch alone passed
+        // with the early return gone: what it buys is that git never ran.
+        $this->assertSame('', \trim($this->statusRow($this->statusBar)), 'and nothing failed, because nothing was tried');
     }
 
     public function testCherryPickAppliesACommitOntoTheCurrentBranch(): void
@@ -330,8 +341,10 @@ final class GitCommandsTest extends TestCase
         $this->key("\x1b[B"); // → Mixed
         $this->key("\x1b[B"); // → Cancel
         $this->key("\r"); // pick Cancel: onPick returns without touching git
+        $this->gitSettles();
 
         $this->assertSame($tip, \trim($this->project->git('rev-parse', 'HEAD')), 'cancelling changes nothing');
+        $this->assertSame('', \trim($this->statusRow($this->statusBar)), 'git was never asked for a "cancel" reset, so nothing failed');
     }
 
     public function testFileHistoryWithNoOpenFileReportsUnavailable(): void
@@ -405,6 +418,7 @@ final class GitCommandsTest extends TestCase
     {
         $this->commandsOutsideRepo(['a.txt' => "one\n"])->newBranch();
         $this->assertStringContainsString('Git not available', $this->statusRow($this->statusBar));
+        $this->assertFalse(EditorState::promptOpen($this->editor), 'no name is asked for');
 
         $this->commandsOutsideRepo(['a.txt' => "one\n"])->deleteBranch();
         $this->assertStringContainsString('Git not available', $this->statusRow($this->statusBar));
@@ -671,7 +685,8 @@ final class GitCommandsTest extends TestCase
 
     private function build(?GitInfo $git = null): GitCommands
     {
-        $git ??= new GitInfo($this->project->dir);
+        $this->lane = new ProcessLane();
+        $git ??= new GitInfo($this->project->dir, lane: $this->lane);
         $this->editor = new CodeEditorWidget();
         $this->statusBar = new StatusBarWidget();
         $this->tui = TestTui::create(100, 24);
@@ -706,6 +721,19 @@ final class GitCommandsTest extends TestCase
                 $this->project->dir,
             ),
         );
+    }
+
+    /** Every git this rig's commands start: idle again is the barrier for a verb that should have run none. */
+    private ProcessLane $lane;
+
+    /**
+     * Pump until no git is running. A verb's git starts in the same call that
+     * asks for it, so idle right after a key means it ran and answered — or
+     * never ran: either way, whatever it would flash has flashed.
+     */
+    private function gitSettles(): void
+    {
+        $this->pumpUntil(fn (): bool => 0 === $this->lane->inFlight(), what: 'git to settle');
     }
 
     /** @var list<string> the folders the worktree commands asked core to open */

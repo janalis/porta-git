@@ -160,13 +160,15 @@ final class CommitDetailsWidgetTest extends TestCase
         $widget = $this->widget();
         $widget->render(new RenderContext(40, 8));
 
+        $widget->handleClick(2); // the first file, right under the rule
         $widget->handleClick(3); // the second file
         $widget->handleClick(1); // the rule: nothing
         $widget->handleClick(6); // past the files: nothing
 
-        $this->assertSame(['file:tasks/todo.md'], $this->events);
+        $this->assertSame(['file:tasks/lessons.md', 'file:tasks/todo.md'], $this->events);
+        $this->assertSame('tasks/todo.md', $widget->selectedFile()['path'] ?? null, 'a click past the files moves nothing');
         $widget->handleInput('y');
-        $this->assertSame('copy:'.self::SHA, $this->events[1] ?? null, '`y` copies it');
+        $this->assertSame('copy:'.self::SHA, $this->events[2] ?? null, '`y` copies it');
     }
 
     public function testWithoutACommitThereIsNothingToCopy(): void
@@ -189,10 +191,14 @@ final class CommitDetailsWidgetTest extends TestCase
         $widget->render(new RenderContext(40, 8));
 
         $this->assertFalse($widget->hoverRow(0), 'the heading is not a file');
+        $revision = $widget->getRenderRevision();
         $this->assertTrue($widget->hoverRow(3));
+        $this->assertNotSame($revision, $revision = $widget->getRenderRevision(), 'a new row: repainted');
         $this->assertFalse($widget->hoverRow(3), 'same row: no repaint');
         $this->assertStringContainsString("\x1b[48;5;236m", $widget->render(new RenderContext(40, 8))[3]);
+        $revision = $widget->getRenderRevision();
         $this->assertTrue($widget->clearHover());
+        $this->assertNotSame($revision, $widget->getRenderRevision(), 'cleared: repainted');
         $this->assertFalse($widget->clearHover(), 'already clear');
         $this->assertSame([], $this->events, 'hover selects nothing');
     }
@@ -203,7 +209,12 @@ final class CommitDetailsWidgetTest extends TestCase
         $widget->setFiles([['status' => 'M', 'path' => 'plugins/assist/src/Session/GuestSession.php'], ['status' => 'A', 'path' => 'a.md']]);
         $widget->render(new RenderContext(32, 8));
 
-        $this->assertSame('plugins/assist/src/Session/GuestSession.php', $widget->tooltipAt(2, 3)?->text, 'a cut path says itself');
+        $tip = $widget->tooltipAt(2, 3);
+        $this->assertSame(
+            ['git:details:file:plugins/assist/src/Session/GuestSession.php', 'plugins/assist/src/Session/GuestSession.php', 2, 0, 32],
+            [$tip?->key, $tip?->text, $tip?->row, $tip?->colStart, $tip?->colEnd],
+            'a cut path says itself, across its row, under a key of its own',
+        );
         $this->assertNull($widget->tooltipAt(3, 3), 'a whole one says nothing');
         $this->assertNull($widget->tooltipAt(0, 3), 'nor does the heading');
     }

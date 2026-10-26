@@ -61,8 +61,10 @@ final class DirectoryComparisonTest extends TestCase
     public function testALinkToAFileThatIsGoneIsNoFile(): void
     {
         // Git links the working tree; a file deleted since is a dangling link.
-        $left = new TempProject(['a.txt' => "a\n"]);
-        $right = new TempProject([]);
+        // Next to files of its own: the walk steps over the link, not out.
+        $same = ['b.txt' => "b\n", 'c.txt' => "c\n", 'd/e.txt' => "e\n", 'f.txt' => "f\n", 'g.txt' => "g\n"];
+        $left = new TempProject(['a.txt' => "a\n", ...$same]);
+        $right = new TempProject($same);
         \symlink($right->path('missing.txt'), $right->path('a.txt'));
 
         $this->assertSame([['a.txt', 'D']], \array_map(static fn (ChangeEntry $entry): array => [$entry->path, $entry->displayStatus()], DirectoryComparison::changes($left->dir, $right->dir)));

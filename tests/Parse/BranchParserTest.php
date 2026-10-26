@@ -15,6 +15,7 @@ final class BranchParserTest extends TestCase
             \implode("\n", [
                 "refs/heads/main\t*",
                 "refs/heads/feature/login\t",
+                "refs/tags/v1.0\t",
                 "refs/remotes/origin/HEAD\t",
                 "refs/remotes/origin/main\t",
                 "refs/remotes/origin/release-1.0\t",
@@ -27,7 +28,7 @@ final class BranchParserTest extends TestCase
                 ['name' => 'origin/release-1.0', 'current' => false, 'remote' => true],
             ],
             BranchParser::parse($out),
-            'origin/HEAD skipped; origin/main shadowed by the local main',
+            'a tag skipped, and the remotes after it still read; origin/HEAD skipped; origin/main shadowed by the local main',
         );
     }
 
