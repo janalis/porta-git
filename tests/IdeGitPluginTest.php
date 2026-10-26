@@ -425,6 +425,13 @@ final class IdeGitPluginTest extends TestCase
                     $this->assertInstanceOf(ContributedView::class, $view);
                     $settings = Probe::get($view, 'gitSettings');
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
+                    // The view up: its poll is armed with the interval it opened with.
+                    Services::resolve($ide, ViewRegistry::class)->open('git');
+                    $poll = Probe::get($view, 'poll');
+                    $this->assertNotNull($poll);
+                    $annotations = Probe::get(Probe::get(Probe::get($lifecycle, 'plugins'), 'instances')['git'], 'annotations');
+                    $this->assertIsObject($annotations);
+                    $this->assertFalse(Probe::get($annotations, 'enabled'));
 
                     foreach ([
                         'blameDefault' => true,
@@ -438,6 +445,8 @@ final class IdeGitPluginTest extends TestCase
                     }
 
                     $this->assertTrue($settings->blameDefault);
+                    $this->assertTrue(Probe::get($annotations, 'enabled'), 'and the annotations it seeds, at once');
+                    $this->assertNotSame($poll, Probe::get($view, 'poll'), 'the poll re-armed at the new interval');
                     $this->assertTrue($settings->signCommits);
                     $this->assertTrue($settings->noVerify);
                     $this->assertTrue($settings->signoff);
