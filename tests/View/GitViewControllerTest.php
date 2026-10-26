@@ -1311,6 +1311,8 @@ final class GitViewControllerTest extends TestCase
         $controller->openFileHistory($this->project->path('a.txt'));
         $this->assertFalse($controller->isOpen());
         $this->assertStringContainsString('Not a git repository', $this->statusRow($this->statusBar));
+        $this->assertNull(Probe::get($controller, 'historyPath'), 'refused: no filter is kept for a view that never opened');
+        $this->assertNull(Probe::get($this->history, 'filterLabel'));
     }
 
     public function testARemoteKeyFromAPaneReachesTheRemoteCommands(): void
