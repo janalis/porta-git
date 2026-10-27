@@ -9,12 +9,12 @@ use Porta\DiffPlugin\HunkParser;
 use Porta\GitPlugin\DiffStat;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\Setting\GitSettings;
+use Porta\GitPlugin\Tests\Support\Conflicts;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
-use Symfony\Component\Process\Process;
 
 final class GitInfoTest extends TestCase
 {
@@ -440,15 +440,7 @@ final class GitInfoTest extends TestCase
         // cannot read; against ours, the markers and their side are additions.
         $this->skipWithoutGit();
         $project = new TempProject(['a.txt' => "base\n"]);
-        $project->initGit(branch: 'main');
-        $project->commitAll('base');
-        $project->git('checkout', '-q', '-b', 'topic');
-        $project->write('a.txt', "theirs\n");
-        $project->commitAll('theirs');
-        $project->git('checkout', '-q', 'main');
-        $project->write('a.txt', "ours\n");
-        $project->commitAll('ours');
-        new Process(['git', 'merge', '-q', 'topic'], $project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH])->run();
+        Conflicts::inA($project);
 
         $diff = null;
         new GitInfo($project->dir)->conflictFileDiff(

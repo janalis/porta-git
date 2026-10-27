@@ -713,10 +713,10 @@ final class GitViewControllerTest extends TestCase
         $this->assertStringContainsString('Untracked files', $this->statusRow($this->statusBar), 'no new flash replaced the old one');
     }
 
-    public function testHistoryModeBrowsesCommitsAndShowsReadOnlyDiffs(): void
+    /** The view open on History over two commits — a second on top of the fixture's — the newest selected. */
+    private function onHistoryOfTwoCommits(): GitViewController
     {
         $controller = $this->controller();
-        // A second commit so the log has two entries.
         $this->project->write('a.txt', "one\ntwo\nthree\n");
         $this->project->git('add', '-A');
         $this->project->git('commit', '-q', '-m', 'second');
@@ -726,6 +726,13 @@ final class GitViewControllerTest extends TestCase
         $this->changes->setFocused(true);
         $this->changes->handleInput('2'); // switch to History
         $this->await(fn (): bool => null !== $this->history->selectedCommit());
+
+        return $controller;
+    }
+
+    public function testHistoryModeBrowsesCommitsAndShowsReadOnlyDiffs(): void
+    {
+        $this->onHistoryOfTwoCommits();
         $this->assertSame(
             ['git-tabs', 'git-history'],
             \array_map(static fn (AbstractWidget $w): ?string => $w->getId(), $this->gitLeft->all()),
@@ -773,16 +780,7 @@ final class GitViewControllerTest extends TestCase
 
     public function testRightClickSelectsAHistoryCommitForItsContextMenu(): void
     {
-        $controller = $this->controller();
-        $this->project->write('a.txt', "one\ntwo\nthree\n");
-        $this->project->git('add', '-A');
-        $this->project->git('commit', '-q', '-m', 'second');
-        $controller->open();
-        $this->await($controller->isOpen(...));
-
-        $this->changes->setFocused(true);
-        $this->changes->handleInput('2'); // History
-        $this->await(fn (): bool => null !== $this->history->selectedCommit());
+        $this->onHistoryOfTwoCommits();
         $this->history->render(new RenderContext(44, 20)); // set the row geometry
 
         $commit = $this->history->selectCommitAt(1); // the newest commit's subject row

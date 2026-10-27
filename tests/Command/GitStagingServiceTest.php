@@ -11,6 +11,7 @@ use Porta\GitPlugin\Command\GitStagingService;
 use Porta\GitPlugin\Diff\DiffSide;
 use Porta\GitPlugin\Diff\WhitespaceMode;
 use Porta\GitPlugin\GitInfo;
+use Porta\GitPlugin\Tests\Support\Conflicts;
 use Porta\GitPlugin\Tests\Support\GitDoubles;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
@@ -21,7 +22,6 @@ use Porta\Tests\Support\StatusReads;
 use Porta\Tests\Support\TempProject;
 use Porta\Widget\StatusBarWidget;
 use Porta\Workbench\Notifier;
-use Symfony\Component\Process\Process;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
 
@@ -174,15 +174,7 @@ final class GitStagingServiceTest extends TestCase
         // one resolved, markers and all.
         $this->skipWithoutGit();
         $project = new TempProject(['a.txt' => "base\n", 'b.txt' => "b\n"]);
-        $project->initGit(branch: 'main');
-        $project->commitAll('base');
-        $project->git('checkout', '-q', '-b', 'topic');
-        $project->write('a.txt', "theirs\n");
-        $project->commitAll('theirs');
-        $project->git('checkout', '-q', 'main');
-        $project->write('a.txt', "ours\n");
-        $project->commitAll('ours');
-        new Process(['git', 'merge', '-q', 'topic'], $project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH])->run();
+        Conflicts::inA($project);
         $project->write('b.txt', "b2\n");
         $status = new StatusBarWidget();
         $service = $this->service($project->dir, $status);
