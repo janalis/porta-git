@@ -95,6 +95,15 @@ final readonly class UntrustedConfig
         'push.recurseSubmodules' => 'no',
     ];
 
+    /**
+     * Said in place of the overrides when one cannot be said: git splits a
+     * `-c` at its first `=`, so a driver or a submodule named `a=b` would
+     * turn `filter.a=b.clean=` into a `filter.a` nobody asked for and leave
+     * the real one standing. A key with no section is one git refuses to
+     * start with — so in such a repository git does not run at all.
+     */
+    private const string REFUSED = 'porta-cannot-override-this-repository';
+
     /** The scopes that are the repository's own: everything else is the user's. */
     private const array REPOSITORY = ['local', 'worktree'];
 
@@ -102,26 +111,32 @@ final readonly class UntrustedConfig
      * @param list<string>          $arguments `-c` pairs, to go between `git` and its verb
      * @param array<string, string> $read      each file they were read from — and each that
      *                                         would change them — by its contents' digest
+     * @param bool                  $complete  whether git listed the config at all
      */
     private function __construct(
         public array $arguments,
         private array $read,
+        private bool $complete,
     ) {}
 
     /**
      * The overrides for the repository at $rootDir, read through $git. A
      * config git cannot list (a malformed one, a git older than 2.26 without
-     * `--show-scope`) gets the unconditional half: a git that cannot read
-     * its config runs nothing on its behalf either.
+     * `--show-scope`) gets the unconditional half — a git that cannot read
+     * its config runs nothing on its behalf either — and is read again on
+     * the next spawn, since nothing says what it was read from.
      */
     public static function read(string $git, string $rootDir): self
     {
         $repository = \array_fill_keys(self::ALWAYS, value: true);
         $own = [];
         $submodules = [];
-        $files = [$rootDir.'/.gitmodules', self::head($rootDir)];
+        $head = self::head($rootDir);
+        // config.worktree before extensions.worktreeConfig turns it on: no listing names it yet
+        $files = [$rootDir.'/.gitmodules', $head, \dirname($head).'/config.worktree'];
+        $listing = self::listing($git, $rootDir, ['--show-scope', '--show-origin']);
         // `scope NUL origin NUL key LF value NUL`, the LF and value missing on a bare `key` (a true)
-        foreach (\array_chunk(self::listing($git, $rootDir, ['--show-scope', '--show-origin']), length: 3) as $entry) {
+        foreach (\array_chunk($listing ?? [], length: 3) as $entry) {
             if (3 !== \count($entry)) {
                 continue;
             }
@@ -146,7 +161,7 @@ final readonly class UntrustedConfig
             $repository[$key] = true;
         }
         if (\is_file($rootDir.'/.gitmodules')) {
-            foreach (self::listing($git, $rootDir, ['--file', '.gitmodules']) as $item) {
+            foreach (self::listing($git, $rootDir, ['--file', '.gitmodules']) ?? [] as $item) {
                 $submodules[] = self::submodule(self::pair($item)[0]);
             }
         }
@@ -165,8 +180,9 @@ final readonly class UntrustedConfig
             $arguments[] = '-c';
             $arguments[] = $key.'='.$value;
         }
+        $sayable = [] === \array_filter([...\array_keys($repository), ...\array_keys($ignored)], static fn (string $key): bool => \str_contains($key, '='));
 
-        return new self($arguments, self::digests($files));
+        return new self($sayable ? $arguments : ['-c', self::REFUSED], self::digests($files), null !== $listing);
     }
 
     /**
@@ -177,22 +193,22 @@ final readonly class UntrustedConfig
      */
     public function isCurrent(): bool
     {
-        return $this->read === self::digests(\array_keys($this->read));
+        return $this->complete && $this->read === self::digests(\array_keys($this->read));
     }
 
     /**
      * @param list<string> $options
      *
-     * @return list<string> its NUL-separated fields, a trailing empty one included
+     * @return list<string>|null its NUL-separated fields, a trailing empty one included; null when git could not list
      */
-    private static function listing(string $git, string $rootDir, array $options): array
+    private static function listing(string $git, string $rootDir, array $options): ?array
     {
         // getenv(), whole: Process alone passes on only what $_SERVER also has,
         // and the git this reads for must be the one the runner spawns
         $listing = new Process([$git, '-C', $rootDir, 'config', '--null', ...$options, '--list'], env: \getenv(), timeout: 10);
         $listing->run();
 
-        return \explode("\0", $listing->isSuccessful() ? $listing->getOutput() : '');
+        return $listing->isSuccessful() ? \explode("\0", $listing->getOutput()) : null;
     }
 
     /** The submodule a `submodule.<name>.<key>` names, or null for any other key. */

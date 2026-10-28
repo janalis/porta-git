@@ -288,6 +288,30 @@ final class GitProcessRunnerTrustTest extends TestCase
     }
 
     /**
+     * A filter named `a=b` — which no `-c` can override — named by the
+     * repository's own attributes: untrusted, git is not run at all.
+     * Trusted, it is, and runs it: the control.
+     */
+    public function testARepositoryWhoseProgramCannotBeOverriddenRunsNoGit(): void
+    {
+        $this->untrustProjects();
+        $project = new TempProject(['a.txt' => "a\n", 'hook.sh' => "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\ncat\n"]);
+        \chmod($project->path('hook.sh'), permissions: 0o755);
+        $project->initGit();
+        $project->commitAll('init');
+        $project->write('.git/info/attributes', "a.txt filter=a=b\n");
+        $project->git('config', 'filter.a=b.clean', $project->path('hook.sh'));
+        \touch($project->path('a.txt'), \time() + 5);
+
+        $this->assertNotSame(0, $this->pollStatus(new GitProcessRunner($project->dir)), 'untrusted: git refuses to start');
+        $this->assertSame([], \glob($project->path('ran-*')));
+
+        new WorkspaceTrust($this->untrustingHome->dir)->trust($project->dir);
+        $this->pollStatus(new GitProcessRunner($project->dir));
+        $this->assertNotSame([], \glob($project->path('ran-*')), 'trusted: the filter runs');
+    }
+
+    /**
      * A merge driver its config defines, named by `.git/info/attributes`:
      * untrusted, it is git's own merge-file that merges — the two sides'
      * edits both land, where an empty driver would have called it a conflict.

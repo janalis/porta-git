@@ -206,12 +206,18 @@ final class UntrustedConfigTest extends TestCase
         $this->assertSame(['log.showsignature=false', '-c', 'log.showsignature', '-c'], \array_slice($arguments, $at, length: 4));
     }
 
-    /** A config git cannot read: the unconditional half, and a git that will refuse to run anyway. */
+    /**
+     * A config git cannot read: the unconditional half, and a git that will
+     * refuse to run anyway — until the config is mended, which nothing that
+     * was listed would tell.
+     */
     public function testAConfigGitCannotListGetsTheUnconditionalHalf(): void
     {
         \file_put_contents($this->project->path('.git/config'), data: "[filter \"x\"]\n\tclean = /project/evil\n[broken\n");
+        $config = UntrustedConfig::read($this->git, $this->project->dir);
 
-        $this->assertSame(self::UNCONDITIONAL, $this->arguments());
+        $this->assertSame(self::UNCONDITIONAL, $config->arguments);
+        $this->assertFalse($config->isCurrent(), 'and nothing says it still is: read again before every spawn');
     }
 
     /**
@@ -247,6 +253,7 @@ final class UntrustedConfigTest extends TestCase
             'the branch' => '.git/HEAD',
             '.gitmodules' => '.gitmodules',
             'the config' => '.git/config',
+            'a worktree config, before there is one' => '.git/config.worktree',
         ] as $what => $file) {
             $config = UntrustedConfig::read($this->git, $this->project->dir);
             \file_put_contents($this->project->path($file), data: "\n", flags: \FILE_APPEND);
@@ -291,6 +298,27 @@ final class UntrustedConfigTest extends TestCase
         \file_put_contents($this->project->path('.git/worktrees/'.\basename($worktree->dir).'/HEAD'), data: "ref: refs/heads/main\n");
 
         $this->assertFalse($config->isCurrent());
+    }
+
+    /**
+     * A name `-c` cannot say — git splits it at its first `=` — and the
+     * override would set some other key: git is told nothing it can start
+     * with instead, so it runs nothing, the repository's program least.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function unsayable(): iterable
+    {
+        yield 'a driver' => ['.git/config', "[filter \"a=b\"]\n\tclean = /project/evil\n"];
+        yield 'a submodule' => ['.gitmodules', "[submodule \"a=b\"]\n\tpath = lib\n"];
+    }
+
+    #[DataProvider('unsayable')]
+    public function testANameAnOverrideCannotSayStopsGitAltogether(string $file, string $config): void
+    {
+        \file_put_contents($this->project->path($file), data: $config, flags: \FILE_APPEND);
+
+        $this->assertSame(['-c', 'porta-cannot-override-this-repository'], $this->arguments());
     }
 
     /** @return list<string> */
