@@ -30,11 +30,10 @@ final class GitProcessRunner
 
     /**
      * The `-c` overrides an untrusted repository's git runs under, read from
-     * its config on the first spawn — through the git that spawn found.
-     *
-     * @var list<string>|null
+     * its config on the first spawn — through the git that spawn found — and
+     * again whenever what they were read from changes.
      */
-    private ?array $untrusted = null;
+    private ?UntrustedConfig $untrusted = null;
 
     private readonly ProcessLane $lane;
 
@@ -247,7 +246,11 @@ final class GitProcessRunner
      */
     private function command(string $git, array $args): array
     {
-        $untrusted = $this->trusted ? [] : ($this->untrusted ??= UntrustedConfig::arguments($git, $this->rootDir));
+        $untrusted = [];
+        if (!$this->trusted) {
+            $this->untrusted = true === $this->untrusted?->isCurrent() ? $this->untrusted : UntrustedConfig::read($git, $this->rootDir);
+            $untrusted = $this->untrusted->arguments;
+        }
 
         // --no-optional-locks: the porcelain readers (status/diff) must never
         // take the opportunistic index lock — under load it collides with a

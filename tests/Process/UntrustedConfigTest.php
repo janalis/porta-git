@@ -36,6 +36,14 @@ final class UntrustedConfigTest extends TestCase
         'gc.auto=0',
         '-c',
         'maintenance.auto=false',
+        '-c',
+        'diff.ignoreSubmodules=all',
+        '-c',
+        'submodule.recurse=false',
+        '-c',
+        'fetch.recurseSubmodules=false',
+        '-c',
+        'push.recurseSubmodules=no',
     ];
 
     private TempProject $project;
@@ -206,9 +214,88 @@ final class UntrustedConfigTest extends TestCase
         $this->assertSame(self::UNCONDITIONAL, $this->arguments());
     }
 
+    /**
+     * Each submodule it declares — in .gitmodules, or only in its config —
+     * is ignored by name: a `submodule.<name>.ignore` of the repository's own
+     * would outrank `diff.ignoreSubmodules`, and a status that looks into a
+     * submodule obeys the submodule's config, which nobody read.
+     */
+    public function testEverySubmoduleItDeclaresIsIgnoredByName(): void
+    {
+        $this->project->write('.gitmodules', "[submodule \"lib/a\"]\n\tpath = lib/a\n\tignore = none\n");
+        $this->project->git('config', 'submodule.b.ignore', 'none');
+
+        $this->assertSame(
+            [...self::UNCONDITIONAL, '-c', 'submodule.b.ignore=all', '-c', 'submodule.lib/a.ignore=all'],
+            $this->arguments(),
+        );
+    }
+
+    /**
+     * Read again only when something it was read from says otherwise: the
+     * config, a file it includes from the tree — before that file exists,
+     * too — the branch an `includeIf "onbranch:…"` follows, .gitmodules.
+     */
+    public function testItIsCurrentUntilWhatItWasReadFromChanges(): void
+    {
+        $this->project->git('config', 'include.path', '../included.cfg');
+        $config = UntrustedConfig::read($this->git, $this->project->dir);
+        $this->assertTrue($config->isCurrent());
+
+        foreach ([
+            'the file it includes' => 'included.cfg',
+            'the branch' => '.git/HEAD',
+            '.gitmodules' => '.gitmodules',
+            'the config' => '.git/config',
+        ] as $what => $file) {
+            $config = UntrustedConfig::read($this->git, $this->project->dir);
+            \file_put_contents($this->project->path($file), data: "\n", flags: \FILE_APPEND);
+
+            $this->assertFalse($config->isCurrent(), $what);
+        }
+        $this->assertNotContains('filter.x.clean=', $config->arguments);
+        $this->project->write('included.cfg', "[filter \"x\"]\n\tclean = /project/evil\n");
+        $this->assertContains('filter.x.clean=', UntrustedConfig::read($this->git, $this->project->dir)->arguments, 'what it includes is the repository\'s');
+    }
+
+    /** A conditional include, and one from home: their files are watched before they exist. */
+    public function testAConditionalIncludeAndAHomeOneAreWatchedToo(): void
+    {
+        $home = \getenv('HOME');
+        \putenv('HOME='.$this->home->dir);
+        try {
+            $this->project->git('config', 'includeIf.onbranch:main.path', '../branch.cfg');
+            $this->project->git('config', '--add', 'include.path', '~/mine.cfg');
+
+            foreach (['the conditional one' => $this->project->path('branch.cfg'), 'the home one' => $this->home->path('mine.cfg')] as $what => $file) {
+                $config = UntrustedConfig::read($this->git, $this->project->dir);
+                \file_put_contents($file, data: "\n");
+
+                $this->assertFalse($config->isCurrent(), $what);
+            }
+        } finally {
+            \putenv(false === $home ? 'HOME' : 'HOME='.$home);
+        }
+    }
+
+    /** A linked worktree's `.git` names where its HEAD is. */
+    public function testALinkedWorktreesBranchIsItsOwn(): void
+    {
+        $this->project->write('a.txt', "a\n");
+        $this->project->commitAll('init');
+        $worktree = new TempProject();
+        \rmdir($worktree->dir);
+        $this->project->git('worktree', 'add', '-q', '-b', 'other', $worktree->dir);
+        $config = UntrustedConfig::read($this->git, $worktree->dir);
+
+        \file_put_contents($this->project->path('.git/worktrees/'.\basename($worktree->dir).'/HEAD'), data: "ref: refs/heads/main\n");
+
+        $this->assertFalse($config->isCurrent());
+    }
+
     /** @return list<string> */
     private function arguments(): array
     {
-        return UntrustedConfig::arguments($this->git, $this->project->dir);
+        return UntrustedConfig::read($this->git, $this->project->dir)->arguments;
     }
 }

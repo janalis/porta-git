@@ -78,44 +78,77 @@ final readonly class UntrustedConfig
      * automatic gc, which Porta never asks for. A remote's `uploadpack` and
      * `receivepack` are first-wins too: GitRemote names its own on the
      * command line.
+     *
+     * Nor does git go into a submodule: there it obeys the submodule's own
+     * config, which this list is not read from. Each submodule the
+     * repository declares is ignored by name too — a `submodule.<name>.ignore`
+     * of its own outranks `diff.ignoreSubmodules`.
      */
-    private const array FIXED = ['protocol.ext.allow' => 'never', 'protocol.git.allow' => 'never', 'gc.auto' => '0', 'maintenance.auto' => 'false'];
+    private const array FIXED = [
+        'protocol.ext.allow' => 'never',
+        'protocol.git.allow' => 'never',
+        'gc.auto' => '0',
+        'maintenance.auto' => 'false',
+        'diff.ignoreSubmodules' => 'all',
+        'submodule.recurse' => 'false',
+        'fetch.recurseSubmodules' => 'false',
+        'push.recurseSubmodules' => 'no',
+    ];
 
     /** The scopes that are the repository's own: everything else is the user's. */
     private const array REPOSITORY = ['local', 'worktree'];
+
+    /**
+     * @param list<string>          $arguments `-c` pairs, to go between `git` and its verb
+     * @param array<string, string> $read      each file they were read from — and each that
+     *                                         would change them — by its contents' digest
+     */
+    private function __construct(
+        public array $arguments,
+        private array $read,
+    ) {}
 
     /**
      * The overrides for the repository at $rootDir, read through $git. A
      * config git cannot list (a malformed one, a git older than 2.26 without
      * `--show-scope`) gets the unconditional half: a git that cannot read
      * its config runs nothing on its behalf either.
-     *
-     * @return list<string> `-c` pairs, to go between `git` and its verb
      */
-    public static function arguments(string $git, string $rootDir): array
+    public static function read(string $git, string $rootDir): self
     {
-        // getenv(), whole: Process alone passes on only what $_SERVER also has,
-        // and the git this reads for must be the one the runner spawns
-        $listing = new Process([$git, '-C', $rootDir, 'config', '--null', '--show-scope', '--list'], env: \getenv(), timeout: 10);
-        $listing->run();
         $repository = \array_fill_keys(self::ALWAYS, value: true);
         $own = [];
-        // `scope NUL key LF value NUL`, the LF and value missing on a bare `key` (a true)
-        foreach (\array_chunk(\explode("\0", $listing->isSuccessful() ? $listing->getOutput() : ''), length: 2) as $entry) {
-            if (2 !== \count($entry)) {
+        $submodules = [];
+        $files = [$rootDir.'/.gitmodules', self::head($rootDir)];
+        // `scope NUL origin NUL key LF value NUL`, the LF and value missing on a bare `key` (a true)
+        foreach (\array_chunk(self::listing($git, $rootDir, ['--show-scope', '--show-origin']), length: 3) as $entry) {
+            if (3 !== \count($entry)) {
                 continue;
             }
-            $pair = \explode("\n", $entry[1], limit: 2);
-            [$key, $value] = [$pair[0], $pair[1] ?? null];
+            [$key, $value] = self::pair($entry[2]);
+            $theirs = \in_array($entry[0], self::REPOSITORY, strict: true);
+            if ($theirs) {
+                $origin = self::path($rootDir, \substr($entry[1], offset: 5)); // `file:`
+                $files[] = $origin;
+                if (1 === \preg_match('/^include(if\..+)?\.path$/', $key)) {
+                    $files[] = self::path(\dirname($origin), (string) $value);
+                }
+                $submodules[] = self::submodule($key);
+            }
             if (null === self::neutral($key, $git)) {
                 continue;
             }
-            if (!\in_array($entry[0], self::REPOSITORY, strict: true)) {
+            if (!$theirs) {
                 $own[$key][] = $value;
 
                 continue;
             }
             $repository[$key] = true;
+        }
+        if (\is_file($rootDir.'/.gitmodules')) {
+            foreach (self::listing($git, $rootDir, ['--file', '.gitmodules']) as $item) {
+                $submodules[] = self::submodule(self::pair($item)[0]);
+            }
         }
         $arguments = [];
         foreach (\array_keys($repository) as $key) {
@@ -124,12 +157,91 @@ final readonly class UntrustedConfig
                 $arguments[] = null === $value ? $key : $key.'='.$value;
             }
         }
-        foreach (self::FIXED as $key => $value) {
+        $ignored = [];
+        foreach (\array_filter($submodules, static fn (?string $name): bool => null !== $name) as $name) {
+            $ignored['submodule.'.$name.'.ignore'] = 'all';
+        }
+        foreach ([...self::FIXED, ...$ignored] as $key => $value) {
             $arguments[] = '-c';
             $arguments[] = $key.'='.$value;
         }
 
-        return $arguments;
+        return new self($arguments, self::digests($files));
+    }
+
+    /**
+     * Whether what these overrides were read from still says the same. A
+     * repository's config can include a file its own tree carries, and an
+     * `includeIf "onbranch:…"` one its branch picks: a pull or a checkout
+     * changes what git obeys without touching .git/config.
+     */
+    public function isCurrent(): bool
+    {
+        return $this->read === self::digests(\array_keys($this->read));
+    }
+
+    /**
+     * @param list<string> $options
+     *
+     * @return list<string> its NUL-separated fields, a trailing empty one included
+     */
+    private static function listing(string $git, string $rootDir, array $options): array
+    {
+        // getenv(), whole: Process alone passes on only what $_SERVER also has,
+        // and the git this reads for must be the one the runner spawns
+        $listing = new Process([$git, '-C', $rootDir, 'config', '--null', ...$options, '--list'], env: \getenv(), timeout: 10);
+        $listing->run();
+
+        return \explode("\0", $listing->isSuccessful() ? $listing->getOutput() : '');
+    }
+
+    /** The submodule a `submodule.<name>.<key>` names, or null for any other key. */
+    private static function submodule(string $key): ?string
+    {
+        $name = [];
+
+        return 1 === \preg_match('/^submodule\.(.+)\.[^.]+$/', $key, $name) ? $name[1] : null;
+    }
+
+    /** @return array{string, string|null} a `key LF value` item's key and value — null for a bare key */
+    private static function pair(string $item): array
+    {
+        $pair = \explode("\n", $item, limit: 2);
+
+        return [$pair[0], $pair[1] ?? null];
+    }
+
+    /** Where `HEAD` is: an `includeIf "onbranch:…"` follows it. A linked worktree's `.git` is a file naming its own. */
+    private static function head(string $rootDir): string
+    {
+        $link = \is_file($rootDir.'/.git') ? (string) \file_get_contents($rootDir.'/.git') : '';
+
+        return self::path($rootDir, \str_starts_with($link, 'gitdir: ') ? \trim(\substr($link, offset: 8)) : '.git').'/HEAD';
+    }
+
+    /** $path as git reads it from a file in $directory: `~/` is home, and a relative one is $directory's. */
+    private static function path(string $directory, string $path): string
+    {
+        return match (true) {
+            \str_starts_with($path, '~/') => (string) \getenv('HOME').\substr($path, offset: 1),
+            \str_starts_with($path, '/') => $path,
+            default => $directory.'/'.$path,
+        };
+    }
+
+    /**
+     * @param list<string> $files
+     *
+     * @return array<string, string> each by its contents' digest — a missing one by none
+     */
+    private static function digests(array $files): array
+    {
+        $digests = [];
+        foreach ($files as $file) {
+            $digests[$file] = \is_file($file) ? (string) \hash_file('xxh128', $file) : '';
+        }
+
+        return $digests;
     }
 
     /** What $key gets in place of the repository's value, or null when it names no program. */

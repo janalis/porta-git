@@ -154,7 +154,7 @@ final readonly class GitRemote
             ? [$git, '-C', $this->rootDir, ...$args]
             : [
                 $git,
-                ...UntrustedConfig::arguments($git, $this->rootDir),
+                ...UntrustedConfig::read($git, $this->rootDir)->arguments,
                 '-C',
                 $this->rootDir,
                 $args[0],

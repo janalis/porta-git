@@ -231,6 +231,63 @@ final class GitProcessRunnerTrustTest extends TestCase
     }
 
     /**
+     * A config that includes a file of the tree: what a pull brings into it
+     * after the runner first read the config is obeyed by git — so it is
+     * read again, and the filter it now defines does not run either.
+     */
+    public function testWhatTheConfigComesToIncludeLaterDoesNotRunEither(): void
+    {
+        $this->untrustProjects();
+        $project = new TempProject(['a.txt' => "a\n", 'included.cfg' => '', 'hook.sh' => "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\ncat\n"]);
+        \chmod($project->path('hook.sh'), permissions: 0o755);
+        $project->initGit();
+        $project->commitAll('init');
+        $project->git('config', 'include.path', '../included.cfg');
+        $project->write('.git/info/attributes', "a.txt filter=x\n");
+        $runner = new GitProcessRunner($project->dir);
+        $this->assertSame(0, $this->pollStatus($runner), 'read once, with nothing to override');
+
+        $project->write('included.cfg', "[filter \"x\"]\n\tclean = ".$project->path('hook.sh')."\n");
+        \touch($project->path('a.txt'), \time() + 5);
+        $this->pollStatus($runner);
+
+        $this->assertSame([], \glob($project->path('ran-*')));
+    }
+
+    /**
+     * A status looks into a submodule, and there git obeys the submodule's
+     * own config — `.git/modules/<name>/config`, which nobody read. Untrusted,
+     * it does not look; trusted, the submodule's filter runs: the control.
+     */
+    public function testASubmodulesOwnConfigIsNotReached(): void
+    {
+        $this->untrustProjects();
+        $library = new TempProject(['s.txt' => "s\n"]);
+        $library->initGit();
+        $library->commitAll('library');
+        $project = new TempProject(['hook.sh' => "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\ncat\n"]);
+        \chmod($project->path('hook.sh'), permissions: 0o755);
+        $project->initGit();
+        $project->git('-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', $library->dir, 'lib');
+        $project->commitAll('with lib');
+        $project->git('config', '--file', '.git/modules/lib/config', 'filter.x.clean', $project->path('hook.sh'));
+        $project->write('.git/modules/lib/info/attributes', "s.txt filter=x\n");
+        $touch = static function () use ($project): void {
+            \array_map(\unlink(...), (array) \glob($project->path('ran-*')));
+            \touch($project->path('lib/s.txt'), \time() + 5);
+        };
+
+        $touch();
+        $this->assertSame(0, $this->pollStatus(new GitProcessRunner($project->dir)));
+        $this->assertSame([], \glob($project->path('ran-*')), 'untrusted: the submodule\'s filter never ran');
+
+        new WorkspaceTrust($this->untrustingHome->dir)->trust($project->dir);
+        $touch();
+        $this->pollStatus(new GitProcessRunner($project->dir));
+        $this->assertNotSame([], \glob($project->path('ran-*')), 'trusted: it does');
+    }
+
+    /**
      * A merge driver its config defines, named by `.git/info/attributes`:
      * untrusted, it is git's own merge-file that merges — the two sides'
      * edits both land, where an empty driver would have called it a conflict.
