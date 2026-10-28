@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Tests\Process;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Porta\Config\WorkspaceTrust;
 use Porta\GitPlugin\Process\GitProcessRunner;
@@ -139,6 +140,142 @@ final class GitProcessRunnerTrustTest extends TestCase
 
         $this->assertStringStartsWith('Inherited Name <', (string) $ident, 'the environment it inherits');
         $this->assertTrue($amended?->isOk(), 'and the editor the verb sets over it');
+    }
+
+    /**
+     * What its config names besides a monitor and an in-tree filter — each a
+     * program git runs on something the IDE does by itself or on one click:
+     * a hook in .git/hooks and one in config on a stage, a filter that
+     * `.git/info/attributes` names (no GIT_ATTR_SOURCE reaches it) on the
+     * poll, a textconv on the gutter's diff, a `gpg.program` behind
+     * `log.showSignature` on the history. Untrusted none runs and git still
+     * answers; trusted, each does — the control per case.
+     *
+     * @return iterable<string, array{\Closure(TempProject): void, list<string>}>
+     */
+    public static function programs(): iterable
+    {
+        yield 'a hook in .git/hooks' => [
+            static function (TempProject $project): void {
+                $project->write('.git/hooks/post-index-change', "#!/bin/sh\nexec ".\escapeshellarg($project->path('hook.sh'))."\n");
+                \chmod($project->path('.git/hooks/post-index-change'), permissions: 0o755);
+            },
+            ['add', 'a.txt'],
+        ];
+        yield 'a hook in config' => [
+            static function (TempProject $project): void {
+                $project->git('config', 'hook.lint.command', $project->path('hook.sh'));
+                $project->git('config', 'hook.lint.event', 'post-index-change');
+            },
+            ['add', 'a.txt'],
+        ];
+        yield 'a filter .git/info/attributes names' => [
+            static function (TempProject $project): void {
+                $project->write('.git/info/attributes', "a.txt filter=x\n");
+                $project->git('config', 'filter.x.clean', $project->path('hook.sh'));
+                $project->git('config', 'filter.x.required', 'true');
+            },
+            ['status', '--porcelain'],
+        ];
+        yield 'a textconv .git/info/attributes names' => [
+            static function (TempProject $project): void {
+                $project->write('.git/info/attributes', "a.txt diff=x\n");
+                $project->git('config', 'diff.x.textconv', $project->path('hook.sh'));
+            },
+            ['diff', '--no-color', '--no-ext-diff', 'HEAD', '--', 'a.txt'],
+        ];
+        yield 'a gpg.program on the history' => [
+            static function (TempProject $project): void {
+                // a signature git will try to check: nobody's key, any program
+                $commit = \sprintf(
+                    "tree %s\nparent %s\nauthor a <a@b> 1700000000 +0000\ncommitter a <a@b> 1700000000 +0000\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n x\n -----END PGP SIGNATURE-----\n\nsigned\n",
+                    $project->git('rev-parse', 'HEAD^{tree}'),
+                    $project->git('rev-parse', 'HEAD'),
+                );
+                $project->write('signed', $commit);
+                $project->git('reset', '-q', '--soft', $project->git('hash-object', '-t', 'commit', '-w', $project->path('signed')));
+                $project->git('config', 'log.showSignature', 'true');
+                $project->git('config', 'gpg.program', $project->path('hook.sh'));
+            },
+            ['log', '-n', '1', '--format=%H'],
+        ];
+    }
+
+    /**
+     * @param \Closure(TempProject): void $plant
+     * @param list<string>                $verb
+     */
+    #[DataProvider('programs')]
+    public function testAnUntrustedRepositorysProgramDoesNotRun(\Closure $plant, array $verb): void
+    {
+        $this->untrustProjects();
+        $project = new TempProject(['a.txt' => "a\n", 'hook.sh' => "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\ncat\n"]);
+        \chmod($project->path('hook.sh'), permissions: 0o755);
+        $project->initGit();
+        $project->commitAll('init');
+        $plant($project);
+        $run = function () use ($project, $verb): Outcome {
+            \array_map(\unlink(...), (array) \glob($project->path('ran-*')));
+            \file_put_contents($project->path('a.txt'), data: "b\n");
+            \touch($project->path('a.txt'), \time() + 5); // stat no longer matches the index: re-hashed
+
+            return $this->verb(new GitProcessRunner($project->dir), $verb);
+        };
+
+        $this->assertTrue($run()->isOk(), 'untrusted git still answers');
+        $this->assertSame([], \glob($project->path('ran-*')), 'untrusted: it never ran');
+
+        new WorkspaceTrust($this->untrustingHome->dir)->trust($project->dir);
+        $run();
+        $this->assertNotSame([], \glob($project->path('ran-*')), 'trusted: it does — so the first half was not luck');
+    }
+
+    /**
+     * A merge driver its config defines, named by `.git/info/attributes`:
+     * untrusted, it is git's own merge-file that merges — the two sides'
+     * edits both land, where an empty driver would have called it a conflict.
+     */
+    public function testAnUntrustedRepositorysMergeDriverIsGitsOwn(): void
+    {
+        $this->untrustProjects();
+        $project = new TempProject(['m.txt' => "1\n2\n3\n", 'driver.sh' => "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\nexit 1\n"]);
+        \chmod($project->path('driver.sh'), permissions: 0o755);
+        $project->initGit('main');
+        $project->commitAll('base');
+        $project->git('checkout', '-q', '-b', 'side');
+        $project->write('m.txt', "1\n2\n3x\n");
+        $project->commitAll('side');
+        $project->git('checkout', '-q', 'main');
+        $project->write('m.txt', "1x\n2\n3\n");
+        $project->commitAll('main');
+        $project->write('.git/info/attributes', "m.txt merge=x\n");
+        $project->git('config', 'merge.x.driver', $project->path('driver.sh').' %A');
+
+        $merged = null;
+        new GitProcessRunner($project->dir)->runUnattended(['merge', 'side'], static function (Outcome $ok) use (&$merged): void {
+            $merged = $ok;
+        });
+        $this->await(static function () use (&$merged): bool {
+            return null !== $merged;
+        }, what: 'the merge to answer');
+
+        $this->assertSame([], \glob($project->path('ran-*')), 'the driver never ran');
+        $this->assertTrue($merged?->isOk(), 'and the merge went through');
+        $this->assertSame("1x\n2\n3x\n", \file_get_contents($project->path('m.txt')), 'both sides\' edits');
+    }
+
+    /** @param list<string> $args */
+    private function verb(GitProcessRunner $runner, array $args): Outcome
+    {
+        $ok = null;
+        $runner->runCapturing($args, static function (Outcome $outcome) use (&$ok): void {
+            $ok = $outcome;
+        });
+        $this->await(static function () use (&$ok): bool {
+            return null !== $ok;
+        }, what: 'git to answer');
+
+        return $ok ?? Outcome::Failed;
     }
 
     /** @return int the status's exit code */

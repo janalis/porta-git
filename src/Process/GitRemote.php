@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Process;
 
+use Porta\Config\WorkspaceTrust;
 use Porta\GitPlugin\GitInfo;
 use Porta\Support\AsyncProcess;
 use Porta\Support\Outcome;
@@ -38,6 +39,8 @@ final readonly class GitRemote
 
     private bool $repository;
 
+    private bool $trusted;
+
     private ProcessLane $lane;
 
     /**
@@ -60,6 +63,7 @@ final readonly class GitRemote
         // FILE holding `gitdir: …`. is_dir left the whole feature silently dead
         // in both — git ran nowhere and the view said "not a repository".
         $this->repository = \file_exists($rootDir.'/.git');
+        $this->trusted = WorkspaceTrust::fromEnvironment()->isTrusted($rootDir);
     }
 
     /** Resolved per call, so an edit to the `path` setting reaches the next spawn. */
@@ -139,14 +143,31 @@ final readonly class GitRemote
 
             return;
         }
+        // An untrusted repository's config names no program a pull or a push
+        // runs — a hook, a credential helper, an ssh command, a filter on the
+        // checkout — the status poll's rule. Read per operation: they are rare.
+        // A remote's `uploadpack` and `receivepack` are the program a local
+        // or ssh transfer starts, and git takes the first one it is given —
+        // so no `-c` can replace them, and the verb names git's own instead.
         /** @var list<string> $command */
-        $command = [$git, '-C', $this->rootDir, ...$args];
+        $command = $this->trusted
+            ? [$git, '-C', $this->rootDir, ...$args]
+            : [
+                $git,
+                ...UntrustedConfig::arguments($git, $this->rootDir),
+                '-C',
+                $this->rootDir,
+                $args[0],
+                'push' === $args[0] ? '--receive-pack=git-receive-pack' : '--upload-pack=git-upload-pack',
+                ...\array_slice($args, offset: 1),
+            ];
         $env = [
             'SSH_ASKPASS_REQUIRE' => 'force',
             'SSH_ASKPASS' => 'false',
             'GIT_HTTP_LOW_SPEED_LIMIT' => '1000',
             'GIT_HTTP_LOW_SPEED_TIME' => self::STALL_SECONDS,
             ...\getenv(),
+            ...($this->trusted ? [] : ['GIT_ATTR_SOURCE' => UntrustedConfig::EMPTY_TREE]),
             'GIT_TERMINAL_PROMPT' => '0',
             'LC_ALL' => 'C',
         ];

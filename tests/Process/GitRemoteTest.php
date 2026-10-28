@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Tests\Process;
 
+use PHPUnit\Framework\Attributes\After;
 use PHPUnit\Framework\TestCase;
+use Porta\Config\WorkspaceTrust;
 use Porta\GitPlugin\Process\GitRemote;
 use Porta\Support\Outcome;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\PreservesPath;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
+use Porta\Tests\Support\UntrustsProjects;
 
 /**
  * Drives GitRemote against purely local remotes: a bare repository plus two
@@ -22,10 +25,17 @@ final class GitRemoteTest extends TestCase
     use GitBinary;
     use PreservesPath;
     use PumpsLoop;
+    use UntrustsProjects;
 
     private TempProject $bare;
     private TempProject $clone1;
     private TempProject $clone2;
+
+    #[After]
+    protected function forgetTheUsersConfig(): void
+    {
+        \putenv('GIT_CONFIG_GLOBAL');
+    }
 
     private function git(TempProject $project, string $command): string
     {
@@ -89,6 +99,81 @@ final class GitRemoteTest extends TestCase
         });
         $this->assertTrue($results['pull']);
         $this->assertSame("one\ntwo\n", \file_get_contents($this->clone2->path('a.txt')), 'the pull fast-forwarded the file');
+    }
+
+    /**
+     * An untrusted clone's own config names a program for the pull's every
+     * step — the upload-pack a local remote runs, a hook after the merge —
+     * and its tree a filter for the file pulled: the pull runs none of
+     * them, yet still pulls. Trusted, all three run: the control.
+     */
+    public function testAnUntrustedRepositorysProgramsDoNotRunOnAPull(): void
+    {
+        $this->untrustProjects();
+        $this->remotes();
+        $tools = new TempProject([
+            'hook.sh' => "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\n",
+            'upload-pack.sh' => "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\nexec git-upload-pack \"\$@\"\n",
+        ]);
+        \chmod($tools->path('hook.sh'), permissions: 0o755);
+        \chmod($tools->path('upload-pack.sh'), permissions: 0o755);
+        $this->clone2->write('.git/hooks/post-merge', "#!/bin/sh\nexec ".\escapeshellarg($tools->path('hook.sh'))."\n");
+        \chmod($this->clone2->path('.git/hooks/post-merge'), permissions: 0o755);
+        $this->clone2->git('config', 'remote.origin.uploadpack', $tools->path('upload-pack.sh'));
+        // and its tree names a filter of the user's own for the file the pull
+        // brings: attributes an untrusted tree has none of
+        $tools->write('smudge.sh', "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\ncat\n");
+        \chmod($tools->path('smudge.sh'), permissions: 0o755);
+        $tools->write('.gitconfig', "[filter \"own\"]\n\tsmudge = ".$tools->path('smudge.sh')."\n");
+        \file_put_contents($this->clone1->path('.gitattributes'), data: "a.txt filter=own\n");
+        $this->git($this->clone1, 'add .gitattributes');
+        \putenv('GIT_CONFIG_GLOBAL='.$tools->path('.gitconfig'));
+        $pull = function () use ($tools): bool {
+            \array_map(\unlink(...), (array) \glob($tools->path('ran-*')));
+            \file_put_contents($this->clone1->path('a.txt'), data: "more\n", flags: \FILE_APPEND);
+            $this->git($this->clone1, 'commit -aqm more');
+            $this->git($this->clone1, 'push -q origin HEAD');
+            $pulled = null;
+            new GitRemote($this->clone2->dir)->pull(static function (Outcome $ok) use (&$pulled): void {
+                $pulled = $ok->isOk();
+            });
+            $this->await(static function () use (&$pulled): bool {
+                return null !== $pulled;
+            }, what: 'the pull to answer');
+
+            return (bool) $pulled;
+        };
+
+        $this->assertTrue($pull(), 'untrusted, it still pulls');
+        $this->assertSame([], \glob($tools->path('ran-*')), 'and runs nothing the clone names');
+
+        new WorkspaceTrust($this->untrustingHome->dir)->trust($this->clone2->dir);
+        $this->assertTrue($pull());
+        $this->assertCount(3, (array) \glob($tools->path('ran-*')), 'trusted, all three run');
+    }
+
+    /** And a push: the receive-pack its config names for a local remote does not run, and the push lands. */
+    public function testAnUntrustedRepositorysReceivePackDoesNotRunOnAPush(): void
+    {
+        $this->untrustProjects();
+        $remote = $this->remotes();
+        $tools = new TempProject(['receive-pack.sh' => "#!/bin/sh\ntouch \"\$(dirname \"\$0\")/ran-\$\$\"\nexec git-receive-pack \"\$@\"\n"]);
+        \chmod($tools->path('receive-pack.sh'), permissions: 0o755);
+        $this->clone2->git('config', 'remote.origin.receivepack', $tools->path('receive-pack.sh'));
+        \file_put_contents($this->clone2->path('a.txt'), data: "pushed\n");
+        $this->git($this->clone2, 'commit -aqm pushed');
+
+        $pushed = null;
+        $remote->push(static function (Outcome $ok) use (&$pushed): void {
+            $pushed = $ok->isOk();
+        });
+        $this->await(static function () use (&$pushed): bool {
+            return null !== $pushed;
+        }, what: 'the push to answer');
+
+        $this->assertTrue($pushed);
+        $this->assertSame($this->git($this->clone2, 'rev-parse HEAD'), $this->git($this->bare, 'rev-parse HEAD'), 'it landed');
+        $this->assertSame([], \glob($tools->path('ran-*')));
     }
 
     public function testDivergedPullFailsCleanlyWithGitsMessage(): void

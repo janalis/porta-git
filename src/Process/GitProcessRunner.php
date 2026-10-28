@@ -14,24 +14,29 @@ use Porta\Support\Text;
  * Runs `git` subprocesses for the working tree at $rootDir, on the shared event
  * loop, and tracks the ones still in flight.
  *
- * It holds no mutable state of its own — the in-flight set lives in the
+ * Its one piece of mutable state is a cache — an untrusted repository's
+ * overrides, read once. The in-flight set lives in the
  * {@see ProcessLane} it is given, so that a set of processes can be cancelled
  * and counted as a group by something that does not know what is in it.
  * {@see GitInfo}'s thirty-odd porcelain verbs are, once this is out of the way,
  * stateless wrappers that build an argv and parse an answer, which is the
  * reason for the split.
  */
-final readonly class GitProcessRunner
+final class GitProcessRunner
 {
-    private bool $repository;
+    private readonly bool $repository;
 
-    /** git's well-known empty tree (SHA-1): an attribute source that says nothing. */
-    private const string EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+    private readonly bool $trusted;
 
-    /** @var list<string> config overrides for a repository not trusted to run code */
-    private array $untrusted;
+    /**
+     * The `-c` overrides an untrusted repository's git runs under, read from
+     * its config on the first spawn — through the git that spawn found.
+     *
+     * @var list<string>|null
+     */
+    private ?array $untrusted = null;
 
-    private ProcessLane $lane;
+    private readonly ProcessLane $lane;
 
     /**
      * $lane is optional and TRAILING so every direct construction — the tests,
@@ -43,8 +48,8 @@ final readonly class GitProcessRunner
      *                                                   call so a Settings edit applies without a restart
      */
     public function __construct(
-        private string $rootDir,
-        private \Closure|string|null $gitPath = null,
+        private readonly string $rootDir,
+        private readonly \Closure|string|null $gitPath = null,
         ?ProcessLane $lane = null,
     ) {
         $this->lane = $lane ?? new ProcessLane();
@@ -53,16 +58,14 @@ final readonly class GitProcessRunner
         // in both — git ran nowhere and the view said "not a repository".
         $this->repository = \file_exists($rootDir.'/.git');
         // An untrusted repository's own config is not obeyed where it would run
-        // something: `core.fsmonitor` names a program git runs on every status,
-        // and the status poll runs with no one asking. A clone never carries
-        // .git/config, but a tarball or a shared folder does.
+        // something — UntrustedConfig has the list, and why.
         //
         // Nor its attributes: `.gitattributes` names filter and textconv
-        // drivers its config defines (`filter.x.clean = …`), and a status
-        // re-hashing a touched file runs the clean filter. Attributes read from
-        // the empty tree are none at all — a git older than 2.40 ignores the
-        // variable, and the fsmonitor half still holds there.
-        $this->untrusted = WorkspaceTrust::fromEnvironment()->isTrusted($rootDir) ? [] : ['-c', 'core.fsmonitor=false'];
+        // drivers (`filter.x.clean = …`), and a status re-hashing a touched
+        // file runs the clean filter. Attributes read from the empty tree are
+        // none at all; `.git/info/attributes` is still read, which is why the
+        // drivers themselves are overridden too.
+        $this->trusted = WorkspaceTrust::fromEnvironment()->isTrusted($rootDir);
     }
 
     /**
@@ -92,7 +95,7 @@ final readonly class GitProcessRunner
      */
     private function environment(array $extra = []): ?array
     {
-        $own = [] === $this->untrusted ? $extra : ['GIT_ATTR_SOURCE' => self::EMPTY_TREE, ...$extra];
+        $own = $this->trusted ? $extra : ['GIT_ATTR_SOURCE' => UntrustedConfig::EMPTY_TREE, ...$extra];
 
         return [] === $own ? null : [...\getenv(), ...$own];
     }
@@ -149,11 +152,7 @@ final readonly class GitProcessRunner
 
             return;
         }
-        /** @var list<string> $command */
-        // --no-optional-locks: the porcelain readers (status/diff) must never
-        // take the opportunistic index lock — under load it collides with a
-        // concurrent add/commit's MANDATORY index.lock and fails the mutation.
-        $command = [$git, ...$this->untrusted, '--no-optional-locks', '-C', $this->rootDir, ...$args];
+        $command = $this->command($git, $args);
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, $stdin, env: $this->environment()),
             static function (int $code, string $out) use ($onDone): void {
@@ -224,11 +223,7 @@ final readonly class GitProcessRunner
 
             return;
         }
-        /** @var list<string> $command */
-        // --no-optional-locks: the porcelain readers (status/diff) must never
-        // take the opportunistic index lock — under load it collides with a
-        // concurrent add/commit's MANDATORY index.lock and fails the mutation.
-        $command = [$git, ...$this->untrusted, '--no-optional-locks', '-C', $this->rootDir, ...$args];
+        $command = $this->command($git, $args);
         $started = $this->lane->start(
             new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $this->environment($env)),
             static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
@@ -243,5 +238,20 @@ final readonly class GitProcessRunner
 
             // @codeCoverageIgnoreEnd
         }
+    }
+
+    /**
+     * @param list<string> $args
+     *
+     * @return list<string>
+     */
+    private function command(string $git, array $args): array
+    {
+        $untrusted = $this->trusted ? [] : ($this->untrusted ??= UntrustedConfig::arguments($git, $this->rootDir));
+
+        // --no-optional-locks: the porcelain readers (status/diff) must never
+        // take the opportunistic index lock — under load it collides with a
+        // concurrent add/commit's MANDATORY index.lock and fails the mutation.
+        return [$git, ...$untrusted, '--no-optional-locks', '-C', $this->rootDir, ...$args];
     }
 }
