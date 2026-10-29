@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Process;
 
+use Symfony\Component\Process\Exception\RuntimeException;
 use Symfony\Component\Process\Process;
 
 /**
@@ -101,6 +102,10 @@ final readonly class UntrustedConfig
      * turn `filter.a=b.clean=` into a `filter.a` nobody asked for and leave
      * the real one standing. A key with no section is one git refuses to
      * start with — so in such a repository git does not run at all.
+     *
+     * Nor where the config could not be listed — a malformed one, a git
+     * older than 2.26 without `--show-scope`, a listing killed or timed
+     * out: what it names is not known, so nothing it names can be replaced.
      */
     private const string REFUSED = 'porta-cannot-override-this-repository';
 
@@ -109,22 +114,23 @@ final readonly class UntrustedConfig
 
     /**
      * @param list<string>          $arguments `-c` pairs, to go between `git` and its verb
-     * @param array<string, string> $read      each file they were read from — and each that
-     *                                         would change them — by its contents' digest
+     * @param string                $git       the git they were read through, which the merge driver names
+     * @param array<string, string> $read      each file they were read from — the user's own
+     *                                         too, whose values they carry — and each that
+     *                                         would change them, by its contents' digest
      * @param bool                  $complete  whether git listed the config at all
      */
     private function __construct(
         public array $arguments,
+        private string $git,
         private array $read,
         private bool $complete,
     ) {}
 
     /**
      * The overrides for the repository at $rootDir, read through $git. A
-     * config git cannot list (a malformed one, a git older than 2.26 without
-     * `--show-scope`) gets the unconditional half — a git that cannot read
-     * its config runs nothing on its behalf either — and is read again on
-     * the next spawn, since nothing says what it was read from.
+     * config git cannot list gets {@see REFUSED}, and is read again on the
+     * next spawn, since nothing says what it was read from.
      */
     public static function read(string $git, string $rootDir): self
     {
@@ -142,12 +148,15 @@ final readonly class UntrustedConfig
             }
             [$key, $value] = self::pair($entry[2]);
             $theirs = \in_array($entry[0], self::REPOSITORY, strict: true);
-            if ($theirs) {
-                $origin = self::path($rootDir, \substr($entry[1], offset: 5)); // `file:`
+            // every scope's: the user's own values are carried too
+            if (\str_starts_with($entry[1], 'file:')) {
+                $origin = self::path($rootDir, \substr($entry[1], offset: 5));
                 $files[] = $origin;
                 if (1 === \preg_match('/^include(if\..+)?\.path$/', $key)) {
                     $files[] = self::path(\dirname($origin), (string) $value);
                 }
+            }
+            if ($theirs) {
                 $submodules[] = self::submodule($key);
             }
             if (null === self::neutral($key, $git)) {
@@ -160,10 +169,9 @@ final readonly class UntrustedConfig
             }
             $repository[$key] = true;
         }
-        if (\is_file($rootDir.'/.gitmodules')) {
-            foreach (self::listing($git, $rootDir, ['--file', '.gitmodules']) ?? [] as $item) {
-                $submodules[] = self::submodule(self::pair($item)[0]);
-            }
+        $gitmodules = \is_file($rootDir.'/.gitmodules') ? self::listing($git, $rootDir, ['--file', '.gitmodules']) : [];
+        foreach ($gitmodules ?? [] as $item) {
+            $submodules[] = self::submodule(self::pair($item)[0]);
         }
         $arguments = [];
         foreach (\array_keys($repository) as $key) {
@@ -180,20 +188,22 @@ final readonly class UntrustedConfig
             $arguments[] = '-c';
             $arguments[] = $key.'='.$value;
         }
+        $complete = null !== $listing && null !== $gitmodules;
         $sayable = [] === \array_filter([...\array_keys($repository), ...\array_keys($ignored)], static fn (string $key): bool => \str_contains($key, '='));
 
-        return new self($sayable ? $arguments : ['-c', self::REFUSED], self::digests($files), null !== $listing);
+        return new self($complete && $sayable ? $arguments : ['-c', self::REFUSED], $git, self::digests($files), $complete);
     }
 
     /**
      * Whether what these overrides were read from still says the same. A
      * repository's config can include a file its own tree carries, and an
      * `includeIf "onbranch:…"` one its branch picks: a pull or a checkout
-     * changes what git obeys without touching .git/config.
+     * changes what git obeys without touching .git/config. Nor are they
+     * for another git than the one they were read through.
      */
-    public function isCurrent(): bool
+    public function isCurrent(string $git): bool
     {
-        return $this->complete && $this->read === self::digests(\array_keys($this->read));
+        return $this->complete && $this->git === $git && $this->read === self::digests(\array_keys($this->read));
     }
 
     /**
@@ -206,7 +216,11 @@ final readonly class UntrustedConfig
         // getenv(), whole: Process alone passes on only what $_SERVER also has,
         // and the git this reads for must be the one the runner spawns
         $listing = new Process([$git, '-C', $rootDir, 'config', '--null', ...$options, '--list'], env: \getenv(), timeout: 10);
-        $listing->run();
+        try {
+            $listing->run();
+        } catch (RuntimeException) { // timed out, or killed by a signal: run() throws for both
+            return null;
+        }
 
         return $listing->isSuccessful() ? \explode("\0", $listing->getOutput()) : null;
     }

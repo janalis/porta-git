@@ -207,17 +207,56 @@ final class UntrustedConfigTest extends TestCase
     }
 
     /**
-     * A config git cannot read: the unconditional half, and a git that will
-     * refuse to run anyway — until the config is mended, which nothing that
-     * was listed would tell.
+     * What git cannot list — a malformed config or .gitmodules, a listing
+     * killed — names programs nobody knows, so none can be replaced: git is
+     * told nothing it can start with. And nothing says it still is: read
+     * again before every spawn.
+     *
+     * @return iterable<string, array{string, string}>
      */
-    public function testAConfigGitCannotListGetsTheUnconditionalHalf(): void
+    public static function unlistable(): iterable
     {
-        \file_put_contents($this->project->path('.git/config'), data: "[filter \"x\"]\n\tclean = /project/evil\n[broken\n");
+        yield 'a malformed config' => ['.git/config', "[filter \"x\"]\n\tclean = /project/evil\n[broken\n"];
+        yield 'a malformed .gitmodules' => ['.gitmodules', "[submodule \"lib\"]\n\tignore = none\n[broken\n"];
+    }
+
+    #[DataProvider('unlistable')]
+    public function testWhatGitCannotListStopsGitAltogether(string $file, string $config): void
+    {
+        \file_put_contents($this->project->path($file), data: $config, flags: \FILE_APPEND);
         $config = UntrustedConfig::read($this->git, $this->project->dir);
 
-        $this->assertSame(self::UNCONDITIONAL, $config->arguments);
-        $this->assertFalse($config->isCurrent(), 'and nothing says it still is: read again before every spawn');
+        $this->assertSame(['-c', 'porta-cannot-override-this-repository'], $config->arguments);
+        $this->assertFalse($config->isCurrent($this->git));
+    }
+
+    /** A listing that never ends normally — killed here, timed out alike — is one that failed, not a throw on the loop. */
+    public function testAListingKilledMidwayIsOneThatFailed(): void
+    {
+        $git = $this->home->path('git');
+        $this->home->write('git', "#!/bin/sh\nkill -KILL \$\$\n");
+        \chmod($git, permissions: 0o755);
+        $config = UntrustedConfig::read($git, $this->project->dir);
+
+        $this->assertSame(['-c', 'porta-cannot-override-this-repository'], $config->arguments);
+        $this->assertFalse($config->isCurrent($git));
+    }
+
+    /**
+     * The user's own values are carried too, so their file is watched as
+     * the repository's is; and the merge driver names the git it was read
+     * through, so another git reads them again.
+     */
+    public function testTheUsersOwnConfigAndTheGitTheyNameAreWatchedToo(): void
+    {
+        \file_put_contents($this->home->path('.gitconfig'), data: "[credential]\n\thelper = mine\n");
+        $config = UntrustedConfig::read($this->git, $this->project->dir);
+        $this->assertTrue($config->isCurrent($this->git));
+        $this->assertFalse($config->isCurrent($this->git.'-other'), 'another git');
+
+        \file_put_contents($this->home->path('.gitconfig'), data: "[credential]\n\thelper = theirs\n");
+
+        $this->assertFalse($config->isCurrent($this->git), 'the user\'s own config');
     }
 
     /**
@@ -246,7 +285,7 @@ final class UntrustedConfigTest extends TestCase
     {
         $this->project->git('config', 'include.path', '../included.cfg');
         $config = UntrustedConfig::read($this->git, $this->project->dir);
-        $this->assertTrue($config->isCurrent());
+        $this->assertTrue($config->isCurrent($this->git));
 
         foreach ([
             'the file it includes' => 'included.cfg',
@@ -258,7 +297,7 @@ final class UntrustedConfigTest extends TestCase
             $config = UntrustedConfig::read($this->git, $this->project->dir);
             \file_put_contents($this->project->path($file), data: "\n", flags: \FILE_APPEND);
 
-            $this->assertFalse($config->isCurrent(), $what);
+            $this->assertFalse($config->isCurrent($this->git), $what);
         }
         $this->assertNotContains('filter.x.clean=', $config->arguments);
         $this->project->write('included.cfg', "[filter \"x\"]\n\tclean = /project/evil\n");
@@ -278,7 +317,7 @@ final class UntrustedConfigTest extends TestCase
                 $config = UntrustedConfig::read($this->git, $this->project->dir);
                 \file_put_contents($file, data: "\n");
 
-                $this->assertFalse($config->isCurrent(), $what);
+                $this->assertFalse($config->isCurrent($this->git), $what);
             }
         } finally {
             \putenv(false === $home ? 'HOME' : 'HOME='.$home);
@@ -297,7 +336,7 @@ final class UntrustedConfigTest extends TestCase
 
         \file_put_contents($this->project->path('.git/worktrees/'.\basename($worktree->dir).'/HEAD'), data: "ref: refs/heads/main\n");
 
-        $this->assertFalse($config->isCurrent());
+        $this->assertFalse($config->isCurrent($this->git));
     }
 
     /**

@@ -248,7 +248,7 @@ final class GitProcessRunner
     {
         $untrusted = [];
         if (!$this->trusted) {
-            $this->untrusted = true === $this->untrusted?->isCurrent() ? $this->untrusted : UntrustedConfig::read($git, $this->rootDir);
+            $this->untrusted = true === $this->untrusted?->isCurrent($git) ? $this->untrusted : UntrustedConfig::read($git, $this->rootDir);
             $untrusted = $this->untrusted->arguments;
         }
 
