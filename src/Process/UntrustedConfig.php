@@ -118,7 +118,8 @@ final readonly class UntrustedConfig
      * @param array<string, string> $read      each file they were read from — the user's own
      *                                         too, whose values they carry — and each that
      *                                         would change them, by its contents' digest
-     * @param bool                  $complete  whether git listed the config at all
+     * @param bool                  $complete  whether git listed the config at all — a
+     *                                         .gitmodules it could not is one file, watched
      */
     private function __construct(
         public array $arguments,
@@ -130,7 +131,8 @@ final readonly class UntrustedConfig
     /**
      * The overrides for the repository at $rootDir, read through $git. A
      * config git cannot list gets {@see REFUSED}, and is read again on the
-     * next spawn, since nothing says what it was read from.
+     * next spawn, since nothing says what it was read from; a .gitmodules git
+     * cannot list, only once that file changes.
      */
     public static function read(string $git, string $rootDir): self
     {
@@ -139,7 +141,7 @@ final readonly class UntrustedConfig
         $submodules = [];
         $head = self::head($rootDir);
         // config.worktree before extensions.worktreeConfig turns it on: no listing names it yet
-        $files = [$rootDir.'/.gitmodules', $head, \dirname($head).'/config.worktree'];
+        $files = [$rootDir.'/.gitmodules', $head, \dirname($head).'/config.worktree', ...self::usersOwn()];
         $listing = self::listing($git, $rootDir, ['--show-scope', '--show-origin']);
         // `scope NUL origin NUL key LF value NUL`, the LF and value missing on a bare `key` (a true)
         foreach (\array_chunk($listing ?? [], length: 3) as $entry) {
@@ -169,7 +171,7 @@ final readonly class UntrustedConfig
             }
             $repository[$key] = true;
         }
-        $gitmodules = \is_file($rootDir.'/.gitmodules') ? self::listing($git, $rootDir, ['--file', '.gitmodules']) : [];
+        $gitmodules = null !== $listing && \is_file($rootDir.'/.gitmodules') ? self::listing($git, $rootDir, ['--file', '.gitmodules']) : [];
         foreach ($gitmodules ?? [] as $item) {
             $submodules[] = self::submodule(self::pair($item)[0]);
         }
@@ -188,10 +190,9 @@ final readonly class UntrustedConfig
             $arguments[] = '-c';
             $arguments[] = $key.'='.$value;
         }
-        $complete = null !== $listing && null !== $gitmodules;
         $sayable = [] === \array_filter([...\array_keys($repository), ...\array_keys($ignored)], static fn (string $key): bool => \str_contains($key, '='));
 
-        return new self($complete && $sayable ? $arguments : ['-c', self::REFUSED], $git, self::digests($files), $complete);
+        return new self(null !== $listing && null !== $gitmodules && $sayable ? $arguments : ['-c', self::REFUSED], $git, self::digests($files), null !== $listing);
     }
 
     /**
@@ -247,6 +248,24 @@ final readonly class UntrustedConfig
         $link = \is_file($rootDir.'/.git') ? (string) \file_get_contents($rootDir.'/.git') : '';
 
         return self::path($rootDir, \str_starts_with($link, 'gitdir: ') ? \trim(\substr($link, offset: 8)) : '.git').'/HEAD';
+    }
+
+    /**
+     * The user's own config files, there or not: a listing names only those
+     * that hold something, and one written later changes what is carried.
+     *
+     * @return list<string>
+     */
+    private static function usersOwn(): array
+    {
+        $global = (string) \getenv('GIT_CONFIG_GLOBAL');
+        if ('' !== $global) {
+            return [$global];
+        }
+        $home = (string) \getenv('HOME');
+        $xdg = (string) \getenv('XDG_CONFIG_HOME');
+
+        return [$home.'/.gitconfig', ('' !== $xdg ? $xdg : $home.'/.config').'/git/config'];
     }
 
     /** $path as git reads it from a file in $directory: `~/` is home, and a relative one is $directory's. */

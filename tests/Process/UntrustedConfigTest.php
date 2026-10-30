@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\Process\UntrustedConfig;
 use Porta\Tests\Support\GitBinary;
 use Porta\Tests\Support\TempProject;
+use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * The overrides themselves, read off a real `git config --list`: every key
@@ -209,37 +210,42 @@ final class UntrustedConfigTest extends TestCase
     /**
      * What git cannot list — a malformed config or .gitmodules, a listing
      * killed — names programs nobody knows, so none can be replaced: git is
-     * told nothing it can start with. And nothing says it still is: read
-     * again before every spawn.
+     * told nothing it can start with. A config: nothing says what it was
+     * read from, so it is read again before every spawn. A .gitmodules is
+     * one file: read again once it changes.
      *
-     * @return iterable<string, array{string, string}>
+     * @return iterable<string, array{string, string, bool}>
      */
     public static function unlistable(): iterable
     {
-        yield 'a malformed config' => ['.git/config', "[filter \"x\"]\n\tclean = /project/evil\n[broken\n"];
-        yield 'a malformed .gitmodules' => ['.gitmodules', "[submodule \"lib\"]\n\tignore = none\n[broken\n"];
+        yield 'a malformed config' => ['.git/config', "[filter \"x\"]\n\tclean = /project/evil\n[broken\n", false];
+        yield 'a malformed .gitmodules' => ['.gitmodules', "[submodule \"lib\"]\n\tignore = none\n[broken\n", true];
     }
 
     #[DataProvider('unlistable')]
-    public function testWhatGitCannotListStopsGitAltogether(string $file, string $config): void
+    public function testWhatGitCannotListStopsGitAltogether(string $file, string $config, bool $current): void
     {
         \file_put_contents($this->project->path($file), data: $config, flags: \FILE_APPEND);
-        $config = UntrustedConfig::read($this->git, $this->project->dir);
+        $read = UntrustedConfig::read($this->git, $this->project->dir);
 
-        $this->assertSame(['-c', 'porta-cannot-override-this-repository'], $config->arguments);
-        $this->assertFalse($config->isCurrent($this->git));
+        $this->assertSame(['-c', 'porta-cannot-override-this-repository'], $read->arguments);
+        $this->assertSame($current, $read->isCurrent($this->git));
+        \file_put_contents($this->project->path($file), data: \str_replace('[broken', replace: '', subject: $config));
+        $this->assertFalse($read->isCurrent($this->git), 'mended');
     }
 
     /** A listing that never ends normally — killed here, timed out alike — is one that failed, not a throw on the loop. */
     public function testAListingKilledMidwayIsOneThatFailed(): void
     {
         $git = $this->home->path('git');
-        $this->home->write('git', "#!/bin/sh\nkill -KILL \$\$\n");
+        $this->home->write('git', "#!/bin/sh\necho >> \"\$(dirname \"\$0\")/calls\"\nkill -KILL \$\$\n");
         \chmod($git, permissions: 0o755);
+        $this->project->write('.gitmodules', "[submodule \"lib\"]\n\tpath = lib\n");
         $config = UntrustedConfig::read($git, $this->project->dir);
 
         $this->assertSame(['-c', 'porta-cannot-override-this-repository'], $config->arguments);
         $this->assertFalse($config->isCurrent($git));
+        $this->assertSame("\n", \file_get_contents($this->home->path('calls')), 'nor is .gitmodules listed after it: git is refused already');
     }
 
     /**
@@ -257,6 +263,32 @@ final class UntrustedConfigTest extends TestCase
         \file_put_contents($this->home->path('.gitconfig'), data: "[credential]\n\thelper = theirs\n");
 
         $this->assertFalse($config->isCurrent($this->git), 'the user\'s own config');
+    }
+
+    /** Their config files are watched before they hold anything, wherever git would look for them. */
+    public function testAUsersConfigWrittenLaterIsSeen(): void
+    {
+        \unlink($this->home->path('.gitconfig'));
+        $config = UntrustedConfig::read($this->git, $this->project->dir);
+        $this->home->write('.gitconfig', "[credential]\n\thelper = mine\n");
+        $this->assertFalse($config->isCurrent($this->git), 'the one GIT_CONFIG_GLOBAL names');
+
+        \putenv('GIT_CONFIG_GLOBAL');
+        $home = \getenv('HOME');
+        $xdg = \getenv('XDG_CONFIG_HOME');
+        \putenv('HOME='.$this->home->dir);
+        try {
+            foreach (['.gitconfig', '.config/git/config', 'xdg/git/config'] as $file) {
+                \putenv('XDG_CONFIG_HOME'.('xdg/git/config' === $file ? '='.$this->home->path('xdg') : ''));
+                new Filesystem()->remove([$this->home->path('.gitconfig'), $this->home->path('.config'), $this->home->path('xdg')]);
+                $config = UntrustedConfig::read($this->git, $this->project->dir);
+                $this->home->write($file, "[credential]\n\thelper = mine\n");
+                $this->assertFalse($config->isCurrent($this->git), $file);
+            }
+        } finally {
+            \putenv('HOME='.$home);
+            \putenv('XDG_CONFIG_HOME'.(false === $xdg ? '' : '='.$xdg));
+        }
     }
 
     /**
@@ -308,6 +340,7 @@ final class UntrustedConfigTest extends TestCase
     public function testAConditionalIncludeAndAHomeOneAreWatchedToo(): void
     {
         $home = \getenv('HOME');
+        \getenv('XDG_CONFIG_HOME');
         \putenv('HOME='.$this->home->dir);
         try {
             $this->project->git('config', 'includeIf.onbranch:main.path', '../branch.cfg');
