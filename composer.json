@@ -1,5 +1,5 @@
 {
-    "name": "porta/git",
+    "name": "janalis/porta-git",
     "description": "Git features that do not need the workbench: blame annotations",
     "type": "porta-plugin",
     "license": "MIT",
