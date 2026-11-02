@@ -2,6 +2,8 @@
 
 Git support is silently disabled outside a git working tree.
 
+![The Git view: the changed files and the diff of the selected one](/screenshots/plugin-git.svg)
+
 ## In the editor
 
 - **Change markers** in the gutter: added / modified / deleted vs `HEAD`,
