@@ -40,7 +40,7 @@ final class GitProcessRunner
     /**
      * $lane is optional and TRAILING so every direct construction — the tests,
      * and anything that only wants its own git — keeps working unchanged. What
-     * passes one is `plugin.php`, so that shutdown and the completion barrier
+     * passes one is `porta.php`, so that shutdown and the completion barrier
      * can reach these processes through {@see GitProcesses}.
      *
      * @param null|(\Closure(): ?string)|string $gitPath the configured `git` path, or a CLOSURE read per

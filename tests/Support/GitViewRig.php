@@ -283,7 +283,7 @@ trait GitViewRig
             $dispatcher,
             GitDoubles::diffPrefs($this->diffPrefs),
             $copy,
-            // Wired, because plugin.php wires it: with the nullable dependency
+            // Wired, because porta.php wires it: with the nullable dependency
             // left null the remote listener is a no-op, and a test of it can
             // only assert that nothing threw.
             $this->remoteCommands = new GitRemoteCommands(new GitRemote($this->project->dir, lane: $this->remoteLane = new ProcessLane()), $flash, $trans, $dispatcher, $modals, $repaint),

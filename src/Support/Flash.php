@@ -17,7 +17,7 @@ use Porta\Overlay\State\ToastSeverity;
  * plugin surface for the sake of one verb.
  *
  * So it is one closure behind a method per severity, built once in
- * `plugin.php` from `$api->notify(...)`. Every call site is unchanged except
+ * `porta.php` from `$api->notify(...)`. Every call site is unchanged except
  * for the type. A `$slot` makes a message replaceable in place (see
  * `PluginApi::notify()`).
  */

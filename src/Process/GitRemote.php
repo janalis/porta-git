@@ -45,7 +45,7 @@ final readonly class GitRemote
 
     /**
      * The lane is optional and TRAILING so direct construction keeps working;
-     * `plugin.php` passes {@see GitProcesses::$remote}, which is a lane of its
+     * `porta.php` passes {@see GitProcesses::$remote}, which is a lane of its
      * own for one reason: {@see cancelOperation()} must stop a hung fetch
      * without stopping the status poll, and {@see isBusy()} must mean "a remote
      * operation is running" rather than "git is running".

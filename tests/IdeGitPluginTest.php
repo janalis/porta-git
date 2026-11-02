@@ -98,7 +98,7 @@ final class IdeGitPluginTest extends TestCase
         // dispatches GitCommitted on this plugin's OWN dispatcher — the code
         // raising it cannot tell a core fact from an internal one — and every
         // observer, including this plugin's own gutter, listens on core's.
-        // Nothing connects them but the forwarder in plugin.php; drop it and
+        // Nothing connects them but the forwarder in porta.php; drop it and
         // the marks stay stale after a commit, with no error anywhere.
         $this->skipWithoutGit();
         $project = self::repo();

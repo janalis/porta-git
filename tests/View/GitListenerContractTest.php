@@ -20,7 +20,7 @@ use Porta\GitPlugin\View\GitWiring;
  * every event in `src/Event` has somewhere to land, and fourteen of these
  * events left `src/Event` with the plugin, so that guarantee went too.
  *
- * `plugin.php` now registers by looping {@see GitWiring}, so the map IS the
+ * `porta.php` now registers by looping {@see GitWiring}, so the map IS the
  * wiring — there is no second list to drift from. What this test adds is that
  * the map names real methods with matching signatures, and that no `on*`
  * handler exists which the map forgot: hand-registering seventeen of eighteen

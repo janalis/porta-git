@@ -34,7 +34,7 @@ use Symfony\Component\Tui\Widget\ContainerWidget;
  *
  * They exist because a plugin class can never be a container service, so
  * `Notifier`, `Translator`, `CodeEditorWidget` and `LayoutController` are all
- * out of reach; `plugin.php` builds each from `PluginApi`. A test wants the
+ * out of reach; `porta.php` builds each from `PluginApi`. A test wants the
  * same objects wired to something it can inspect, and hand-rolling them per
  * file is how four rigs drift apart.
  *

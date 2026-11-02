@@ -21,7 +21,7 @@ use Porta\Workbench\Menu\MenuModel;
  *
  * Two static lists rather than a constructor with a side effect: this used to
  * be an #[AsEager] service that pushed itself into `MenuContributions`, which
- * a plugin class can never be. `plugin.php` reads both and passes them to
+ * a plugin class can never be. `porta.php` reads both and passes them to
  * `PluginApi::registerMenu()`, where the visibility gate lives too.
  */
 final readonly class GitMenu

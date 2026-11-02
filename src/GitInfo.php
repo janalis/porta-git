@@ -35,7 +35,7 @@ final readonly class GitInfo
 
     /**
      * $lane is optional and TRAILING so direct construction keeps working;
-     * `plugin.php` passes {@see GitProcesses::$general}, which is what puts
+     * `porta.php` passes {@see GitProcesses::$general}, which is what puts
      * these processes inside the one shutdown and the one completion barrier.
      */
     /** @param null|(\Closure(): ?string)|string $gitPath read per call when a closure, so the setting is live */

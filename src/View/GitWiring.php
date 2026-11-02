@@ -36,7 +36,7 @@ use Porta\GitPlugin\GitRefresher;
  * nothing throws, a reaction simply never happens, and only a test that walked
  * that exact path would notice.
  *
- * So the map is data in one place. `plugin.php` loops over it to register, and
+ * So the map is data in one place. `porta.php` loops over it to register, and
  * `GitListenerContractTest` asserts it against the methods that actually exist
  * — in BOTH directions, so a listener that disappears fails and so does an
  * `on*` method added without being written down here. Hand-registering
@@ -46,7 +46,7 @@ use Porta\GitPlugin\GitRefresher;
 final class GitWiring
 {
     /**
-     * Widget → controller, on the dispatcher `plugin.php` owns.
+     * Widget → controller, on the dispatcher `porta.php` owns.
      *
      * @var array<class-string, string> event class => GitViewController method
      */
