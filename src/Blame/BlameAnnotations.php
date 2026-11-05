@@ -11,7 +11,7 @@ use Porta\Plugin\Api\PluginApi;
  * `sha author date` annotation from one batch `git blame --line-porcelain`.
  *
  * Re-applies on buffer switches and saves while enabled, because the editor
- * drops its annotations on every document show — which is exactly why
+ * drops its annotations when it shows another document — which is exactly why
  * {@see PluginApi::setLineAnnotations()} takes no path.
  *
  * Like the gutter marks this is computed against the file ON DISK, so it

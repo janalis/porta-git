@@ -417,7 +417,7 @@ final class BlameTest extends TestCase
         $blame = $this->openCommittedFile();
         $annotations = new BlameAnnotations($blame, $api, showByDefault: true);
 
-        // The editor drops annotations on every document show, which is exactly
+        // The editor drops annotations when it shows another document, which is exactly
         // why the hooks exist: nothing is showing until one fires.
         $this->assertSame([], $this->editor->decorations->lineAnnotations);
 
