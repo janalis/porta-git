@@ -233,6 +233,50 @@ final class GitViewControllerTest extends TestCase
         $this->assertSame([], $this->porcelain());
     }
 
+    /** Discard on a STAGED change goes back to HEAD: `restore` alone copied the index — the change — over itself, and said it was done. */
+    public function testDiscardingAStagedChangeGoesBackToHead(): void
+    {
+        $controller = $this->controller();
+        $this->project->write('a.txt', "staged edit\n");
+        $this->project->write('new.txt', "brand new\n");
+        $this->project->git('add', 'a.txt', 'new.txt');
+        $controller->open();
+        $this->await(fn (): bool => null !== $this->changes->selectedEntry());
+
+        foreach (['a.txt', 'new.txt'] as $path) {
+            $entry = \array_find(Probe::get($controller, 'entries'), static fn (ChangeEntry $e): bool => $path === $e->path);
+            $this->assertInstanceOf(ChangeEntry::class, $entry);
+            Probe::get($controller, 'staging')->discard($entry, static function (): void {});
+            $this->await(fn (): bool => \str_contains($this->statusRow($this->statusBar, 160), 'Discarded changes to '.$path));
+        }
+
+        $this->assertSame("one\ntwo\n", \file_get_contents($this->project->path('a.txt')), 'the staged edit is gone, index and disk');
+        $this->assertFileDoesNotExist($this->project->path('new.txt'), 'the staged new file is gone, as an untracked one would be');
+        $this->assertSame([], $this->porcelain());
+    }
+
+    /** A staged rename discards back to its old name; unstaged, both sides leave the index, not only the new name. */
+    public function testAStagedRenameDiscardsAndUnstagesWhole(): void
+    {
+        $controller = $this->controller();
+        $this->project->git('mv', 'a.txt', 'b.txt');
+        $controller->open();
+        $this->await(fn (): bool => null !== $this->changes->selectedEntry());
+        $rename = $this->changes->selectedEntry();
+        $this->assertSame('a.txt', $rename?->renamedFrom, 'the premise: one rename entry');
+
+        Probe::invoke($controller, 'toggleStage', $rename);
+        $this->await(fn (): bool => ['?? b.txt', ' D a.txt'] === $this->porcelain() || [' D a.txt', '?? b.txt'] === $this->porcelain(), what: 'both sides unstaged');
+
+        $this->project->git('add', '-A');
+        $controller->refresh();
+        $this->await(fn (): bool => 'a.txt' === $this->changes->selectedEntry()?->renamedFrom);
+        Probe::get($controller, 'staging')->discard($this->changes->selectedEntry(), static function (): void {});
+        $this->await(fn (): bool => [] === $this->porcelain(), what: 'back to HEAD');
+        $this->assertFileExists($this->project->path('a.txt'));
+        $this->assertFileDoesNotExist($this->project->path('b.txt'));
+    }
+
     public function testCommitSuccessAndFailurePaths(): void
     {
         $controller = $this->controller();

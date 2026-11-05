@@ -98,7 +98,9 @@ final readonly class GitStagingService
         }
         $done = $this->afterStaging($onChanged);
 
-        StagedState::Full === $entry->stagedState() ? $this->git->unstageFile($abs, $done) : $this->git->stage($abs, $done);
+        StagedState::Full === $entry->stagedState()
+            ? $this->git->unstageFile($abs, $done, null === $entry->renamedFrom ? null : $this->paths->absolute($entry->renamedFrom))
+            : $this->git->stage($abs, $done);
     }
 
     /**
@@ -179,14 +181,26 @@ final readonly class GitStagingService
 
             return;
         }
-        $this->git->discardFile($this->paths->absolute($entry->path), function (Outcome $ok) use ($entry, $onChanged): void {
+        $done = function (Outcome $ok) use ($entry, $onChanged): void {
             $this->notifier->flash(
                 $ok->isOk()
                     ? $this->translator->trans('Discarded changes to %path%', ['%path%' => $entry->path])
                     : $this->translator->trans('Discard failed'),
             );
             $onChanged();
-        });
+        };
+        $abs = $this->paths->absolute($entry->path);
+        match (true) {
+            // Only in the worktree: the index has what to go back to.
+            ' ' === $entry->indexStatus => $this->git->discardFile($abs, $done),
+            // New in the index: there is no HEAD copy; it goes, as an untracked one does.
+            'A' === $entry->indexStatus => $this->git->discardAdded($abs, $done),
+            // A rename: the old name back from HEAD, the new one gone.
+            null !== $entry->renamedFrom => $this->git->discardAdded($abs, function (Outcome $ok) use ($entry, $done): void {
+                $ok->isOk() ? $this->git->discardToHead([$this->paths->absolute($entry->renamedFrom)], $done) : $done($ok);
+            }),
+            default => $this->git->discardToHead([$abs], $done),
+        };
     }
 
     /**

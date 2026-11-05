@@ -319,9 +319,13 @@ final readonly class GitInfo
      *
      * @param callable(Outcome): void $onDone
      */
-    public function unstageFile(string $absPath, callable $onDone): void
+    public function unstageFile(string $absPath, callable $onDone, ?string $renamedFromAbs = null): void
     {
-        $this->runner->runStatus(['restore', '--staged', '--', $absPath], static fn (int $code) => $onDone(Outcome::of(0 === $code)));
+        // A staged rename is the new name AND the old one's deletion: both
+        // sides go, or the deletion stays staged and the next commit records
+        // only that.
+        $paths = null === $renamedFromAbs ? [$absPath] : [$absPath, $renamedFromAbs];
+        $this->runner->runStatus(['restore', '--staged', '--', ...$paths], static fn (int $code) => $onDone(Outcome::of(0 === $code)));
     }
 
     /**
@@ -333,6 +337,30 @@ final readonly class GitInfo
     public function discardFile(string $absPath, callable $onDone): void
     {
         $this->runner->runStatus(['restore', '--', $absPath], static fn (int $code) => $onDone(Outcome::of(0 === $code)));
+    }
+
+    /**
+     * Throw away a STAGED change too, back to HEAD in the index and the
+     * worktree: `restore` alone copies the index over the worktree, which for
+     * a staged change is the change itself — "Discarded", and nothing moved.
+     *
+     * @param list<string>            $absPaths
+     * @param callable(Outcome): void $onDone
+     */
+    public function discardToHead(array $absPaths, callable $onDone): void
+    {
+        $this->runner->runStatus(['restore', '--source=HEAD', '--staged', '--worktree', '--', ...$absPaths], static fn (int $code) => $onDone(Outcome::of(0 === $code)));
+    }
+
+    /**
+     * Throw away a file that is new in the index: out of the index and off
+     * the disk, as discarding an untracked file deletes it.
+     *
+     * @param callable(Outcome): void $onDone
+     */
+    public function discardAdded(string $absPath, callable $onDone): void
+    {
+        $this->runner->runStatus(['rm', '-f', '--', $absPath], static fn (int $code) => $onDone(Outcome::of(0 === $code)));
     }
 
     /**
