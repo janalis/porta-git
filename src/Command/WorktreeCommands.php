@@ -11,6 +11,7 @@ use Porta\GitPlugin\Support\Flash;
 use Porta\GitPlugin\Support\Modals;
 use Porta\GitPlugin\Support\Translate;
 use Porta\GitPlugin\Worktree;
+use Porta\Support\Files;
 use Porta\Support\Outcome;
 use Porta\Ui\Glyphs;
 
@@ -105,7 +106,7 @@ final readonly class WorktreeCommands
     /** Whether $worktree is the one this session has open. */
     public function isCurrent(Worktree $worktree): bool
     {
-        return self::canonical($worktree->path) === self::canonical($this->rootDir);
+        return Files::canonical($worktree->path) === Files::canonical($this->rootDir);
     }
 
     /**
@@ -419,12 +420,5 @@ final readonly class WorktreeCommands
         $shown = PortaHome::tilde($path);
 
         return \mb_strlen($shown) <= self::TITLE_PATH ? $shown : '…/'.\basename(\dirname($path)).'/'.\basename($path);
-    }
-
-    private static function canonical(string $path): string
-    {
-        $real = \realpath($path);
-
-        return false === $real ? $path : $real;
     }
 }
