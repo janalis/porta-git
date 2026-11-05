@@ -68,6 +68,27 @@ final class GitStagingServiceTest extends TestCase
         $this->assertStringContainsString('Deleted', $this->flashText($status));
     }
 
+    /** A nested clone or a worktree is one untracked entry to git: discarding it would take a whole repository, uncommitted work and all. */
+    public function testDiscardingANestedRepositoryOrWorktreeDeletesNothing(): void
+    {
+        $project = new TempProject([
+            'clone/.git/HEAD' => "ref: refs/heads/main\n",
+            'clone/work.php' => 'mine',
+            '.worktrees/feat/.git' => "gitdir: ../../.git/worktrees/feat\n",
+            '.worktrees/feat/a.php' => 'wip',
+        ]);
+        $status = new StatusBarWidget();
+        $service = $this->service($project->dir, $status);
+
+        foreach (['clone/', '.worktrees/feat/'] as $path) {
+            $service->discard(new ChangeEntry($path, '?', '?'), static function (): void {});
+            $this->assertStringContainsString('is a git repository of its own', $this->statusRow($status, 160));
+        }
+
+        $this->assertFileExists($project->path('clone/work.php'));
+        $this->assertFileExists($project->path('.worktrees/feat/a.php'));
+    }
+
     public function testStagingASelectionFromAnUntrackedDiffRefusesWithGuidance(): void
     {
         // Untracked files have no partial (index) form — this guard exists so

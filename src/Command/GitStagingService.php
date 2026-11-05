@@ -147,6 +147,12 @@ final readonly class GitStagingService
         };
     }
 
+    /** Whether $path is a folder holding a repository of its own: a clone, or a worktree's `.git` file. */
+    private static function holdsARepository(string $path): bool
+    {
+        return \is_dir($path) && \file_exists($path.'/.git');
+    }
+
     /**
      * Discard a file's working-tree changes; an untracked file is deleted.
      *
@@ -154,6 +160,14 @@ final readonly class GitStagingService
      */
     public function discard(ChangeEntry $entry, \Closure $onChanged): void
     {
+        if ($entry->isUntracked() && self::holdsARepository($this->paths->absolute($entry->path))) {
+            // git does not look inside a nested repository: another clone, or a
+            // linked worktree under a relative worktreeFolder, is ONE untracked
+            // entry — and deleting it took its uncommitted work and its .git.
+            $this->notifier->warn($this->translator->trans('%path% is a git repository of its own — not deleted', ['%path%' => $entry->path]));
+
+            return;
+        }
         if ($entry->isUntracked()) {
             // @mago-expect lint:no-empty-catch-clause -- best-effort delete: a vanished or unremovable file still flashes below
             try {

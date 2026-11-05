@@ -902,6 +902,10 @@
         <source>%file% still has conflict markers: resolve them first</source>
         <target>%file% enthält noch Konfliktmarker: zuerst lösen</target>
       </trans-unit>
+      <trans-unit id="240">
+        <source>%path% is a git repository of its own — not deleted</source>
+        <target>%path% ist ein eigenes Git-Repository — nicht gelöscht</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
