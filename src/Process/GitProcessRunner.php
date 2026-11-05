@@ -83,20 +83,26 @@ final class GitProcessRunner
     }
 
     /**
-     * The child's environment: inherited as is, or — for an untrusted
-     * repository — with its attributes read from the empty tree, and with
-     * $extra on top. Per spawn, so a PATH changed since boot is the one git
+     * The child's environment: inherited, with paths read literally — and,
+     * for an untrusted repository, its attributes read from the empty tree —
+     * and $extra on top. Per spawn, so a PATH changed since boot is the one git
      * sees.
      *
      * @param array<string, string> $extra
      *
-     * @return array<string, string>|null
+     * @return array<string, string>
      */
-    private function environment(array $extra = []): ?array
+    private function environment(array $extra = []): array
     {
-        $own = $this->trusted ? $extra : ['GIT_ATTR_SOURCE' => UntrustedConfig::EMPTY_TREE, ...$extra];
+        // Every path is a file's name, never a pattern: read as a pathspec,
+        // `pages/[id].tsx` also matched `pages/i.tsx` and `pages/d.tsx`, and a
+        // discard of one threw away the others' changes.
+        $own = ['GIT_LITERAL_PATHSPECS' => '1', ...$extra];
+        if (!$this->trusted) {
+            $own = ['GIT_ATTR_SOURCE' => UntrustedConfig::EMPTY_TREE, ...$own];
+        }
 
-        return [] === $own ? null : [...\getenv(), ...$own];
+        return [...\getenv(), ...$own];
     }
 
     public function isAvailable(): bool

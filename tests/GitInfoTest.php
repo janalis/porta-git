@@ -186,6 +186,32 @@ final class GitInfoTest extends TestCase
         $this->assertSame('lint failed: a.txt', $said, "the hook's last word, where it was nothing");
     }
 
+    /** A path is a file's name, not a pattern: discarding `[id].txt` must leave `i.txt` and `d.txt` alone. */
+    public function testAPathWithBracketsIsReadLiterally(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['[id].txt' => "route\n", 'i.txt' => "i\n", 'd.txt' => "d\n"]);
+        $this->gitInit($project);
+        $project->git('add', '-A');
+        $project->git('commit', '-q', '-m', 'init');
+        foreach (['[id].txt', 'i.txt', 'd.txt'] as $file) {
+            $project->write($file, "changed\n");
+        }
+        $git = new GitInfo($project->dir);
+
+        $done = null;
+        $git->discardFile($project->path('[id].txt'), static function (Outcome $ok) use (&$done): void {
+            $done = $ok->isOk();
+        });
+        $this->await(static function () use (&$done): bool {
+            return null !== $done;
+        });
+
+        $this->assertSame("route\n", \file_get_contents($project->path('[id].txt')));
+        $this->assertSame("changed\n", \file_get_contents($project->path('i.txt')), 'not matched by the brackets');
+        $this->assertSame("changed\n", \file_get_contents($project->path('d.txt')));
+    }
+
     public function testIsBusyTracksInFlightOperations(): void
     {
         if (null === $this->whichGit()) {
