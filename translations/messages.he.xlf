@@ -6,10 +6,6 @@
         <source>%count% changed file|%count% changed files</source>
         <target>%count% קובץ ששונה|%count% קבצים ששונו</target>
       </trans-unit>
-      <trans-unit id="6">
-        <source>Commit failed (nothing staged?)</source>
-        <target>הקומיט נכשל (שום דבר לא הועלה?)</target>
-      </trans-unit>
       <trans-unit id="7">
         <source>Commit failed: %summary%</source>
         <target>הקומיט נכשל: %summary%</target>

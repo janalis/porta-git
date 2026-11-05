@@ -56,11 +56,11 @@ final readonly class GitCommands
             if ('' === \trim($message)) {
                 return;
             }
-            $this->git->commit($message, function (Outcome $ok) use ($message): void {
+            $this->git->commit($message, function (Outcome $ok, string $said) use ($message): void {
                 $this->notifier->flash(
                     $ok->isOk()
                         ? $this->translator->trans('Committed: %summary%', ['%summary%' => $message])
-                        : $this->translator->trans('Commit failed (nothing staged?)'),
+                        : $this->translator->trans('Commit failed: %summary%', ['%summary%' => $said]),
                 );
                 $this->refresher->refreshBranch();
                 $this->dispatcher->dispatch(new WorkingTreeChanged());

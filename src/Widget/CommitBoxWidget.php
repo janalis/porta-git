@@ -205,8 +205,8 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
     public function commitEnabled(): bool
     {
-        if ('' === $this->summary->value()) {
-            return false;
+        if ('' === \trim($this->summary->value())) {
+            return false; // spaces only: git refuses an empty message
         }
 
         // Amending only the message needs no staged changes.

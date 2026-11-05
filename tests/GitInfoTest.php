@@ -161,6 +161,31 @@ final class GitInfoTest extends TestCase
         $this->assertTrue($committed, 'git commit succeeded');
     }
 
+    /** A refused commit says why: a hook's words, git's own error — both on stderr, which the flash used to drop. */
+    public function testARefusedCommitSaysWhy(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject([]);
+        $this->gitInit($project);
+        $project->write('a.txt', "first\n");
+        $this->gitCommit($project, 'a.txt');
+        $project->write('.git/hooks/pre-commit', "#!/bin/sh\necho 'checking style' >&2\necho 'lint failed: a.txt' >&2\nexit 1\n");
+        \chmod($project->path('.git/hooks/pre-commit'), permissions: 0o755);
+        $project->write('a.txt', "first\nsecond\n");
+        $project->git('add', 'a.txt');
+        $git = new GitInfo($project->dir);
+
+        $said = null;
+        $git->commit('add second line', static function (Outcome $ok, string $out) use (&$said): void {
+            $said = $ok->isOk() ? 'committed' : $out;
+        });
+        $this->await(static function () use (&$said): bool {
+            return null !== $said;
+        });
+
+        $this->assertSame('lint failed: a.txt', $said, "the hook's last word, where it was nothing");
+    }
+
     public function testIsBusyTracksInFlightOperations(): void
     {
         if (null === $this->whichGit()) {

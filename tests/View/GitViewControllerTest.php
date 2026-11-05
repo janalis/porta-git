@@ -322,6 +322,21 @@ final class GitViewControllerTest extends TestCase
         $this->assertFalse($this->commitBox->commitEnabled(), 'nothing staged: the predicate says no');
     }
 
+    /** A conflict left: git refuses to commit, so the button does not offer it — a `UU` entry used to read as partly staged. */
+    public function testCommitStaysDisabledWhileAConflictIsLeft(): void
+    {
+        $controller = $this->controller();
+        $this->project->write('b.txt', "staged\n");
+        $this->project->git('add', 'b.txt');
+        $controller->open();
+        $this->await(fn (): bool => null !== $this->changes->selectedEntry());
+        Probe::set($controller, 'entries', [...Probe::get($controller, 'entries'), new ChangeEntry('c.txt', 'U', 'U')]);
+
+        $this->commitBox->setFocused(true);
+        $this->commitBox->handleInput('x');
+        $this->assertFalse($this->commitBox->commitEnabled());
+    }
+
     public function testStageFailureFlashes(): void
     {
         $controller = $this->controller();

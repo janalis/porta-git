@@ -51,6 +51,10 @@ final class CommitBoxWidgetTest extends TestCase
     {
         $widget = $this->widget();
         $this->assertFalse($widget->commitEnabled(), 'empty summary disables commit');
+        $this->type($widget, '   ');
+        $this->assertFalse($widget->commitEnabled(), 'spaces only: git would refuse the empty message');
+        $widget->resetField();
+        $widget->clear();
 
         $this->type($widget, 'Fix parser');
         $this->assertTrue($widget->commitEnabled());

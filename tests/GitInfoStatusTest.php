@@ -357,7 +357,7 @@ final class GitInfoStatusTest extends TestCase
                 ['checkout', false, 'git is not available'],
                 ['files', []],
                 ['show', ''],
-                ['commit', false, ''],
+                ['commit', false, 'git is not available'],
                 ['last', ''],
                 ['undo', false],
             ],

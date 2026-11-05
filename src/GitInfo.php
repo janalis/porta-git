@@ -388,7 +388,22 @@ final readonly class GitInfo
     {
         $head = CommitMode::Amend === $mode ? ['commit', '--amend'] : ['commit'];
         $args = [...$head, ...$this->commitFlags(), '-m', $message];
-        $this->runner->runStatus($args, static fn (int $code, string $out) => $onDone(Outcome::of(0 === $code), \trim($out)));
+        // What a refusal says goes to stderr — a hook's output, gpg, the index
+        // lock, unmerged files — and stdout alone left `Commit failed: ` with
+        // nothing after it.
+        $this->runner->runCapturing($args, static fn (Outcome $ok, string $out, string $errors) => $onDone($ok, $ok->isOk() ? \trim($out) : self::refusal($errors, $out)));
+    }
+
+    /**
+     * Why git refused: its own `error:` or `fatal:` line when it gave one,
+     * else the last line a hook printed, else what stdout said.
+     */
+    private static function refusal(string $errors, string $out): string
+    {
+        $lines = \array_values(\array_filter(\array_map(\trim(...), \explode("\n", $errors)), static fn (string $line): bool => '' !== $line && !\str_starts_with($line, 'hint:')));
+        $own = \array_find($lines, static fn (string $line): bool => 1 === \preg_match('/^(error|fatal):/', $line));
+
+        return $own ?? \array_last($lines) ?? \trim($out);
     }
 
     /**

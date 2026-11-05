@@ -1121,9 +1121,17 @@ final class GitViewController implements ContributedView
         $this->panes->commitBox->setCommitTarget($this->repository?->branch(), \count($staged));
     }
 
+    /**
+     * Whether a commit can go: something staged, and no conflict left — git
+     * refuses to commit while any file is unmerged, and a `UU` entry read as
+     * partly staged lit the button for a commit that could only fail.
+     */
     private function hasStagedChanges(): bool
     {
-        return \array_any($this->entries, static fn (ChangeEntry $entry): bool => StagedState::None !== $entry->stagedState());
+        return (
+            !\array_any($this->entries, static fn (ChangeEntry $entry): bool => $entry->isUnmerged())
+            && \array_any($this->entries, static fn (ChangeEntry $entry): bool => StagedState::None !== $entry->stagedState())
+        );
     }
 
     /** Tab order: changes list → diff → commit box → changes list (history: commits → files → diff). */
