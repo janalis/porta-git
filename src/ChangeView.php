@@ -18,7 +18,10 @@ use Porta\Plugin\Api\PluginApi;
  *
  * The revert works in the BUFFER, as one undo step, and only when the buffer
  * still holds what the change added: the hunks are the file on disk's, and a
- * buffer edited since would have the wrong lines replaced.
+ * buffer edited since would have the wrong lines replaced. A pure deletion
+ * added nothing to check, so the lines either side of it are checked against
+ * the disk instead — or the removed lines would go back wherever the edits
+ * had moved that line number to.
  */
 final readonly class ChangeView
 {
@@ -52,12 +55,51 @@ final readonly class ChangeView
                 \array_values(\array_filter($hunk->lines, static fn (DiffLine $line): bool => '-' === $line->origin || '+' === $line->origin)),
             );
             $items = [...$items, ...$lines];
-            $this->api->pick($this->api->trans('Change at line %line%', ['%line%' => $caret['line'] + 1]), $items, function (string $choice) use ($hunk): void {
+            $this->api->pick($this->api->trans('Change at line %line%', ['%line%' => $caret['line'] + 1]), $items, function (string $choice) use ($hunk, $path): void {
                 if ('revert' === $choice) {
-                    $this->revert($hunk);
+                    $this->revert($hunk, $path);
                 }
             });
         });
+    }
+
+    /**
+     * The hunk's lines of one origin, as the buffer holds them: without the
+     * `\r` a CRLF file's lines keep in git's output — the ending is the writer's.
+     *
+     * @return list<string>
+     */
+    private static function texts(DiffHunk $hunk, string $origin): array
+    {
+        $lines = \array_filter($hunk->lines, static fn (DiffLine $line): bool => $origin === $line->origin);
+
+        return \array_values(\array_map(static fn (DiffLine $line): string => \rtrim($line->text, characters: "\r"), $lines));
+    }
+
+    /**
+     * The line a deletion follows and the one after it.
+     *
+     * @param list<string> $lines
+     *
+     * @return list<string>
+     */
+    private static function around(array $lines, int $at): array
+    {
+        return \array_slice($lines, \max(0, $at - 1), length: 2);
+    }
+
+    /**
+     * The file on disk's lines as a buffer holds them: no byte-order mark, no
+     * line ending.
+     *
+     * @return list<string>
+     */
+    private static function diskLines(string $path): array
+    {
+        $bytes = \is_file($path) ? (string) \file_get_contents($path) : '';
+        $bytes = \str_starts_with($bytes, "\u{FEFF}") ? \substr($bytes, offset: 3) : $bytes;
+
+        return \explode("\n", \str_replace(["\r\n", "\r"], replace: "\n", subject: $bytes));
     }
 
     /** Whether the change covers a 0-based buffer line — a deletion covers the line the gutter marks for it. */
@@ -69,13 +111,16 @@ final readonly class ChangeView
     }
 
     /** Put back what the change removed in place of what it added — one undo step, in the buffer. */
-    private function revert(DiffHunk $hunk): void
+    private function revert(DiffHunk $hunk, string $path): void
     {
         $lines = \explode("\n", (string) $this->api->documentText());
-        $removed = \array_values(\array_map(static fn (DiffLine $line): string => $line->text, \array_filter($hunk->lines, static fn (DiffLine $line): bool => '-' === $line->origin)));
-        $added = \array_values(\array_map(static fn (DiffLine $line): string => $line->text, \array_filter($hunk->lines, static fn (DiffLine $line): bool => '+' === $line->origin)));
+        $removed = self::texts($hunk, '-');
+        $added = self::texts($hunk, '+');
         $at = 0 === $hunk->newCount ? $hunk->newStart : $hunk->newStart - 1;
-        if (\array_slice($lines, $at, \count($added)) !== $added) {
+        $held = [] === $added
+            ? self::around($lines, $at) === self::around(self::diskLines($path), $at)
+            : \array_slice($lines, $at, \count($added)) === $added;
+        if (!$held) {
             $this->api->notify($this->api->trans('The buffer has changed since; save it and try again'), ToastSeverity::Warn);
 
             return;

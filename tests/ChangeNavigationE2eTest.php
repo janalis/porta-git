@@ -146,12 +146,91 @@ final class ChangeNavigationE2eTest extends TestCase
                     $editor = Widgets::editor($tui);
                     $this->await(static fn (): bool => [] !== $editor->decorations->vcsMarks, what: 'the deletion to be marked');
                     $this->assertSame([0], \array_keys($editor->decorations->vcsMarks), 'on the line above it');
+                    $commands = Services::resolve($ide, CommandRegistry::class);
 
-                    Services::resolve($ide, CommandRegistry::class)->run('git_show_change');
+                    // A deletion adds no lines to check, so the lines either
+                    // side of it are, against the disk. Unsaved, a line typed
+                    // above it: the disk's line 2 is the buffer's 3 now.
+                    $editor->getDocument()->setCursor(0, 0);
+                    $editor->getDocument()->insert("z\n");
+                    $editor->getDocument()->setCursor(0, 0);
+                    $commands->run('git_show_change');
+                    $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
+                    $editor->handleInput("\r");
+                    $this->assertSame("z\na\nc\n", $editor->getDocument()->getText(), 'b is not put back between z and a');
+                    $this->assertContains('The buffer has changed since; save it and try again', Toasts::all($ide));
+                    $editor->runAction('undo');
+                    $this->assertSame("a\nc\n", $editor->getDocument()->getText());
+
+                    $commands->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
                     $this->assertSame(['Revert this change', '− b'], \array_column(Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['items'], 'label'));
                     $editor->handleInput("\r");
                     $this->assertSame("a\nb\nc\n", $editor->getDocument()->getText());
+                },
+            ],
+        );
+    }
+
+    /**
+     * git's lines of a CRLF file end in `\r`, and the file on disk starts with
+     * its byte-order mark; the buffer's lines have neither.
+     */
+    public function testACrlfFilesChangesRevert(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "\u{FEFF}a\r\nx\r\nb\r\nc\r\nd\r\n"]);
+        $project->initGit();
+        $project->commitAll('init');
+        $project->write('a.txt', "\u{FEFF}a\r\nb\r\nC\r\nd\r\n");
+
+        $this->runIde(
+            $project,
+            $project->path('a.txt'),
+            [
+                400 => function (Tui $tui, $terminal, Ide $ide): void {
+                    $editor = Widgets::editor($tui);
+                    $this->await(static fn (): bool => 2 === \count($editor->decorations->vcsMarks), what: 'the two changes to be marked');
+                    $commands = Services::resolve($ide, CommandRegistry::class);
+
+                    $editor->getDocument()->setCursor(2, 0); // C, which was c
+                    $commands->run('git_show_change');
+                    $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
+                    $editor->handleInput("\r");
+                    $this->assertSame("a\nb\nc\nd\n", $editor->getDocument()->getText());
+
+                    $editor->getDocument()->setCursor(0, 0); // x was deleted under a
+                    $commands->run('git_show_change');
+                    $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the deletion to show');
+                    $editor->handleInput("\r");
+                    $this->assertSame("a\nx\nb\nc\nd\n", $editor->getDocument()->getText());
+                },
+            ],
+        );
+    }
+
+    /** Deleted on disk under its open buffer: there is no disk to check a deletion against. */
+    public function testAFileGoneFromDiskIsNotPutBack(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "a\nb\n"]);
+        $project->initGit();
+        $project->commitAll('init');
+
+        $this->runIde(
+            $project,
+            $project->path('a.txt'),
+            [
+                400 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
+                    $editor = Widgets::editor($tui);
+                    \unlink($project->path('a.txt'));
+                    $editor->getDocument()->setCursor(0, 0);
+
+                    Services::resolve($ide, CommandRegistry::class)->run('git_show_change');
+                    $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the whole file shown as deleted');
+                    $editor->handleInput("\r");
+                    $this->assertSame("a\nb\n", $editor->getDocument()->getText());
+                    $this->assertContains('The buffer has changed since; save it and try again', Toasts::all($ide));
                 },
             ],
         );
