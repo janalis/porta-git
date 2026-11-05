@@ -119,10 +119,35 @@ final readonly class GitRemote
         $this->run(['push'], $onDone);
     }
 
-    /** @param callable(Outcome, string): void $onDone */
+    /**
+     * Push a branch that has no upstream yet, and make the remote's its
+     * upstream. To the repository's one remote, whatever it is called; among
+     * several, to `origin` — a remote of another name is a choice to ask
+     * for, and git's refusal names the one it did not find.
+     *
+     * @param callable(Outcome, string): void $onDone
+     */
     public function pushSetUpstream(callable $onDone): void
     {
-        $this->run(['push', '-u', 'origin', 'HEAD'], $onDone);
+        $git = $this->binary();
+        $listed =
+            null !== $git
+            && $this->repository
+            && $this->lane->start(
+                // Reads the config and runs nothing: no untrusted-repository rules to apply.
+                new AsyncProcess([$git, '-C', $this->rootDir, 'remote'], $this->rootDir, timeout: self::TIMEOUT),
+                fn (int $code, string $out) => $this->run(['push', '-u', self::upstreamRemote($out), 'HEAD'], $onDone),
+            );
+        if (!$listed) {
+            $this->run(['push', '-u', 'origin', 'HEAD'], $onDone); // which says why git cannot run
+        }
+    }
+
+    private static function upstreamRemote(string $listed): string
+    {
+        $remotes = \preg_split('/\R/', \trim($listed), flags: \PREG_SPLIT_NO_EMPTY);
+
+        return false !== $remotes && 1 === \count($remotes) ? $remotes[0] : 'origin';
     }
 
     public function cancelAll(): void

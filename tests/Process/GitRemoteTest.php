@@ -230,6 +230,30 @@ final class GitRemoteTest extends TestCase
         $this->assertStringContainsString('feature', $this->git($this->bare, 'branch'), 'the branch reached origin');
     }
 
+    public function testSetUpstreamPushesToTheOneRemoteWhateverItsName(): void
+    {
+        $remote = $this->remotes();
+        $this->git($this->clone2, 'remote rename origin upstream');
+        $this->git($this->clone2, 'checkout -qb feature');
+
+        $result = $this->awaitOutcome($remote->pushSetUpstream(...));
+
+        $this->assertTrue($result['ok'], $result['out']);
+        $this->assertStringContainsString('upstream/feature', $this->git($this->clone2, 'rev-parse --abbrev-ref @{upstream}'));
+    }
+
+    public function testAmongSeveralRemotesSetUpstreamPushesToOrigin(): void
+    {
+        $remote = $this->remotes();
+        $this->git($this->clone2, 'remote add mirror /nonexistent-mirror');
+        $this->git($this->clone2, 'checkout -qb feature');
+
+        $result = $this->awaitOutcome($remote->pushSetUpstream(...));
+
+        $this->assertTrue($result['ok'], $result['out']);
+        $this->assertStringContainsString('origin/feature', $this->git($this->clone2, 'rev-parse --abbrev-ref @{upstream}'));
+    }
+
     public function testUnreachableRemoteFailsWithStderr(): void
     {
         $remote = $this->remotes();
