@@ -37,6 +37,14 @@ final class GitProcessRunner
 
     private readonly ProcessLane $lane;
 
+    /** The verbs that write the index, and so take `index.lock`: run one at a time ({@see inTurn()}). */
+    private const array INDEX_WRITERS = ['add', 'restore', 'apply', 'commit', 'reset', 'rm', 'mv', 'checkout', 'switch', 'stash', 'merge', 'rebase', 'cherry-pick', 'revert', 'am'];
+
+    private bool $writing = false;
+
+    /** @var list<\Closure(\Closure(): void): void> index writers waiting their turn */
+    private array $waiting = [];
+
     /**
      * $lane is optional and TRAILING so every direct construction — the tests,
      * and anything that only wants its own git — keeps working unchanged. What
@@ -127,7 +135,46 @@ final class GitProcessRunner
 
     public function cancelAll(): void
     {
+        $this->waiting = [];
+        $this->writing = false;
         $this->lane->cancelAll();
+    }
+
+    /**
+     * Run $start now, or — for a verb that writes the index while another
+     * such verb runs — once that one is done. Two at once raced for
+     * `index.lock`: Space, Down, Space staged one file and refused the other
+     * ("git refused the staging change"). Reads never wait.
+     *
+     * @param list<string>              $args
+     * @param \Closure(\Closure(): void): void $start called with what to run once its process has exited
+     */
+    private function inTurn(array $args, \Closure $start): void
+    {
+        if (!\in_array($args[0] ?? '', self::INDEX_WRITERS, strict: true)) {
+            $start(static function (): void {});
+
+            return;
+        }
+        if ($this->writing) {
+            $this->waiting[] = $start;
+
+            return;
+        }
+        $this->writing = true;
+        $start($this->nextWriter(...));
+    }
+
+    /** The running index writer is done: start the next one waiting, if any. */
+    private function nextWriter(): void
+    {
+        $next = \array_shift($this->waiting);
+        if (null === $next) {
+            $this->writing = false;
+
+            return;
+        }
+        $next($this->nextWriter(...));
     }
 
     /**
@@ -158,19 +205,26 @@ final class GitProcessRunner
             return;
         }
         $command = $this->command($git, $args);
-        $started = $this->lane->start(
-            new AsyncProcess($command, $this->rootDir, $stdin, env: $this->environment()),
-            static function (int $code, string $out) use ($onDone): void {
-                $onDone($code, $out);
-            },
-        );
-        if (!$started) {
-            // @codeCoverageIgnoreStart
-            $empty = '';
-            $onDone(1, $empty);
+        $this->inTurn($args, function (\Closure $done) use ($command, $stdin, $onDone): void {
+            $started = $this->lane->start(
+                new AsyncProcess($command, $this->rootDir, $stdin, env: $this->environment()),
+                static function (int $code, string $out) use ($onDone, $done): void {
+                    try {
+                        $onDone($code, $out);
+                    } finally {
+                        $done();
+                    }
+                },
+            );
+            if (!$started) {
+                // @codeCoverageIgnoreStart
+                $empty = '';
+                $onDone(1, $empty);
+                $done();
 
-            // @codeCoverageIgnoreEnd
-        }
+                // @codeCoverageIgnoreEnd
+            }
+        });
     }
 
     /**
@@ -229,20 +283,27 @@ final class GitProcessRunner
             return;
         }
         $command = $this->command($git, $args);
-        $started = $this->lane->start(
-            new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $this->environment($env)),
-            static function (int $code, string $out, AsyncProcess $process) use ($onDone): void {
-                $onDone(Outcome::of(0 === $code), $out, $process->errorOutput());
-            },
-        );
-        if (!$started) {
-            // @codeCoverageIgnoreStart
-            $none = '';
-            $reason = 'could not start git';
-            $onDone(Outcome::Failed, $none, $reason);
+        $this->inTurn($args, function (\Closure $done) use ($command, $env, $onDone): void {
+            $started = $this->lane->start(
+                new AsyncProcess($command, $this->rootDir, captureStderr: true, env: $this->environment($env)),
+                static function (int $code, string $out, AsyncProcess $process) use ($onDone, $done): void {
+                    try {
+                        $onDone(Outcome::of(0 === $code), $out, $process->errorOutput());
+                    } finally {
+                        $done();
+                    }
+                },
+            );
+            if (!$started) {
+                // @codeCoverageIgnoreStart
+                $none = '';
+                $reason = 'could not start git';
+                $onDone(Outcome::Failed, $none, $reason);
+                $done();
 
-            // @codeCoverageIgnoreEnd
-        }
+                // @codeCoverageIgnoreEnd
+            }
+        });
     }
 
     /**

@@ -212,6 +212,35 @@ final class GitInfoTest extends TestCase
         $this->assertSame("changed\n", \file_get_contents($project->path('d.txt')));
     }
 
+    /**
+     * Index writers take turns: two `git add`s at once raced for index.lock
+     * and one was refused. The second starts only once the first is done —
+     * and a read does not wait.
+     */
+    public function testIndexWritersRunOneAtATime(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject(['a.txt' => "a\n", 'b.txt' => "b\n"]);
+        $this->gitInit($project);
+        $git = new GitInfo($project->dir);
+        $lane = Probe::object($git, 'runner', 'lane');
+
+        $staged = [];
+        foreach (['a.txt', 'b.txt'] as $file) {
+            $git->stage($project->path($file), static function (Outcome $ok) use (&$staged, $file): void {
+                $staged[$file] = $ok->isOk();
+            });
+        }
+        $this->assertCount(1, Probe::get($lane, 'running'), 'the second add waits for the first');
+        $git->branch(static function (): void {});
+        $this->assertCount(2, Probe::get($lane, 'running'), 'a read does not wait');
+
+        $this->await(static function () use (&$staged): bool {
+            return 2 === \count($staged);
+        });
+        $this->assertSame(['a.txt' => true, 'b.txt' => true], $staged, 'both staged, neither refused');
+    }
+
     public function testIsBusyTracksInFlightOperations(): void
     {
         if (null === $this->whichGit()) {
