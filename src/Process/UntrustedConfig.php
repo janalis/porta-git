@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Process;
 
+use Porta\Support\Files;
 use Symfony\Component\Process\Exception\RuntimeException;
 use Symfony\Component\Process\Process;
 
@@ -245,7 +246,7 @@ final readonly class UntrustedConfig
     /** Where `HEAD` is: an `includeIf "onbranch:…"` follows it. A linked worktree's `.git` is a file naming its own. */
     private static function head(string $rootDir): string
     {
-        $link = \is_file($rootDir.'/.git') ? (string) \file_get_contents($rootDir.'/.git') : '';
+        $link = Files::read($rootDir.'/.git');
 
         return self::path($rootDir, \str_starts_with($link, 'gitdir: ') ? \trim(\substr($link, offset: 8)) : '.git').'/HEAD';
     }

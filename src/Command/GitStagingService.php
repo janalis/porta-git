@@ -16,6 +16,7 @@ use Porta\GitPlugin\Support\Flash;
 use Porta\GitPlugin\View\GitViewController;
 use Porta\GitPlugin\Widget\CommitBoxWidget;
 use Porta\I18n\Translator;
+use Porta\Support\Files;
 use Porta\Support\Outcome;
 use Porta\Support\ProjectPaths;
 use Porta\Support\Text;
@@ -205,8 +206,8 @@ final readonly class GitStagingService
     /** Whether the file on disk still holds any of a conflict — a whole block, or a marker one left. */
     private static function hasMarkers(string $abs): bool
     {
-        $text = \is_file($abs) ? \file_get_contents($abs) : false;
+        $text = Files::tryRead($abs);
 
-        return false !== $text && ConflictMarkers::unresolved(\explode("\n", $text));
+        return null !== $text && ConflictMarkers::unresolved(\explode("\n", $text));
     }
 }

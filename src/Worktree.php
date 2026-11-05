@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin;
 
+use Porta\Support\Files;
+
 /**
  * One working tree of the repository, as `git worktree list` reports it.
  * The main one is the clone itself; the others are linked to it, each with
@@ -52,8 +54,8 @@ final readonly class Worktree
     public static function linkedName(string $root): ?string
     {
         $file = $root.'/.git';
-        $text = \is_file($file) ? \file_get_contents($file) : false;
-        if (false === $text || !\str_starts_with($text, 'gitdir: ')) {
+        $text = Files::tryRead($file);
+        if (null === $text || !\str_starts_with($text, 'gitdir: ')) {
             return null;
         }
         $gitdir = \rtrim(\substr($text, \strlen('gitdir: ')));
