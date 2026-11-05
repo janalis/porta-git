@@ -906,6 +906,10 @@
         <source>Inside the repository %path% — open that folder to use git</source>
         <target>בתוך המאגר %path% — פתחו את התיקייה הזו כדי להשתמש ב-git</target>
       </trans-unit>
+      <trans-unit id="242">
+        <source>%path% has a conflict — resolve it, or abort the merge</source>
+        <target>ב-%path% יש התנגשות — פתרו אותה, או בטלו את המיזוג</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

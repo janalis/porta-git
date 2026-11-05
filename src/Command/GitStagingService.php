@@ -155,6 +155,23 @@ final readonly class GitStagingService
         return \is_dir($path) && \file_exists($path.'/.git');
     }
 
+    /** Why $entry is not discarded at all, or null. */
+    private function refusal(ChangeEntry $entry): ?string
+    {
+        return match (true) {
+            // git does not look inside a nested repository: another clone, or a
+            // linked worktree under a relative worktreeFolder, is ONE untracked
+            // entry — and deleting it took its uncommitted work and its .git.
+            $entry->isUntracked() && self::holdsARepository($this->paths->absolute($entry->path)) => $this->translator->trans('%path% is a git repository of its own — not deleted', [
+                '%path%' => $entry->path,
+            ]),
+            // A conflict has no one state to go back to: `AA` would be routed
+            // as an added file, and `git rm -f` took both sides with it.
+            $entry->isUnmerged() => $this->translator->trans('%path% has a conflict — resolve it, or abort the merge', ['%path%' => $entry->path]),
+            default => null,
+        };
+    }
+
     /**
      * Discard a file's working-tree changes; an untracked file is deleted.
      *
@@ -162,11 +179,9 @@ final readonly class GitStagingService
      */
     public function discard(ChangeEntry $entry, \Closure $onChanged): void
     {
-        if ($entry->isUntracked() && self::holdsARepository($this->paths->absolute($entry->path))) {
-            // git does not look inside a nested repository: another clone, or a
-            // linked worktree under a relative worktreeFolder, is ONE untracked
-            // entry — and deleting it took its uncommitted work and its .git.
-            $this->notifier->warn($this->translator->trans('%path% is a git repository of its own — not deleted', ['%path%' => $entry->path]));
+        $refused = $this->refusal($entry);
+        if (null !== $refused) {
+            $this->notifier->warn($refused);
 
             return;
         }

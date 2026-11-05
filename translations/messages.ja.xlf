@@ -906,6 +906,10 @@
         <source>Inside the repository %path% — open that folder to use git</source>
         <target>リポジトリ %path% の中です — git を使うにはそのフォルダーを開いてください</target>
       </trans-unit>
+      <trans-unit id="242">
+        <source>%path% has a conflict — resolve it, or abort the merge</source>
+        <target>%path% は競合しています — 解決するか、マージを中止してください</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

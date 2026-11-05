@@ -906,6 +906,10 @@
         <source>Inside the repository %path% — open that folder to use git</source>
         <target>Dans le dépôt %path% — ouvrez ce dossier pour utiliser git</target>
       </trans-unit>
+      <trans-unit id="242">
+        <source>%path% has a conflict — resolve it, or abort the merge</source>
+        <target>%path% est en conflit — résolvez-le, ou annulez la fusion</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

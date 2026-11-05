@@ -89,6 +89,21 @@ final class GitStagingServiceTest extends TestCase
         $this->assertFileExists($project->path('.worktrees/feat/a.php'));
     }
 
+    /** Both sides added it, or one deleted what the other changed: no state to discard back to. */
+    public function testDiscardingAConflictTouchesNothing(): void
+    {
+        $project = new TempProject(['both.php' => "<<<<<<< ours\n=======\n>>>>>>> theirs\n"]);
+        $status = new StatusBarWidget();
+        $service = $this->service($project->dir, $status);
+
+        foreach ([['A', 'A'], ['U', 'U'], ['D', 'U']] as [$index, $worktree]) {
+            $service->discard(new ChangeEntry('both.php', $index, $worktree), static function (): void {});
+            $this->assertStringContainsString('has a conflict', $this->statusRow($status, 160));
+        }
+
+        $this->assertFileExists($project->path('both.php'));
+    }
+
     public function testStagingASelectionFromAnUntrackedDiffRefusesWithGuidance(): void
     {
         // Untracked files have no partial (index) form — this guard exists so
