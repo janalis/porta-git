@@ -316,6 +316,12 @@ final class GitRemoteTest extends TestCase
             $result = ['ok' => $ok->isOk(), 'out' => $out];
         });
         $this->assertSame(['ok' => false, 'out' => 'git is not available'], $result);
+
+        $upstream = null;
+        $remote->pushSetUpstream(static function (Outcome $ok, string $out) use (&$upstream): void {
+            $upstream = ['ok' => $ok->isOk(), 'out' => $out];
+        });
+        $this->assertSame(['ok' => false, 'out' => 'git is not available'], $upstream, 'no remote listed to push to: the same answer');
     }
 
     public function testDivergedPullRebaseIntegrates(): void
