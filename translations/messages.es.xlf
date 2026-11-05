@@ -902,6 +902,10 @@
         <source>%path% is a git repository of its own — not deleted</source>
         <target>%path% es un repositorio git propio — no se borra</target>
       </trans-unit>
+      <trans-unit id="241">
+        <source>Inside the repository %path% — open that folder to use git</source>
+        <target>Dentro del repositorio %path%: abre esa carpeta para usar git</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

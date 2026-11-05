@@ -154,7 +154,8 @@ trait GitViewRig
      *                                            that force one call through a
      *                                            blocking shim to ORDER two answers
      */
-    private function controller(Presence $realRepo = Presence::With, int $historyPageSize = 200, ?\Closure $gitPath = null): GitViewController
+    /** @param string $folder the project's folder below the repository; '' is its root */
+    private function controller(Presence $realRepo = Presence::With, int $historyPageSize = 200, ?\Closure $gitPath = null, string $folder = ''): GitViewController
     {
         if (Presence::With === $realRepo && null === $this->whichGit()) {
             $this->markTestSkipped('git not available');
@@ -166,7 +167,11 @@ trait GitViewRig
             $this->project->initGit();
             $this->project->commitAll('init');
         }
-        $this->git = new GitInfo($this->project->dir, gitPath: $gitPath);
+        $root = '' === $folder ? $this->project->dir : $this->project->path($folder);
+        if (!\is_dir($root)) {
+            \mkdir($root);
+        }
+        $this->git = new GitInfo($root, gitPath: $gitPath);
 
         $this->dispatcher = new EventDispatcher();
         $dispatcher = $this->dispatcher;
@@ -213,10 +218,10 @@ trait GitViewRig
         $notifier = new Notifier($this->statusBar, $this->tui);
         $renderer = new Renderer(new StyleSheet());
         $this->layoutController = new LayoutController(
-            new LayoutStore($this->project->dir),
+            new LayoutStore($root),
             $this->tui,
             $renderer,
-            new FileTreeWidget($this->project->dir),
+            new FileTreeWidget($root),
             TestBottomDock::create($this->tui, new TerminalPanelWidget(), new ResultsPanelWidget(), new DebugPanelWidget()),
             new TabBarWidget(),
             // The controller declares its own sidebar when it mints the region,
@@ -241,11 +246,11 @@ trait GitViewRig
         $copy = new Clipboard($this->tui)->copy(...);
         $modals = GitDoubles::modals($this->editor);
 
-        $repository = GitDoubles::repository($this->git, $this->project->dir);
+        $repository = GitDoubles::repository($this->git, $root);
         $this->toolbar = new GitToolbarWidget(new Translator('en'), $repository, events: $dispatcher);
         $controller = new GitViewController(
             $this->git,
-            new ProjectPaths($this->project->dir),
+            new ProjectPaths($root),
             new GitPanes($this->changes, $this->diffView, $this->commitBox, $this->history, $this->tabs, $this->toolbar, $this->details, $this->header),
             $region,
             $host,
@@ -286,7 +291,7 @@ trait GitViewRig
             // Wired, because porta.php wires it: with the nullable dependency
             // left null the remote listener is a no-op, and a test of it can
             // only assert that nothing threw.
-            $this->remoteCommands = new GitRemoteCommands(new GitRemote($this->project->dir, lane: $this->remoteLane = new ProcessLane()), $flash, $trans, $dispatcher, $modals, $repaint),
+            $this->remoteCommands = new GitRemoteCommands(new GitRemote($root, lane: $this->remoteLane = new ProcessLane()), $flash, $trans, $dispatcher, $modals, $repaint),
             historyPageSize: $historyPageSize,
             repository: $repository,
         );

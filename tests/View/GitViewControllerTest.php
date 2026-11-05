@@ -1362,6 +1362,15 @@ final class GitViewControllerTest extends TestCase
         $this->assertSame('touch-a', $this->history->selectedCommit()?->subject);
     }
 
+    public function testOpenInsideARepositoryBelowItsRootSaysWhereGitWorks(): void
+    {
+        $controller = $this->controller(folder: 'frontend');
+        $controller->open();
+
+        $this->assertFalse($controller->isOpen(), 'git paths are the root\'s: nothing here would line up');
+        $this->assertStringContainsString('Inside the repository', $this->statusRow($this->statusBar));
+    }
+
     public function testFileHistoryOutsideARepositoryFlashesAndStaysClosed(): void
     {
         $controller = $this->controller(realRepo: Presence::Without);

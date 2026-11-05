@@ -39,6 +39,7 @@ use Porta\GitPlugin\Event\GitToolbarMenuRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
 use Porta\GitPlugin\GitInfo;
 use Porta\GitPlugin\LogEntry;
+use Porta\GitPlugin\Process\RepositoryAbove;
 use Porta\GitPlugin\RefreshScope;
 use Porta\GitPlugin\RepositoryState;
 use Porta\GitPlugin\Setting\DiffPrefs;
@@ -325,7 +326,12 @@ final class GitViewController implements ContributedView
             return;
         }
         if (!$this->git->isAvailable()) {
-            $this->notifier->flash($this->translator->trans('Not a git repository'));
+            $above = RepositoryAbove::of($this->paths->root());
+            $this->notifier->flash(
+                null === $above
+                    ? $this->translator->trans('Not a git repository')
+                    : $this->translator->trans('Inside the repository %path% — open that folder to use git', ['%path%' => $above]),
+            );
 
             return;
         }

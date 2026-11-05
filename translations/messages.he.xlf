@@ -902,6 +902,10 @@
         <source>%path% is a git repository of its own — not deleted</source>
         <target>%path% הוא מאגר git בפני עצמו — לא נמחק</target>
       </trans-unit>
+      <trans-unit id="241">
+        <source>Inside the repository %path% — open that folder to use git</source>
+        <target>בתוך המאגר %path% — פתחו את התיקייה הזו כדי להשתמש ב-git</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
