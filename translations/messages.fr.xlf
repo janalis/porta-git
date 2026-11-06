@@ -910,6 +910,10 @@
         <source>%path% has a conflict — resolve it, or abort the merge</source>
         <target>%path% est en conflit — résolvez-le, ou annulez la fusion</target>
       </trans-unit>
+      <trans-unit id="243">
+        <source>Binary files differ</source>
+        <target>Les fichiers binaires diffèrent</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

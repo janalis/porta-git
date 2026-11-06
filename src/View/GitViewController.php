@@ -422,7 +422,7 @@ final class GitViewController implements ContributedView
                 return; // closed before git answered
             }
             $document = DiffDocument::parse($raw);
-            $this->panes->diffView->setDocument($document->isEmpty() ? null : $document, $title, 'The two files are identical');
+            $this->panes->diffView->setDocument($document->isEmpty() ? null : $document, $title, $document->isBinary() ? 'Binary files differ' : 'The two files are identical');
             $this->host->invalidate();
         });
     }
@@ -616,7 +616,11 @@ final class GitViewController implements ContributedView
             $document = DiffDocument::parse($raw);
             $this->shownEntry = $entry;
             $this->shownDocument = $document->isEmpty() ? null : $document;
-            $this->panes->diffView->setDocument($this->shownDocument, $entry->path, $this->hideWhitespace ? 'No changes (whitespace hidden)' : 'No changes');
+            $this->panes->diffView->setDocument($this->shownDocument, $entry->path, match (true) {
+                $document->isBinary() => 'Binary files differ',
+                $this->hideWhitespace => 'No changes (whitespace hidden)',
+                default => 'No changes',
+            });
             $this->host->invalidate();
         };
 
@@ -1113,7 +1117,11 @@ final class GitViewController implements ContributedView
                     return;
                 }
                 $document = DiffDocument::parse($raw);
-                $this->panes->diffView->setDocument($document->isEmpty() ? null : $document, $path, $this->hideWhitespace ? 'No patch (whitespace hidden)' : 'No patch for this file');
+                $this->panes->diffView->setDocument($document->isEmpty() ? null : $document, $path, match (true) {
+                    $document->isBinary() => 'Binary files differ',
+                    $this->hideWhitespace => 'No patch (whitespace hidden)',
+                    default => 'No patch for this file',
+                });
                 $this->host->invalidate();
             },
             $this->hideWhitespace ? WhitespaceMode::Hidden : WhitespaceMode::Shown,
