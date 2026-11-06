@@ -97,6 +97,24 @@ final class GitListenerContractTest extends TestCase
         }
     }
 
+    public function testEveryPluginCommandEventHasItsOnePerformer(): void
+    {
+        // AGENTS.md's rule for a `…Requested` event — exactly one listener —
+        // which `EventListenerWiringTest` checks for `src/Event` only: these
+        // left it with the plugins. The view bus registers by looping the
+        // map, and a map's keys are unique, so "in it" is "exactly one";
+        // missing from it, the command lands nowhere.
+        $found = [];
+        foreach ([\dirname(__DIR__, levels: 2).'/src/Event', \dirname(__DIR__, levels: 3).'/diff/src/Event'] as $folder) {
+            $found = [...$found, ...((array) \glob($folder.'/*Requested.php'))];
+        }
+        $this->assertCount(13, $found, 'eight of git\'s, five of the diff pane\'s');
+        foreach ($found as $file) {
+            $class = (\str_contains($file, '/diff/') ? 'Porta\\DiffPlugin\\Event\\' : 'Porta\\GitPlugin\\Event\\').\basename($file, suffix: '.php');
+            $this->assertArrayHasKey($class, GitWiring::VIEW, $class.': a command names one thing to do, and nothing does it');
+        }
+    }
+
     /**
      * Every `on<Something>(SomeEvent)` public method on $class.
      *
