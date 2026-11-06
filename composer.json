@@ -1,6 +1,6 @@
 {
     "name": "janalis/porta-git",
-    "description": "Git features that do not need the workbench: blame annotations",
+    "description": "Gutter markers, the Git view (staging, commits, history), push and pull, branches, worktrees, stash, blame, difftool and mergetool",
     "type": "porta-plugin",
     "license": "MIT",
     "require": {

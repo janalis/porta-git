@@ -1,6 +1,9 @@
 # Git integration
 
-Git support is silently disabled outside a git working tree.
+Git support is silently disabled outside a git working tree. A project folder
+below a repository's root is no working tree either, but there the Git view
+says which folder to open: *Inside the repository ~/code/app — open that
+folder to use git*.
 
 ![The Git view: the changed files and the diff of the selected one](/screenshots/plugin-git.svg)
 
@@ -13,7 +16,7 @@ Git support is silently disabled outside a git working tree.
   lines you add light as added. That in-between state is an approximation —
   it tracks the caret, so a multi-caret edit only moves the marks around the
   active one — and every recompute above replaces it with git's own answer.
-- **Walking the changes**: `Ctrl+Alt+Shift+↓`/`↑` (View › Next Change /
+- **Walking the changes**: `Ctrl+Alt+Shift+↓`/`↑` (View → Next Change /
   Previous Change) jump to the next and previous change, wrapping past the
   end of the file. They follow the marks as they move with your edits. A click on a change
   mark (or **Git: Show Change**) lists what the change removed, greyed and
@@ -48,7 +51,8 @@ All async and non-blocking:
 
 A GitHub-Desktop-style view in a window over the editor — movable,
 resizable, closed by Esc or a click beside it: a changes list + commit box on one side, a diff pane on the other.
-Status re-reads on every action and polls every 2 s while open. Two tabs:
+Status re-reads on every action and polls every 2 s while open (the
+**Status refresh interval** setting). Two tabs:
 **Changes** (`1`) and **History** (`2`); `Tab` cycles panes; `Esc` closes.
 
 ### Toolbar
@@ -132,26 +136,6 @@ The view covers changes, staging (including line-level), commit/amend and
 history browsing. History loads 200 commits at a time — moving past the last
 loaded commit pulls in the next page.
 
-## Keys
-
-The view window `Ctrl+Alt+D` opens; `Tab` cycles panes and `Esc` closes.
-
-| Key | Action |
-| --- | --- |
-| `1` / `2` | Changes tab / History tab |
-| `Space` | Stage or unstage — the selected file in Changes, the hunk or selection in the diff |
-| `d` / `Delete` | Discard the selected file's changes (inline confirm) |
-| `v` | Start a line range in the diff, then `Space` stages just those lines |
-| `c` | Cycle diff context (git default → ±10 lines → whole file) |
-| `s` | Toggle unified / side-by-side (persisted) |
-| `w` | Toggle hide-whitespace (persisted) |
-| `Ctrl+C` | Copy the selected diff lines |
-| `Ctrl+Enter` | Commit the staged changes |
-| `Alt+M` | Toggle amend, prefilling the last commit's message |
-| `Enter` | In History, move between the commits and the selected commit's files |
-| `y` | In a commit's files, copy the commit's full sha |
-| `f` / `p` / `Shift+P` | Fetch / pull / push |
-
 ## As git's difftool and mergetool
 
 ```bash
@@ -232,15 +216,16 @@ side with the name git gave it, so read the labels rather than the sides.
 
 `Git: Fetch`, `Git: Pull` and `Git: Push` live in the command palette and the
 Git menu; inside the git view, `f` / `p` / `Shift+P` run them directly, and
-`Ctrl+Shift+K` pushes from anywhere. Pull tries a fast-forward first: when the
+`Alt+K` pushes from anywhere. Pull tries a fast-forward first: when the
 branch has diverged, a chooser offers **Rebase** (local commits replayed on
 top of the remote) or **Merge** (a merge commit) — Cancel leaves everything
 untouched. If the integration hits conflicts it stops with git's first
 message; resolve in the editor and commit as usual. Pushing a branch with no
-upstream offers **Push with --set-upstream origin <branch>** instead of
+upstream offers **Push with --set-upstream <remote> <branch>** instead of
 failing — nothing is published without a confirmation (`Git: Push (Set
-Upstream)` runs the same thing directly). Other failures (auth, rejected
-push) flash git's first error line. Nothing asks on the terminal: a key that
+Upstream)` runs the same thing directly). It pushes to the repository's only
+remote, whatever its name, or to `origin` among several. Other failures (auth,
+rejected push) flash git's first error line. Nothing asks on the terminal: a key that
 needs a passphrase without an agent, or a host seen for the first time, fails
 with ssh's reason instead (set `SSH_ASKPASS` to a program of your own to be
 asked). An HTTPS transfer that stalls for half a minute ends, and any remote
@@ -267,7 +252,7 @@ gone has nothing to open: git's refusal says where it is.)
 After GitHub Desktop. `Git: Worktrees` lists the repository's worktrees: the
 one open is checked, the main one (the clone itself) says *main*, each named
 by its folder and showing its branch (or commit, when detached). Picking one **reopens
-Porta there** — the same switch as File › Open Project, so unsaved buffers
+Porta there** — the same switch as File → Open Project, so unsaved buffers
 hold it until you pick again, and a worktree with its own `.porta.json` asks
 the trust question first. Below the worktrees come:
 
@@ -324,3 +309,38 @@ line's commit without turning the mode on.
 
 Pull and merge request threads — and local reviews an agent leaves — are the
 `review` plugin's: see [review.md](../../review/docs/README.md).
+
+## Settings
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| Show branch in status bar | on | The current branch cell in the status bar |
+| Change marks in the gutter | on | The added / modified / deleted marks beside the line numbers |
+| Show blame annotations by default | off | Each file opens with [blame annotations](#stash-file-history--blame) on |
+| Sign commits (GPG) | off | Commit with `-S`; off passes `--no-gpg-sign`, over a repository's `commit.gpgsign` |
+| Skip commit hooks (--no-verify) | off | Commit with `--no-verify` |
+| Add Signed-off-by trailer | off | Commit with `--signoff` |
+| Status refresh interval (seconds) | 2 | How often the open Git view re-reads the status; 1 to 3600 |
+| Git executable path | empty | The `git` to run; empty finds it on the `PATH` |
+| Folder for new worktrees | empty | Where new worktrees go — see [Worktrees](#worktrees) |
+
+## Keys
+
+The view window `Ctrl+Alt+D` opens; `Tab` cycles panes and `Esc` closes.
+
+| Key | Action |
+| --- | --- |
+| `1` / `2` | Changes tab / History tab |
+| `Space` | Stage or unstage — the selected file in Changes, the hunk or selection in the diff |
+| `d` / `Delete` | Discard the selected file's changes (inline confirm) |
+| `v` | Start a line range in the diff, then `Space` stages just those lines |
+| `c` | Cycle diff context (git default → ±10 lines → whole file) |
+| `s` | Toggle unified / side-by-side (persisted) |
+| `w` | Toggle hide-whitespace (persisted) |
+| `Ctrl+C` | Copy the selected diff lines |
+| `Ctrl+Enter` | Commit the staged changes |
+| `Alt+M` | Toggle amend, prefilling the last commit's message |
+| `Enter` | In History, move between the commits and the selected commit's files |
+| `y` | In a commit's files, copy the commit's full sha |
+| `f` / `p` / `Shift+P` | Fetch / pull / push |
+| `Alt+K` | Push, from anywhere — not only the view |

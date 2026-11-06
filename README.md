@@ -1,11 +1,12 @@
 # Git integration — a Porta plugin
 
-Git features that do not need the workbench: blame annotations.
+Gutter markers, the Git view (staging, commits, history), push and pull, branches, worktrees, stash, blame, difftool and mergetool.
 
 This is `janalis/porta-git`, one of the plugins bundled with
 [Porta](https://github.com/janalis/porta), the terminal IDE for PHP. Porta
-ships it already: turn it on under **Settings → Plugins**. Install this
-package only to run a copy of your own, which shadows the bundled one.
+ships it already, on by default: turn it off under **Settings → Plugins**.
+Install this package only to run a copy of your own, which shadows the bundled
+one.
 
 - [Documentation](https://janalis.github.io/porta/plugins/git/)
 - [Writing a plugin](https://janalis.github.io/porta/plugins)
