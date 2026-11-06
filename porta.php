@@ -97,7 +97,7 @@ use Symfony\Component\Tui\Style\Style;
  *   and the `ViewHost` in hand. Nothing here can exist earlier: a widget needs
  *   `Styles`, and a pointer needs the `HitTester`.
  *
- * The fourteen widget→controller events travel on a dispatcher owned by this
+ * The widget→controller events travel on a dispatcher owned by this
  * file. They were `Porta\Event\Git*` on core's dispatcher with
  * `#[AsEventListener]` methods, and both halves evaporate outside `src/`. Only
  * `GitCommitted`, `GitRemoteCompleted` and `WorkingTreeChanged` stay core's —
@@ -536,10 +536,10 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
     }
 
     /**
-     * The fourteen widget → controller listeners, read off {@see GitWiring} so
-     * the map and the registration cannot drift.
+     * The widget → controller listeners, read off {@see GitWiring} so the map
+     * and the registration cannot drift — the map's own test counts them.
      *
-     * The fifteenth — core's `GitRemoteCompleted` — is registered in
+     * Core's `GitRemoteCompleted` is registered in
      * `activate()` instead, because that is the only phase `PluginApi::on()`
      * accepts.
      */

@@ -657,13 +657,13 @@ final class IdeGitPluginTest extends TestCase
                     $this->assertInstanceOf(ContributedView::class, $view);
                     $diff = Probe::get($view, 'panes')->diffView;
                     $this->assertInstanceOf(DiffViewWidget::class, $diff);
-                    $this->assertTrue($diff->isWrapped(), 'built wrapped: the setting was on at boot');
+                    $this->assertTrue(Probe::get($diff, 'wrap'), 'built wrapped: the setting was on at boot');
 
                     $commands = Services::resolve($ide, CommandRegistry::class);
                     $commands->run('toggle_soft_wrap');
-                    $this->assertFalse($diff->isWrapped(), 'Alt+Z unwraps the diff with the editor');
+                    $this->assertFalse(Probe::get($diff, 'wrap'), 'Alt+Z unwraps the diff with the editor');
                     $commands->run('toggle_soft_wrap');
-                    $this->assertTrue($diff->isWrapped());
+                    $this->assertTrue(Probe::get($diff, 'wrap'));
                 },
             ],
         );

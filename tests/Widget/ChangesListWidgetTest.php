@@ -7,7 +7,6 @@ namespace Porta\GitPlugin\Tests\Widget;
 use PHPUnit\Framework\TestCase;
 use Porta\GitPlugin\ChangeEntry;
 use Porta\GitPlugin\Command\GitRemoteOperation;
-use Porta\GitPlugin\Event\GitChangeSelected;
 use Porta\GitPlugin\Event\GitRemoteRequested;
 use Porta\GitPlugin\Event\GitStageAllRequested;
 use Porta\GitPlugin\Event\GitViewModeRequested;
@@ -523,24 +522,6 @@ final class ChangesListWidgetTest extends TestCase
         $this->assertStringNotContainsString("\x1b[4m", $drawn()[3], 'rows moved under the pointer: no stale box');
     }
 
-    public function testSelectingAPathQuietlyMovesTheSelectionToItsRow(): void
-    {
-        $selected = 0;
-        $events = new EventDispatcher();
-        $events->addListener(GitChangeSelected::class, static function () use (&$selected): void {
-            ++$selected;
-        });
-        $widget = new ChangesListWidget(new Translator('en'), events: $events);
-        $widget->setEntries([new ChangeEntry('a.php', ' ', 'M'), new ChangeEntry('b.php', 'U', 'U')]);
-
-        $this->assertTrue($widget->selectPath('b.php'));
-        $this->assertSame('b.php', $widget->selectedEntry()?->path);
-        $this->assertSame(0, $selected, 'the caller loads the row itself');
-
-        $this->assertFalse($widget->selectPath('c.php'));
-        $this->assertSame('b.php', $widget->selectedEntry()?->path, 'no row, no move');
-    }
-
     /**
      * The armed buttons to their edges: Discard's top border at its first
      * column is Discard, and the row under the block is the next entry's, not
@@ -585,7 +566,6 @@ final class ChangesListWidgetTest extends TestCase
         $widget->render(new RenderContext(44, 9));
         $this->assertTrue($repaints(static fn () => $widget->handleClick(2, 5)), 'an armed discard answered');
         $this->assertTrue($repaints(static fn (): bool => $widget->hoverBoxAt(3, 2)), 'a box lit');
-        $this->assertTrue($repaints(static fn (): bool => $widget->selectPath('c.txt')), 'a row selected');
     }
 
     /** The header's box says what it does over the box itself: the card points at it, not the row. */

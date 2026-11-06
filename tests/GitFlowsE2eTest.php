@@ -249,7 +249,7 @@ final class GitFlowsE2eTest extends TestCase
                     // no keys is still broken, and the editor is not focused
                     // here, so this is the dispatcher's branch or nothing.
                     $tui->handleInput("\x1b");
-                    $this->await(static fn (): bool => !$editor->isSearchOverlayOpen(), what: 'Esc to reach the palette and close it');
+                    $this->await(static fn (): bool => !EditorState::searchOpen($editor), what: 'Esc to reach the palette and close it');
 
                     // And a git verb's own picker no longer costs the view.
                     $terminal->clearOutput();
