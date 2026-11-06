@@ -195,8 +195,8 @@
         <target>Push: アップストリームブランチがありません</target>
       </trans-unit>
       <trans-unit id="56">
-        <source>Push with --set-upstream origin %branch%</source>
-        <target>--set-upstream origin %branch% でプッシュ</target>
+        <source>Push with --set-upstream %remote% %branch%</source>
+        <target>--set-upstream %remote% %branch% でプッシュ</target>
       </trans-unit>
       <trans-unit id="57">
         <source>No git remote operation is running</source>

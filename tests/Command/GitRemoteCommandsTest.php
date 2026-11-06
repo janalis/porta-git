@@ -257,6 +257,24 @@ final class GitRemoteCommandsTest extends TestCase
         $this->assertTrue($this->events[1]->ok, 'the set-upstream push succeeded');
     }
 
+    public function testTheUpstreamOfferNamesTheOnlyRemoteWhateverItsName(): void
+    {
+        // One remote, not called origin: the offer names it, as the push
+        // that follows uses it — the label used to say origin regardless.
+        $remote = $this->divergedRepo();
+        $this->mine->git('remote', 'rename', 'origin', 'upstream');
+        $this->mine->git('checkout', '-q', '-b', 'feature');
+        $commands = $this->commands($remote);
+
+        $commands->push();
+        $this->await(fn (): bool => [] !== $this->events);
+        $this->assertStringContainsString('Push with --set-upstream upstream feature', EditorState::pickerText($this->editor));
+
+        $this->editor->handleInput("\r");
+        $this->await(fn (): bool => \count($this->events) >= 2);
+        $this->assertTrue($this->events[1]->ok, 'the push went to the only remote');
+    }
+
     public function testCancelOperationIdleAndBusy(): void
     {
         $remote = $this->selfRemoteRepo();

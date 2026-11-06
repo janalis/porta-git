@@ -195,8 +195,8 @@
         <target>Push: no upstream branch</target>
       </trans-unit>
       <trans-unit id="56">
-        <source>Push with --set-upstream origin %branch%</source>
-        <target>Push with --set-upstream origin %branch%</target>
+        <source>Push with --set-upstream %remote% %branch%</source>
+        <target>Push with --set-upstream %remote% %branch%</target>
       </trans-unit>
       <trans-unit id="57">
         <source>No git remote operation is running</source>

@@ -105,14 +105,15 @@ final class GitRemoteCommands
                 if (false === \stripos($output, needle: 'no upstream')) {
                     return false;
                 }
-                // The branch name is parsed from git's own hint for the LABEL
-                // only — the pick runs the plain -u origin HEAD push.
+                // The remote and branch are read from git's own hint for the
+                // LABEL only — the pick pushes HEAD to the remote git would
+                // name: the only one, or origin among several.
                 $m = [];
-                $branch = 1 === \preg_match('/git push --set-upstream \S+ (\S+)/', $output, $m) ? $m[1] : 'HEAD';
+                [$remote, $branch] = 1 === \preg_match('/git push --set-upstream (\S+) (\S+)/', $output, $m) ? [$m[1], $m[2]] : ['origin', 'HEAD'];
                 $this->offer(
                     $this->translator->trans('Push: no upstream branch'),
                     [
-                        ['label' => $this->translator->trans('Push with --set-upstream origin %branch%', ['%branch%' => $branch]), 'hint' => '', 'value' => 'upstream'],
+                        ['label' => $this->translator->trans('Push with --set-upstream %remote% %branch%', ['%remote%' => $remote, '%branch%' => $branch]), 'hint' => '', 'value' => 'upstream'],
                         ['label' => $this->translator->trans('Cancel'), 'hint' => '', 'value' => 'cancel'],
                     ],
                     function (string $choice): void {
