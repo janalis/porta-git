@@ -423,15 +423,23 @@ final readonly class GitInfo
     }
 
     /**
-     * Why git refused: its own `error:` or `fatal:` line when it gave one,
-     * else the last line a hook printed, else what stdout said.
+     * Why git refused, in one line: its own `error:` or `fatal:` line when it
+     * gave one, else the last line a hook printed, else the last line of
+     * stdout — "nothing to commit, working tree clean", where the first is
+     * only "On branch main".
      */
     private static function refusal(string $errors, string $out): string
     {
-        $lines = \array_values(\array_filter(\array_map(\trim(...), \explode("\n", $errors)), static fn (string $line): bool => '' !== $line && !\str_starts_with($line, 'hint:')));
+        $lines = self::saidLines($errors);
         $own = \array_find($lines, static fn (string $line): bool => 1 === \preg_match('/^(error|fatal):/', $line));
 
-        return $own ?? \array_last($lines) ?? \trim($out);
+        return $own ?? \array_last($lines) ?? \array_last(self::saidLines($out)) ?? '';
+    }
+
+    /** @return list<string> the non-empty lines of $text, git's `hint:` lines left out */
+    private static function saidLines(string $text): array
+    {
+        return \array_values(\array_filter(\array_map(\trim(...), \explode("\n", $text)), static fn (string $line): bool => '' !== $line && !\str_starts_with($line, 'hint:')));
     }
 
     /**

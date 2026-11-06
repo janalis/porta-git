@@ -186,6 +186,27 @@ final class GitInfoTest extends TestCase
         $this->assertSame('lint failed: a.txt', $said, "the hook's last word, where it was nothing");
     }
 
+    /** Nothing staged: git says why on stdout, over several lines — the flash gets the one that says it. */
+    public function testACommitOfNothingSaysSoInOneLine(): void
+    {
+        $this->skipWithoutGit();
+        $project = new TempProject([]);
+        $this->gitInit($project);
+        $project->write('a.txt', "first\n");
+        $this->gitCommit($project, 'a.txt');
+        $git = new GitInfo($project->dir);
+
+        $said = null;
+        $git->commit('nothing', static function (Outcome $ok, string $out) use (&$said): void {
+            $said = $ok->isOk() ? 'committed' : $out;
+        });
+        $this->await(static function () use (&$said): bool {
+            return null !== $said;
+        });
+
+        $this->assertSame('nothing to commit, working tree clean', $said);
+    }
+
     /** A path is a file's name, not a pattern: discarding `[id].txt` must leave `i.txt` and `d.txt` alone. */
     public function testAPathWithBracketsIsReadLiterally(): void
     {
