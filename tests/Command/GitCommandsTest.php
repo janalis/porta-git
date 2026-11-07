@@ -798,6 +798,19 @@ final class GitCommandsTest extends TestCase
         $this->assertStringContainsString('identical', $this->flashText($this->statusBar));
     }
 
+    /** Two binary files that differ print no hunk either: they are said to differ, not to be identical. */
+    public function testComparingTwoDifferentBinaryFilesSaysTheyDiffer(): void
+    {
+        $commands = $this->commands(['a.bin' => "\x00\x01one", 'b.bin' => "\x00\x01two"]);
+        $this->selected = [$this->project->path('a.bin'), $this->project->path('b.bin')];
+
+        $commands->compareFiles();
+        $this->pumpUntil();
+
+        $this->assertSame([], $this->published);
+        $this->assertStringContainsString('Binary files differ', $this->flashText($this->statusBar));
+    }
+
     public function testComparingNeedsExactlyTwoFiles(): void
     {
         // One is what the tree always has — its cursor row — so "compare" with

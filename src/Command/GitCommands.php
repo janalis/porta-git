@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Command;
 
+use Porta\DiffPlugin\DiffDocument;
 use Porta\Event\WorkingTreeChanged;
 use Porta\GitPlugin\Event\GitFileHistoryRequested;
 use Porta\GitPlugin\GitInfo;
@@ -173,7 +174,9 @@ final readonly class GitCommands
         $this->git->compareFiles($left, $right, function (string $raw) use ($title): void {
             $lines = self::hunks($raw);
             if ([] === $lines) {
-                $this->notifier->flash($this->translator->trans('The two files are identical'));
+                // No hunk is not "the same": two binary files that differ print
+                // no hunk either — as the git view's comparison already says.
+                $this->notifier->flash($this->translator->trans(DiffDocument::parse($raw)->isBinary() ? 'Binary files differ' : 'The two files are identical'));
 
                 return;
             }
