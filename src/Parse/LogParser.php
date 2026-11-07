@@ -32,19 +32,21 @@ final class LogParser
     }
 
     /**
-     * Parse `stash list -z --format=%gd%x1f%at%x1f%gs` records.
+     * Parse `stash list -z --format=%gd%x1f%at%x1f%H%x1f%gs` records: the
+     * position, when, the commit — which stays the stash's while its position
+     * moves — and the subject, last, as it may hold anything.
      *
-     * @return list<array{ref: string, timestamp: int, subject: string}>
+     * @return list<array{ref: string, timestamp: int, commit: string, subject: string}>
      */
     public static function parseStashList(string $raw): array
     {
         $stashes = [];
         foreach (\explode("\0", $raw) as $record) {
-            $fields = \explode("\x1f", \trim($record, characters: "\n"));
-            if (3 !== \count($fields) || '' === $fields[0]) {
+            $fields = \explode("\x1f", \trim($record, characters: "\n"), limit: 4);
+            if (4 !== \count($fields) || '' === $fields[0]) {
                 continue;
             }
-            $stashes[] = ['ref' => $fields[0], 'timestamp' => (int) $fields[1], 'subject' => $fields[2]];
+            $stashes[] = ['ref' => $fields[0], 'timestamp' => (int) $fields[1], 'commit' => $fields[2], 'subject' => $fields[3]];
         }
 
         return $stashes;

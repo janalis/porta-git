@@ -543,11 +543,11 @@ final readonly class GitInfo
     /**
      * The stash list, newest first.
      *
-     * @param callable(list<array{ref: string, timestamp: int, subject: string}>): void $onDone
+     * @param callable(list<array{ref: string, timestamp: int, commit: string, subject: string}>): void $onDone
      */
     public function stashList(callable $onDone): void
     {
-        $this->runner->run(['stash', 'list', '-z', '--format=%gd%x1f%at%x1f%gs'], static fn (string $out) => $onDone(LogParser::parseStashList($out)));
+        $this->runner->run(['stash', 'list', '-z', '--format=%gd%x1f%at%x1f%H%x1f%gs'], static fn (string $out) => $onDone(LogParser::parseStashList($out)));
     }
 
     /**

@@ -81,12 +81,18 @@ final readonly class GitCommands
 
                 return;
             }
+            // Picked by its COMMIT, not its position: `stash@{1}` names
+            // whichever stash is second when it is read, and a stash pushed or
+            // popped in a terminal while these pickers were open moved it —
+            // Drop then took another one.
             $items = \array_map(static fn (array $stash): array => [
                 'label' => '  '.$stash['subject'],
                 'hint' => \date('Y-m-d H:i', $stash['timestamp']),
-                'value' => $stash['ref'],
+                'value' => $stash['commit'],
             ], $stashes);
-            $this->editor->openListOverlay($this->translator->trans('Stashes'), $items, function (string $ref): void {
+            $refs = \array_column($stashes, column_key: 'ref', index_key: 'commit');
+            $this->editor->openListOverlay($this->translator->trans('Stashes'), $items, function (string $commit) use ($refs): void {
+                $ref = $refs[$commit] ?? $commit;
                 $this->editor->openListOverlay(
                     $this->translator->trans('%stash%: apply, pop or drop?', ['%stash%' => $ref]),
                     [
@@ -95,28 +101,53 @@ final readonly class GitCommands
                         ['label' => $this->translator->trans('Drop'), 'hint' => '', 'value' => 'drop'],
                         ['label' => $this->translator->trans('Cancel'), 'hint' => '', 'value' => 'cancel'],
                     ],
-                    function (string $action) use ($ref): void {
-                        match ($action) {
-                            'apply' => $this->git->stashApply($ref, fn (Outcome $ok, string $error) => $this->finishSwitch(
-                                $ok,
-                                $this->stashError($error),
-                                $this->translator->trans('Applied %stash%', ['%stash%' => $ref]),
-                            )),
-                            'pop' => $this->git->stashPop($ref, fn (Outcome $ok, string $error) => $this->finishSwitch(
-                                $ok,
-                                $this->stashError($error),
-                                $this->translator->trans('Popped %stash%', ['%stash%' => $ref]),
-                            )),
-                            // Drop never touches the worktree — no marks refresh.
-                            'drop' => $this->git->stashDrop($ref, function (Outcome $ok, string $error) use ($ref): void {
-                                $ok->isOk() ? $this->notifier->success($this->translator->trans('Dropped %stash%', ['%stash%' => $ref]), 3.0) : $this->notifier->error($error, 6.0);
-                            }),
-                            default => null,
-                        };
+                    function (string $action) use ($commit): void {
+                        if ('cancel' !== $action) {
+                            $this->onStash($commit, $action);
+                        }
                     },
                 );
             });
         });
+    }
+
+    /**
+     * $action on the stash whose commit is $commit, at the position it has
+     * NOW — read again, as the list may have moved since it was shown. Gone
+     * (popped or dropped elsewhere), nothing is done to another in its place.
+     */
+    private function onStash(string $commit, string $action): void
+    {
+        $this->git->stashList(function (array $stashes) use ($commit, $action): void {
+            $ref = \array_column($stashes, column_key: 'ref', index_key: 'commit')[$commit] ?? null;
+            if (null === $ref) {
+                $this->notifier->error($this->translator->trans('Stash failed'), 6.0);
+
+                return;
+            }
+            $this->act($ref, $action);
+        });
+    }
+
+    private function act(string $ref, string $action): void
+    {
+        match ($action) {
+            'apply' => $this->git->stashApply($ref, fn (Outcome $ok, string $error) => $this->finishSwitch(
+                $ok,
+                $this->stashError($error),
+                $this->translator->trans('Applied %stash%', ['%stash%' => $ref]),
+            )),
+            'pop' => $this->git->stashPop($ref, fn (Outcome $ok, string $error) => $this->finishSwitch(
+                $ok,
+                $this->stashError($error),
+                $this->translator->trans('Popped %stash%', ['%stash%' => $ref]),
+            )),
+            // Drop, the third of the three (Cancel never gets here). It never
+            // touches the worktree — no marks refresh.
+            default => $this->git->stashDrop($ref, function (Outcome $ok, string $error) use ($ref): void {
+                $ok->isOk() ? $this->notifier->success($this->translator->trans('Dropped %stash%', ['%stash%' => $ref]), 3.0) : $this->notifier->error($error, 6.0);
+            }),
+        };
     }
 
     /** Open the git view's History tab filtered to the current file. */

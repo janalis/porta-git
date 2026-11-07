@@ -59,17 +59,17 @@ final class LogParserTest extends TestCase
 
     public function testParseStashListHappyAndMalformed(): void
     {
-        $raw = "stash@{0}\x1f1700000000\x1fWIP on main: 1234abc fix\0stash@{1}\x1f1690000000\x1fOn feature: spike\0";
+        $raw = "stash@{0}\x1f1700000000\x1faaa111\x1fWIP on main: 1234abc fix\0stash@{1}\x1f1690000000\x1fbbb222\x1fOn feature: spike\0";
         $this->assertSame(
             [
-                ['ref' => 'stash@{0}', 'timestamp' => 1_700_000_000, 'subject' => 'WIP on main: 1234abc fix'],
-                ['ref' => 'stash@{1}', 'timestamp' => 1_690_000_000, 'subject' => 'On feature: spike'],
+                ['ref' => 'stash@{0}', 'timestamp' => 1_700_000_000, 'commit' => 'aaa111', 'subject' => 'WIP on main: 1234abc fix'],
+                ['ref' => 'stash@{1}', 'timestamp' => 1_690_000_000, 'commit' => 'bbb222', 'subject' => 'On feature: spike'],
             ],
             LogParser::parseStashList($raw),
         );
 
         $this->assertSame([], LogParser::parseStashList(''));
         $this->assertSame([], LogParser::parseStashList("only-two\x1ffields\0"), 'short records are skipped');
-        $this->assertSame([], LogParser::parseStashList("\x1f1\x1fempty ref\0"), 'an empty ref is skipped');
+        $this->assertSame([], LogParser::parseStashList("\x1f1\x1fccc\x1fempty ref\0"), 'an empty ref is skipped');
     }
 }

@@ -195,6 +195,53 @@ final class GitCommandsTest extends TestCase
         $this->assertStringNotContainsString('wip', $this->project->git('stash', 'list'), 'the stash is gone');
     }
 
+    /**
+     * The stash picked is the one acted on, though the list moved while the
+     * pickers were open: a stash pushed in a terminal meanwhile made the
+     * picked one `stash@{1}`, and a Drop of the position it was shown at
+     * dropped the new one instead.
+     */
+    public function testTheStashPickedIsTheOneDroppedThoughTheListMovedMeanwhile(): void
+    {
+        $commands = $this->commands(['a.txt' => "one\n"]);
+        $this->write('a.txt', "one\npicked\n");
+        $this->project->git('stash', 'push', '-m', 'picked');
+
+        $commands->stashes();
+        $this->overlayOpens();
+        $this->key("\r"); // pick it, while it is stash@{0}
+        $this->write('a.txt', "one\nnewer\n");
+        $this->project->git('stash', 'push', '-m', 'newer'); // now it is stash@{1}
+        $this->key("\x1b[B");
+        $this->key("\x1b[B"); // Drop
+        $this->key("\r");
+        $this->pumpUntil(fn (): bool => \str_contains($this->statusRow($this->statusBar), 'Dropped'));
+
+        $left = $this->project->git('stash', 'list', '--format=%gs');
+        $this->assertStringContainsString('newer', $left, 'the stash pushed meanwhile is still there');
+        $this->assertStringNotContainsString('picked', $left, 'the one picked is the one gone');
+    }
+
+    /** A stash popped or dropped elsewhere while the pickers were open: nothing is done to another in its place. */
+    public function testAStashGoneWhileThePickersWereOpenIsNotReplacedByAnother(): void
+    {
+        $commands = $this->commands(['a.txt' => "one\n"]);
+        $this->write('a.txt', "one\nolder\n");
+        $this->project->git('stash', 'push', '-m', 'older');
+        $this->write('a.txt', "one\npicked\n");
+        $this->project->git('stash', 'push', '-m', 'picked');
+
+        $commands->stashes();
+        $this->overlayOpens();
+        $this->key("\r"); // pick the newest, stash@{0}
+        $this->project->git('stash', 'drop', 'stash@{0}'); // gone, elsewhere: "older" is stash@{0} now
+        $this->key("\r"); // Apply
+        $this->pumpUntil();
+
+        $this->assertStringContainsString('Stash failed', $this->statusRow($this->statusBar));
+        $this->assertSame("one\n", $this->readFile('a.txt'), 'the older stash was not applied in its place');
+    }
+
     public function testStashesActionCanBeCancelled(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
