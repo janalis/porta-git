@@ -266,14 +266,21 @@ final class RepositoryStateTest extends TestCase
     {
         $state = $this->state('446');
         $this->settle($state);
-        $this->project->write('bin/slow', "#!/bin/sh\nsleep 1\necho 512\n");
+        // Held until the test has looked, not for a fixed second: the look is
+        // then at a gh certainly still out, and nothing waits longer than it must.
+        $release = $this->project->path('gh-go');
+        $this->project->write('bin/slow', "#!/bin/sh\nwhile [ ! -f '{$release}' ]; do sleep 0.02; done\necho 512\n");
         \chmod($this->project->path('bin/slow'), permissions: 0o755);
         \rename($this->project->path('bin/slow'), $this->project->path('bin/gh'));
 
         $state->refresh(RefreshScope::Remote);
         $lane = $this->lane;
-        $this->await(static fn (): bool => 1 === $lane->inFlight(), what: 'gh asked again');
-        $this->assertSame(446, $state->pullRequest(), 'still the old number while gh is out');
+        try {
+            $this->await(static fn (): bool => 1 === $lane->inFlight(), what: 'gh asked again');
+            $this->assertSame(446, $state->pullRequest(), 'still the old number while gh is out');
+        } finally {
+            \touch($release); // never leave the held gh waiting
+        }
 
         $this->await(static fn (): bool => 512 === $state->pullRequest(), what: 'the new answer');
         $this->addToAssertionCount(1);
@@ -306,8 +313,7 @@ final class RepositoryStateTest extends TestCase
 
         $git = (string) $this->whichGit();
         $this->project->git('checkout', '-q', '-b', 'feature');
-        $this->settle($state);
-        $this->pump(1.5); // past the slow answers
+        $this->settle($state); // waits out git's own lane too, so the slow answers have landed
 
         $this->assertSame('feature', $state->branch());
     }

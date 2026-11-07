@@ -1095,12 +1095,16 @@ final class GitViewControllerTest extends TestCase
         $git = (string) $this->whichGit();
         $wrapper = \sys_get_temp_dir().'/porta-slow-git-'.\bin2hex(\random_bytes(4));
         $marker = $wrapper.'.done';
-        // Slow for the repository's own verb only: the comparison is a
-        // `diff --no-index`, and must stay fast to land first.
+        $release = $wrapper.'.go';
+        // Held for the repository's own verb only, until the test lets it go
+        // once the comparison has painted — not for a fixed second, which on
+        // a loaded box let the slow answer land FIRST and the test pass
+        // without the stale case ever happening. The comparison is a
+        // `diff --no-index`, and is never held.
         $script = <<<SH
             #!/bin/sh
             case " \$* " in *" --no-index "*) exec '{$git}' "\$@" ;; esac
-            for a in "\$@"; do [ "\$a" = {$slow} ] && { sleep 1; touch '{$marker}'; break; }; done
+            for a in "\$@"; do [ "\$a" = {$slow} ] && { while [ ! -f '{$release}' ]; do sleep 0.02; done; touch '{$marker}'; break; }; done
             exec '{$git}' "\$@"
             SH;
         \file_put_contents($wrapper, $script."\n");
@@ -1123,13 +1127,18 @@ final class GitViewControllerTest extends TestCase
             $controller->openComparison($left, $right, static function (): void {});
             $this->await(fn (): bool => \str_contains($this->diffText(), 'three'), what: 'the comparison in the diff pane');
 
+            \touch($release); // only now: the slow answer is still on its way, as the case needs
             $this->await(static fn (): bool => \is_file($marker), what: 'the slow '.$slow.' to finish');
             $this->pump(0.3); // its answer lands on the loop: proving it changed NOTHING
 
             $this->assertStringContainsString('three', $this->diffText(), 'the stale answer did not paint the working tree over the comparison');
             $controller->close();
         } finally {
+            \touch($release); // never leave a held git waiting, whatever failed
             \array_map(\unlink(...), \array_filter([$wrapper, $marker], \is_file(...)));
+            // The release goes once a held git has read it: it polls every 20 ms.
+            \usleep(100_000);
+            \array_map(\unlink(...), \array_filter([$release], \is_file(...)));
         }
     }
 
