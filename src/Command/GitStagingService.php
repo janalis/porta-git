@@ -223,12 +223,27 @@ final readonly class GitStagingService
             ' ' === $entry->indexStatus => $this->git->discardFile($abs, $done),
             // New in the index: there is no HEAD copy; it goes, as an untracked one does.
             'A' === $entry->indexStatus => $this->git->discardAdded($abs, $done),
-            // A rename: the old name back from HEAD, the new one gone.
+            // A copy: its source never went anywhere, and is not this row's to touch.
+            'C' === $entry->indexStatus => $this->git->discardAdded($abs, $done),
+            // A rename: the new name gone, and the old one back.
             null !== $entry->renamedFrom => $this->git->discardAdded($abs, function (Outcome $ok) use ($entry, $done): void {
-                $ok->isOk() ? $this->git->discardToHead([$this->paths->absolute($entry->renamedFrom)], $done) : $done($ok);
+                $ok->isOk() ? $this->restoreRenamedFrom($this->paths->absolute($entry->renamedFrom), $done) : $done($ok);
             }),
             default => $this->git->discardToHead([$abs], $done),
         };
+    }
+
+    /**
+     * A discarded rename's old name, back from HEAD — on disk only when
+     * nothing is there now. A file written at the old name after the rename
+     * is the user's: restored over, it was gone without a word. Then only the
+     * index goes back, and the file shows as what it is, a change to it.
+     *
+     * @param \Closure(Outcome): void $done
+     */
+    private function restoreRenamedFrom(string $old, \Closure $done): void
+    {
+        \file_exists($old) ? $this->git->unstageFile($old, $done) : $this->git->discardToHead([$old], $done);
     }
 
     /**

@@ -277,6 +277,60 @@ final class GitViewControllerTest extends TestCase
         $this->assertFileDoesNotExist($this->project->path('b.txt'));
     }
 
+    /**
+     * A rename's discard brings the old name back from HEAD — over whatever is
+     * there NOW. Renamed, then a new file written at the old name: the discard
+     * overwrote it with HEAD's text, no question asked. Only the index goes
+     * back then; the file on disk is the user's.
+     */
+    public function testDiscardingARenameKeepsANewFileAtTheOldName(): void
+    {
+        $controller = $this->controller();
+        $this->project->git('mv', 'a.txt', 'b.txt');
+        $this->project->write('a.txt', "mine, written after the rename\n");
+        $controller->open();
+        $renames = fn (): array => \array_values(\array_filter(Probe::array($this->changes, 'entries'), static fn (ChangeEntry $e): bool => 'a.txt' === $e->renamedFrom));
+        $this->await(static fn (): bool => [] !== $renames(), what: 'the rename entry');
+        $rename = $renames()[0];
+
+        $done = false;
+        Probe::get($controller, 'staging')->discard($rename, static function () use (&$done): void {
+            $done = true;
+        });
+        $this->await(static function () use (&$done): bool {
+            return $done;
+        }, what: 'the whole discard, both of its steps');
+        $this->assertFileDoesNotExist($this->project->path('b.txt'), 'the new name gone');
+
+        $this->assertSame("mine, written after the rename\n", \file_get_contents($this->project->path('a.txt')), 'the file at the old name is the user\'s, not HEAD\'s');
+    }
+
+    /**
+     * A copy's discard takes the copy alone: its source, with its own staged
+     * edit, is not the row's to put back. (A `C` row needs copy detection in
+     * the user's own git config — the repository's is neutralised — so the
+     * row is built here as status would parse it.)
+     */
+    public function testDiscardingACopyLeavesItsSourceAlone(): void
+    {
+        $controller = $this->controller();
+        $this->project->write('a.txt', "committed change\ntwo\n");
+        \copy($this->project->path('a.txt'), $this->project->path('c.txt'));
+        $this->project->git('add', '-A');
+
+        $done = false;
+        Probe::get($controller, 'staging')->discard(new ChangeEntry('c.txt', 'C', ' ', 'a.txt'), static function () use (&$done): void {
+            $done = true;
+        });
+        $this->await(static function () use (&$done): bool {
+            return $done;
+        }, what: 'the discard');
+
+        $this->assertFileDoesNotExist($this->project->path('c.txt'));
+        $this->assertSame("committed change\ntwo\n", \file_get_contents($this->project->path('a.txt')), 'the source keeps its edit');
+        $this->assertSame(['M  a.txt'], $this->porcelain(), 'staged as it was: the copy\'s discard does not unstage its source either');
+    }
+
     public function testCommitSuccessAndFailurePaths(): void
     {
         $controller = $this->controller();
