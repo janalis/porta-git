@@ -173,6 +173,24 @@ final readonly class GitStagingService
     }
 
     /**
+     * An untracked file's discard: it is deleted. One the disk will not let go
+     * of is said so — "Deleted" over a file still there told the user it was
+     * gone. (Already gone — the remove of a missing path succeeds — is gone.)
+     *
+     * @param \Closure(): void $onChanged
+     */
+    private function discardUntracked(ChangeEntry $entry, \Closure $onChanged): void
+    {
+        try {
+            new Filesystem()->remove($this->paths->absolute($entry->path));
+            $this->notifier->flash($this->translator->trans('Deleted %path%', ['%path%' => $entry->path]));
+            $onChanged();
+        } catch (IOExceptionInterface) {
+            $this->notifier->error($this->translator->trans('Cannot delete %file%', ['%file%' => $entry->path]));
+        }
+    }
+
+    /**
      * Discard a file's working-tree changes; an untracked file is deleted.
      *
      * @param \Closure(): void $onChanged re-read status after the file reverts
@@ -186,13 +204,7 @@ final readonly class GitStagingService
             return;
         }
         if ($entry->isUntracked()) {
-            // @mago-expect lint:no-empty-catch-clause -- best-effort delete: a vanished or unremovable file still flashes below
-            try {
-                new Filesystem()->remove($this->paths->absolute($entry->path));
-            } catch (IOExceptionInterface) {
-            }
-            $this->notifier->flash($this->translator->trans('Deleted %path%', ['%path%' => $entry->path]));
-            $onChanged();
+            $this->discardUntracked($entry, $onChanged);
 
             return;
         }

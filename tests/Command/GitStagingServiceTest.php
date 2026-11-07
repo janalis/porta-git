@@ -44,28 +44,33 @@ final class GitStagingServiceTest extends TestCase
         );
     }
 
-    public function testDiscardingAnUnremovableUntrackedFileStillFlashes(): void
+    /**
+     * An untracked file the disk will not let go of is said so. The failure was
+     * swallowed and "Deleted" flashed over a file still there.
+     */
+    public function testDiscardingAnUnremovableUntrackedFileSaysItCannot(): void
     {
         $project = new TempProject();
-        // An untracked file inside a directory we make read-only, so the unlink
-        // fails and Filesystem::remove throws — the delete is best-effort and the
-        // "Deleted" flash still fires (the IOException is swallowed).
+        // Inside a directory made read-only, so the unlink is denied.
         $project->write('locked/x.txt', 'data');
-        \chmod($project->path('locked'), permissions: 0o500); // no write on the parent → unlink denied
+        \chmod($project->path('locked'), permissions: 0o500);
 
         $status = new StatusBarWidget();
         $service = $this->service($project->dir, $status);
         $entry = new ChangeEntry('locked/x.txt', '?', '?'); // untracked
 
         $refreshed = false;
-        $service->discard($entry, static function () use (&$refreshed): void {
-            $refreshed = true;
-        });
+        try {
+            $service->discard($entry, static function () use (&$refreshed): void {
+                $refreshed = true;
+            });
+        } finally {
+            \chmod($project->path('locked'), permissions: 0o755); // restore so cleanup can remove the tree
+        }
 
-        \chmod($project->path('locked'), permissions: 0o755); // restore so cleanup can remove the tree
-
-        $this->assertTrue($refreshed, 'the status refresh callback still ran');
-        $this->assertStringContainsString('Deleted', $this->flashText($status));
+        $this->assertFileExists($project->path('locked/x.txt'));
+        $this->assertStringContainsString('Cannot delete locked/x.txt', $this->flashText($status));
+        $this->assertFalse($refreshed, 'nothing changed, so nothing to re-read');
     }
 
     /** A nested clone or a worktree is one untracked entry to git: discarding it would take a whole repository, uncommitted work and all. */
