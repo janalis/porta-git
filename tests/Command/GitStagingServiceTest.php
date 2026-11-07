@@ -70,7 +70,7 @@ final class GitStagingServiceTest extends TestCase
 
         $this->assertFileExists($project->path('locked/x.txt'));
         $this->assertStringContainsString('Cannot delete locked/x.txt', $this->flashText($status));
-        $this->assertFalse($refreshed, 'nothing changed, so nothing to re-read');
+        $this->assertTrue($refreshed, 're-read even so: a folder\'s remove may have taken part of it before it failed');
     }
 
     /** A nested clone or a worktree is one untracked entry to git: discarding it would take a whole repository, uncommitted work and all. */

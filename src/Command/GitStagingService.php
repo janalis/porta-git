@@ -184,10 +184,11 @@ final readonly class GitStagingService
         try {
             new Filesystem()->remove($this->paths->absolute($entry->path));
             $this->notifier->flash($this->translator->trans('Deleted %path%', ['%path%' => $entry->path]));
-            $onChanged();
         } catch (IOExceptionInterface) {
             $this->notifier->error($this->translator->trans('Cannot delete %file%', ['%file%' => $entry->path]));
         }
+        // Either way: a folder's remove may have taken part of it before it threw.
+        $onChanged();
     }
 
     /**
