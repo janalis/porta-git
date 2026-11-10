@@ -2,6 +2,8 @@
 
 Gutter markers, the Git view (staging, commits, history), push and pull, branches, worktrees, stash, blame, difftool and mergetool.
 
+![The Git view: the changed files and the diff of the selected one](https://janalis.github.io/porta/screenshots/plugin-git.svg)
+
 This is `janalis/porta-git`, one of the plugins bundled with
 [Porta](https://github.com/janalis/porta), the terminal IDE for PHP. Porta
 ships it already, on by default: turn it off under **Settings → Plugins**.
