@@ -209,14 +209,14 @@ final class CommitDetailsWidgetTest extends TestCase
         $widget->setFiles([['status' => 'M', 'path' => 'plugins/assist/src/Session/GuestSession.php'], ['status' => 'A', 'path' => 'a.md']]);
         $widget->render(new RenderContext(32, 8));
 
-        $tip = $widget->tooltipAt(2, 3);
+        $tip = $widget->tooltipAt(2, col: 3);
         $this->assertSame(
             ['git:details:file:plugins/assist/src/Session/GuestSession.php', 'plugins/assist/src/Session/GuestSession.php', 2, 0, 32],
             [$tip?->key, $tip?->text, $tip?->row, $tip?->colStart, $tip?->colEnd],
             'a cut path says itself, across its row, under a key of its own',
         );
-        $this->assertNull($widget->tooltipAt(3, 3), 'a whole one says nothing');
-        $this->assertNull($widget->tooltipAt(0, 3), 'nor does the heading');
+        $this->assertNull($widget->tooltipAt(3, col: 3), 'a whole one says nothing');
+        $this->assertNull($widget->tooltipAt(0, col: 3), 'nor does the heading');
     }
 
     public function testThePaneKeysAndHousekeeping(): void
@@ -260,7 +260,7 @@ final class CommitDetailsWidgetTest extends TestCase
     /** A renamed file's old path is the repository's to name too: shown, never obeyed. */
     public function testARenamedFilesOldPathIsInert(): void
     {
-        $row = FileRow::render('new.php', 'R', 40, Styles::dark(), "old\x1b]52;c;eA==\x07.php");
+        $row = FileRow::render('new.php', status: 'R', width: 40, styles: Styles::dark(), renamedFrom: "old\x1b]52;c;eA==\x07.php");
 
         $this->assertStringNotContainsString("\x1b]52", $row);
         $this->assertSame(40, AnsiUtils::visibleWidth($row));

@@ -238,7 +238,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         );
         $remote = new GitRemoteCommands(new GitRemote($root, $gitPath, $processes->remote), $flash, $trans, $events, $modals, $repaint);
 
-        $api->registerListTool(self::COMPARE_TOOL, 'Compare');
+        $api->registerListTool(self::COMPARE_TOOL, title: 'Compare');
         $this->registerCommands($api, $commands, $remote, $worktrees);
         self::registerMenus($api);
 
@@ -431,9 +431,9 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
     /** Continue, skip and abort a merge or rebase in progress, on the palette — handed back for the branch menus. */
     private static function registerOperations(PluginApi $api, OperationCommands $operations): OperationCommands
     {
-        $api->registerCommand('continue', 'Git: Continue Merge or Rebase', $operations->continue(...));
-        $api->registerCommand('skip', 'Git: Skip This Step', $operations->skip(...));
-        $api->registerCommand('abort', 'Git: Abort Merge or Rebase…', $operations->abort(...));
+        $api->registerCommand('continue', label: 'Git: Continue Merge or Rebase', handler: $operations->continue(...));
+        $api->registerCommand('skip', label: 'Git: Skip This Step', handler: $operations->skip(...));
+        $api->registerCommand('abort', label: 'Git: Abort Merge or Rebase…', handler: $operations->abort(...));
 
         return $operations;
     }
@@ -469,7 +469,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
         $api->on(MergeToolLaunched::class, static function (PluginObservable $launch) use ($api): void {
             \assert($launch instanceof MergeToolLaunched, description: 'registered for this class only');
             $api->openFile($launch->merged);
-            $api->flash($api->trans('Ours | result | theirs — a keeps a side, b both · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails'), 8.0);
+            $api->flash($api->trans('Ours | result | theirs — a keeps a side, b both · Ctrl+S, then Ctrl+Q — conflicts left mean the merge fails'), seconds: 8.0);
         });
     }
 
@@ -554,8 +554,8 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
     /** The palette verbs: the ten core's ActionCatalog still names, keeping their ids and labels, and the worktrees' own. */
     private function registerCommands(PluginApi $api, GitCommands $commands, GitRemoteCommands $remote, WorktreeCommands $worktrees): void
     {
-        $api->registerCommand('worktrees', 'Git: Worktrees…', $worktrees->worktrees(...));
-        $api->registerCommand('new_worktree', 'Git: New Worktree…', $worktrees->newWorktree(...));
+        $api->registerCommand('worktrees', label: 'Git: Worktrees…', handler: $worktrees->worktrees(...));
+        $api->registerCommand('new_worktree', label: 'Git: New Worktree…', handler: $worktrees->newWorktree(...));
         $api->adoptCommand('git_commit', $commands->commit(...));
         $api->adoptCommand('git_branches', $commands->branches(...));
         $api->adoptCommand('git_stashes', $commands->stashes(...));
@@ -578,20 +578,20 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
      */
     private function registerSettings(PluginApi $api): void
     {
-        $api->registerSetting('showBranch', 'Show branch in status bar', 'bool', true);
-        $api->registerSetting('gutterMarks', 'Change marks in the gutter', 'bool', true);
-        $api->registerSetting('blameDefault', 'Show blame annotations by default', 'bool', false);
-        $api->registerSetting('signCommits', 'Sign commits (GPG)', 'bool', false);
-        $api->registerSetting('noVerify', 'Skip commit hooks (--no-verify)', 'bool', false);
-        $api->registerSetting('signoff', 'Add Signed-off-by trailer', 'bool', false);
-        $api->registerSetting('refreshInterval', 'Status refresh interval (seconds)', 'int', 2, min: 1, max: 3_600);
-        $api->registerSetting('path', 'Git executable path', 'text', '', hint: 'auto-detect');
-        $api->registerSetting('worktreeFolder', 'Folder for new worktrees', 'text', '', hint: 'beside the main worktree');
+        $api->registerSetting('showBranch', label: 'Show branch in status bar', kind: 'bool', default: true);
+        $api->registerSetting('gutterMarks', label: 'Change marks in the gutter', kind: 'bool', default: true);
+        $api->registerSetting('blameDefault', label: 'Show blame annotations by default', kind: 'bool', default: false);
+        $api->registerSetting('signCommits', label: 'Sign commits (GPG)', kind: 'bool', default: false);
+        $api->registerSetting('noVerify', label: 'Skip commit hooks (--no-verify)', kind: 'bool', default: false);
+        $api->registerSetting('signoff', label: 'Add Signed-off-by trailer', kind: 'bool', default: false);
+        $api->registerSetting('refreshInterval', label: 'Status refresh interval (seconds)', kind: 'int', default: 2, min: 1, max: 3_600);
+        $api->registerSetting('path', label: 'Git executable path', kind: 'text', default: '', hint: 'auto-detect');
+        $api->registerSetting('worktreeFolder', label: 'Folder for new worktrees', kind: 'text', default: '', hint: 'beside the main worktree');
         // The diff pane's two display toggles. Not on the page — the view sets
         // them from its own toolbar — but registered so they persist and so
         // reading one before it has ever been written yields a default.
-        $api->registerSetting('diffSplit', 'Diff: side-by-side', 'bool', false);
-        $api->registerSetting('diffHideWhitespace', 'Diff: hide whitespace changes', 'bool', false);
+        $api->registerSetting('diffSplit', label: 'Diff: side-by-side', kind: 'bool', default: false);
+        $api->registerSetting('diffHideWhitespace', label: 'Diff: hide whitespace changes', kind: 'bool', default: false);
     }
 
     /** Blame annotations and the gutter stripe — the half that never needed the workbench. */

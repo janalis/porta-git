@@ -168,24 +168,24 @@ final class ChangesListWidgetTest extends TestCase
         $this->assertMatchesRegularExpression('/║\s+Discard \(y\)\s+║ │\s+Keep\s+│/u', $screen[4]);
         $this->assertSame(2, $widget->selectedRow(), 'the armed entry still answers where it is drawn');
 
-        $widget->handleClick(4, 18); // the gap between the buttons: part of the question, so it keeps
+        $widget->handleClick(4, relCol: 18); // the gap between the buttons: part of the question, so it keeps
         $widget->handleInput('d');
         $widget->render(new RenderContext(44, 9));
-        $widget->handleClick(4, 22); // Keep
+        $widget->handleClick(4, relCol: 22); // Keep
         $this->assertSame([], $discarded, 'Keep keeps');
         $widget->handleInput('d');
         $widget->render(new RenderContext(44, 9));
-        $widget->handleClick(2, 5); // the question itself
+        $widget->handleClick(2, relCol: 5); // the question itself
         $this->assertSame([], $discarded, 'and so does the question');
 
         $widget->handleInput('d');
         $widget->render(new RenderContext(44, 9));
-        $widget->handleClick(5, 3); // Discard's bottom border
+        $widget->handleClick(5, relCol: 3); // Discard's bottom border
         $this->assertSame(['src/a.php'], $discarded, 'Discard discards, border and all');
 
         $widget->handleInput('d');
         $widget->render(new RenderContext(44, 9));
-        $widget->handleClick(7, 10); // c.txt, below the block
+        $widget->handleClick(7, relCol: 10); // c.txt, below the block
         $this->assertSame(['src/a.php'], $discarded, 'elsewhere keeps');
         $this->assertSame(['c.txt'], $selected, 'and the click still selects what it landed on');
     }
@@ -324,22 +324,22 @@ final class ChangesListWidgetTest extends TestCase
         );
 
         $widget->render(new RenderContext(44, 8)); // the pointer lands on what was drawn
-        $widget->handleClick(3, 2); // row of src/b.php, inside [✓]
+        $widget->handleClick(3, relCol: 2); // row of src/b.php, inside [✓]
         $this->assertSame('src/b.php', $toggled);
 
-        $widget->handleClick(4, 10); // row of c.txt, on the path
+        $widget->handleClick(4, relCol: 10); // row of c.txt, on the path
         $this->assertSame('c.txt', $selected);
 
         // The toggle's target is the bar, the box and the gap after it — the
         // status letter at column 5 is the row's, and selects.
-        $widget->handleClick(4, 4);
+        $widget->handleClick(4, relCol: 4);
         $this->assertSame('c.txt', $toggled, 'the gap after the box still toggles');
-        $widget->handleClick(3, 5);
+        $widget->handleClick(3, relCol: 5);
         $this->assertSame('src/b.php', $selected, 'the status letter selects');
         $this->assertSame('c.txt', $toggled, 'and does not toggle');
 
-        $widget->handleClick(0, 2); // header row: ignored
-        $widget->handleClick(8, 2); // past the list: ignored
+        $widget->handleClick(0, relCol: 2); // header row: ignored
+        $widget->handleClick(8, relCol: 2); // past the list: ignored
         $this->assertSame('c.txt', $toggled);
     }
 
@@ -382,7 +382,7 @@ final class ChangesListWidgetTest extends TestCase
 
         $widget->handleInput("\x1b[B"); // swallowed by the hook
         $this->assertSame('src/a.php', $widget->selectedEntry()?->path);
-        $this->assertCount(4, Probe::get($widget, 'entries'));
+        $this->assertCount(4, Probe::get($widget, property: 'entries'));
     }
 
     public function testAlwaysFillsItsPane(): void
@@ -475,8 +475,8 @@ final class ChangesListWidgetTest extends TestCase
 
         $widget->setEntries([new ChangeEntry('a.php', 'M', ' '), new ChangeEntry('b.php', ' ', 'M')]);
         $this->assertStringStartsWith(' [–] 2 changed files', $header());
-        $widget->handleClick(0, 2);
-        $widget->handleClick(0, 4);
+        $widget->handleClick(0, relCol: 2);
+        $widget->handleClick(0, relCol: 4);
         $widget->handleInput('a');
 
         $widget->setEntries([new ChangeEntry('a.php', 'M', ' ')]);
@@ -485,7 +485,7 @@ final class ChangesListWidgetTest extends TestCase
 
         $widget->setEntries([new ChangeEntry('a.php', ' ', 'M')]);
         $this->assertStringStartsWith(' [ ]', $header());
-        $widget->handleClick(0, 5); // the title, past the box's target
+        $widget->handleClick(0, relCol: 5); // the title, past the box's target
         $widget->handleInput('a');
 
         $this->assertSame([true, true, true, false, true], $asked);
@@ -508,16 +508,16 @@ final class ChangesListWidgetTest extends TestCase
         $drawn = static fn (): array => $widget->render(new RenderContext(44, 8));
         $drawn();
 
-        $this->assertTrue($widget->hoverBoxAt(3, 2), 'onto src/b.php\'s box');
+        $this->assertTrue($widget->hoverBoxAt(3, relCol: 2), 'onto src/b.php\'s box');
         $this->assertStringContainsString("\x1b[4m[✓]", $drawn()[3]);
-        $this->assertFalse($widget->hoverBoxAt(3, 4), 'the target round it is the same box');
-        $this->assertTrue($widget->hoverBoxAt(3, 10), 'along the path');
+        $this->assertFalse($widget->hoverBoxAt(3, relCol: 4), 'the target round it is the same box');
+        $this->assertTrue($widget->hoverBoxAt(3, relCol: 10), 'along the path');
         $this->assertStringNotContainsString("\x1b[4m", $drawn()[3]);
-        $this->assertTrue($widget->hoverBoxAt(0, 2), 'the header\'s box');
+        $this->assertTrue($widget->hoverBoxAt(0, relCol: 2), 'the header\'s box');
         $this->assertStringContainsString("\x1b[4m[–]", $drawn()[0]);
-        $this->assertTrue($widget->hoverBoxAt(null, 0), 'off the list');
+        $this->assertTrue($widget->hoverBoxAt(null, relCol: 0), 'off the list');
 
-        $widget->hoverBoxAt(3, 2);
+        $widget->hoverBoxAt(3, relCol: 2);
         $widget->setEntries($this->entries());
         $this->assertStringNotContainsString("\x1b[4m", $drawn()[3], 'rows moved under the pointer: no stale box');
     }
@@ -539,13 +539,13 @@ final class ChangesListWidgetTest extends TestCase
 
         $widget->handleInput('d');
         $widget->render(new RenderContext(44, 9));
-        $widget->handleClick(6, 3); // src/b.php, the row under the block
+        $widget->handleClick(6, relCol: 3); // src/b.php, the row under the block
         $this->assertSame([], $discarded, 'under the buttons: no button');
 
         $widget->handleInput("\x1b[A"); // back to src/a.php, which the click moved off
         $widget->handleInput('d');
         $widget->render(new RenderContext(44, 9));
-        $widget->handleClick(3, 1); // Discard's top-left corner
+        $widget->handleClick(3, relCol: 1); // Discard's top-left corner
         $this->assertSame(['src/a.php'], $discarded, 'the top row and the first column are the button');
     }
 
@@ -564,8 +564,8 @@ final class ChangesListWidgetTest extends TestCase
 
         $widget->handleInput('d'); // src/a.php's question, on row 2
         $widget->render(new RenderContext(44, 9));
-        $this->assertTrue($repaints(static fn () => $widget->handleClick(2, 5)), 'an armed discard answered');
-        $this->assertTrue($repaints(static fn (): bool => $widget->hoverBoxAt(3, 2)), 'a box lit');
+        $this->assertTrue($repaints(static fn () => $widget->handleClick(2, relCol: 5)), 'an armed discard answered');
+        $this->assertTrue($repaints(static fn (): bool => $widget->hoverBoxAt(3, relCol: 2)), 'a box lit');
     }
 
     /** The header's box says what it does over the box itself: the card points at it, not the row. */
@@ -575,7 +575,7 @@ final class ChangesListWidgetTest extends TestCase
         $widget->setEntries($this->entries());
         $widget->render(new RenderContext(44, 9));
 
-        $tip = $widget->tooltipAt(0, 2);
+        $tip = $widget->tooltipAt(0, col: 2);
         $this->assertSame(['git:box:all', 0, 1, 4], [$tip?->key, $tip?->row, $tip?->colStart, $tip?->colEnd]);
     }
 }

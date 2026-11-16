@@ -45,7 +45,7 @@ final class GitSidebarTest extends TestCase
     /** The toolbar's first cell is as wide as the column: a new width is news to it too. */
     public function testANewWidthMarksTheToolbarOverItStale(): void
     {
-        $toolbar = new GitToolbarWidget(new Translator('en'), GitDoubles::repository(new GitInfo(\sys_get_temp_dir()), '/work/porta'));
+        $toolbar = new GitToolbarWidget(new Translator('en'), GitDoubles::repository(new GitInfo(\sys_get_temp_dir()), root: '/work/porta'));
         $sidebar = new GitSidebar(
             new GitTabsWidget(new Translator('en')),
             new ChangesListWidget(new Translator('en')),

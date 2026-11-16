@@ -38,7 +38,7 @@ final readonly class Stash
             $ok = $outcome->isOk();
             // git's own line, which says "No local changes to save" better
             // than a guess would.
-            $ok ? $this->api->flash($line, 3.0) : $this->api->notify($this->api->trans('Stash failed'), ToastSeverity::Error, 6.0);
+            $ok ? $this->api->flash($line, seconds: 3.0) : $this->api->notify($this->api->trans('Stash failed'), ToastSeverity::Error, seconds: 6.0);
             if ($ok) {
                 $this->api->emit(new WorkingTreeChanged());
             }

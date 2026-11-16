@@ -43,8 +43,8 @@ final class DirectoryComparisonTest extends TestCase
         $right = new TempProject([]);
         \symlink($repo->path('a.txt'), $right->path('a.txt'));
 
-        $this->assertSame(\realpath($repo->path('a.txt')), DirectoryComparison::side($right->dir, 'a.txt'));
-        $this->assertSame('/dev/null', DirectoryComparison::side($right->dir, 'missing.txt'), 'an added or deleted file diffs against nothing');
+        $this->assertSame(\realpath($repo->path('a.txt')), DirectoryComparison::side($right->dir, path: 'a.txt'));
+        $this->assertSame('/dev/null', DirectoryComparison::side($right->dir, path: 'missing.txt'), 'an added or deleted file diffs against nothing');
     }
 
     public function testAFileNamedLikeANumberIsStillAPath(): void

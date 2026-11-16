@@ -40,27 +40,27 @@ final class WorkingTreeStatusTest extends TestCase
         $api = $this->api();
         $this->project->initGit();
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\ntwo\nthree\n");
+        $this->project->write('a.txt', content: "one\ntwo\nthree\n");
         $status = new WorkingTreeStatus(new GitInfo($this->project->dir), $api, $this->project->dir);
 
         $status->refresh();
         $status->refresh(); // still in flight: this one becomes the rerun
         // The control: without these, two SEQUENTIAL runs would satisfy every
         // assertion below and the in-flight path would go untested.
-        $this->assertTrue(Probe::get($status, 'inFlight'), 'the first run is still going');
-        $this->assertTrue(Probe::get($status, 'rerun'), 'so the second was armed, not started');
+        $this->assertTrue(Probe::get($status, property: 'inFlight'), 'the first run is still going');
+        $this->assertTrue(Probe::get($status, property: 'rerun'), 'so the second was armed, not started');
 
         // Two serial `git status` subprocesses, so a fixed pump was a gap: the
         // marks landing with nothing in flight is the barrier. In the callback
         // the rerun re-arms inFlight synchronously, so there is no window where
         // both hold before the SECOND run has answered.
         $this->await(
-            fn (): bool => [] !== $this->statuses->statuses && false === Probe::get($status, 'inFlight'),
+            fn (): bool => [] !== $this->statuses->statuses && false === Probe::get($status, property: 'inFlight'),
             what: 'both status runs to finish',
         );
 
-        $this->assertFalse(Probe::get($status, 'rerun'), 'the rerun was consumed, not left armed');
-        $this->assertFalse(Probe::get($status, 'inFlight'), 'and the second run finished too');
+        $this->assertFalse(Probe::get($status, property: 'rerun'), 'the rerun was consumed, not left armed');
+        $this->assertFalse(Probe::get($status, property: 'inFlight'), 'and the second run finished too');
         $this->assertNotSame([], $this->statuses->statuses, 'the marks landed');
     }
 

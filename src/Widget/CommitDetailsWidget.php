@@ -171,9 +171,9 @@ final class CommitDetailsWidget extends AbstractWidget implements FocusableInter
         $kb = $this->getKeybindings();
         match (true) {
             $this->handleGitPaneKey($data, $kb) => null,
-            $kb->matches($data, 'show_changes') => $this->events?->dispatch(new GitViewModeRequested(GitViewMode::Changes)),
-            $kb->matches($data, 'switch_list') => $this->fire($this->onBack),
-            $kb->matches($data, 'copy_hash') => $this->copyHash(),
+            $kb->matches($data, action: 'show_changes') => $this->events?->dispatch(new GitViewModeRequested(GitViewMode::Changes)),
+            $kb->matches($data, action: 'switch_list') => $this->fire($this->onBack),
+            $kb->matches($data, action: 'copy_hash') => $this->copyHash(),
             ListNavigation::handleKey($data, $kb, $this->fileList, \count($this->files), page: $this->fileRowCount()) => $this->fireSelectFile(),
             default => null,
         };

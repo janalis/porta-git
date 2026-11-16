@@ -98,11 +98,11 @@ final class NarrowGitPaneRenderTest extends TestCase
 
         // Both shapes: three labelled cells over a rule, and one bar row.
         foreach (['toolbar (roomy)' => new ScreenDensity(), 'toolbar (compact)' => CompactScreen::density()] as $name => $density) {
-            $repository = GitDoubles::repository(new GitInfo(\sys_get_temp_dir()), '/work/porta');
-            Probe::set($repository, 'branch', 'feature/a-branch-name-long-enough-to-cut');
-            Probe::set($repository, 'tracking', new Tracking(1, 2));
-            Probe::set($repository, 'pullRequest', 446);
-            Probe::set($repository, 'lastFetched', 1_700_000_000);
+            $repository = GitDoubles::repository(new GitInfo(\sys_get_temp_dir()), root: '/work/porta');
+            Probe::set($repository, property: 'branch', value: 'feature/a-branch-name-long-enough-to-cut');
+            Probe::set($repository, property: 'tracking', value: new Tracking(1, 2));
+            Probe::set($repository, property: 'pullRequest', value: 446);
+            Probe::set($repository, property: 'lastFetched', value: 1_700_000_000);
             yield $name => [new GitToolbarWidget(new Translator('en'), $repository, density: $density)];
         }
 

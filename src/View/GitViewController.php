@@ -395,7 +395,7 @@ final class GitViewController implements ContributedView
             $this->panes->changes->setEntries(DirectoryComparison::changes($left, $right));
             $this->host->focus($this->panes->changes);
             $first = $this->panes->changes->selectedEntry();
-            null === $first ? $this->panes->diffView->setDocument(null, null, 'No changes') : $this->compareEntry($first);
+            null === $first ? $this->panes->diffView->setDocument(null, path: null, placeholder: 'No changes') : $this->compareEntry($first);
             $this->host->invalidate();
 
             return;
@@ -475,7 +475,7 @@ final class GitViewController implements ContributedView
         $this->panes->toolbar->spin($operation);
         $this->host->invalidate();
         $this->spinner = EventLoop::repeat(self::SPIN_SECONDS, function (): void {
-            $running = $this->remoteCommands?->running();
+            $running = $this->remoteCommands->running();
             if (null === $running) {
                 $this->stopSpinning();
 
@@ -588,7 +588,7 @@ final class GitViewController implements ContributedView
             }
             $selected = $this->panes->changes->selectedEntry();
             if (null === $selected) {
-                $this->panes->diffView->setDocument(null, null, 'Working tree clean');
+                $this->panes->diffView->setDocument(null, path: null, placeholder: 'Working tree clean');
                 $this->host->invalidate();
 
                 return;
@@ -772,7 +772,7 @@ final class GitViewController implements ContributedView
         if (GitViewMode::History === $mode) {
             $this->showCommit(null);
             $this->panes->diffView->makeReadOnly();
-            $this->panes->diffView->setDocument(null, null, 'Select a commit file');
+            $this->panes->diffView->setDocument(null, path: null, placeholder: 'Select a commit file');
             $this->host->focus($this->panes->history);
             $this->reloadHistory(HistoryReload::SelectFirst);
             $this->host->invalidate();
@@ -845,7 +845,7 @@ final class GitViewController implements ContributedView
                 if (null === $selected) {
                     // Filtering to a file with no history at all: say so, or
                     // the pane keeps the last patch it was given.
-                    $this->panes->diffView->setDocument(null, null, 'No commits');
+                    $this->panes->diffView->setDocument(null, path: null, placeholder: 'No commits');
                     $this->host->invalidate();
 
                     return;
@@ -1085,7 +1085,7 @@ final class GitViewController implements ContributedView
                 $this->panes->header->nameFiles(\count($files));
             }
             if ([] === $files) {
-                $this->panes->diffView->setDocument(null, null, 'No files in this commit');
+                $this->panes->diffView->setDocument(null, path: null, placeholder: 'No files in this commit');
                 $this->host->invalidate();
 
                 return;

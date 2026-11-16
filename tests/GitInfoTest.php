@@ -105,8 +105,8 @@ final class GitInfoTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "one\n");
-        $this->gitCommit($project, 'a.txt');
+        $project->write('a.txt', content: "one\n");
+        $this->gitCommit($project, file: 'a.txt');
 
         $linked = $project->path('linked');
         $project->git('worktree', 'add', '-q', $linked);
@@ -134,13 +134,13 @@ final class GitInfoTest extends TestCase
 
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "first\n");
-        $this->gitCommit($project, 'a.txt');
+        $project->write('a.txt', content: "first\n");
+        $this->gitCommit($project, file: 'a.txt');
 
         $git = new GitInfo($project->dir);
 
         // Stage a new change.
-        $project->write('a.txt', "first\nsecond\n");
+        $project->write('a.txt', content: "first\nsecond\n");
         $staged = null;
         $git->stage($project->path('a.txt'), static function (Outcome $ok) use (&$staged): void {
             $staged = $ok->isOk();
@@ -167,11 +167,11 @@ final class GitInfoTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "first\n");
-        $this->gitCommit($project, 'a.txt');
-        $project->write('.git/hooks/pre-commit', "#!/bin/sh\necho 'checking style' >&2\necho 'lint failed: a.txt' >&2\nexit 1\n");
+        $project->write('a.txt', content: "first\n");
+        $this->gitCommit($project, file: 'a.txt');
+        $project->write('.git/hooks/pre-commit', content: "#!/bin/sh\necho 'checking style' >&2\necho 'lint failed: a.txt' >&2\nexit 1\n");
         \chmod($project->path('.git/hooks/pre-commit'), permissions: 0o755);
-        $project->write('a.txt', "first\nsecond\n");
+        $project->write('a.txt', content: "first\nsecond\n");
         $project->git('add', 'a.txt');
         $git = new GitInfo($project->dir);
 
@@ -192,8 +192,8 @@ final class GitInfoTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "first\n");
-        $this->gitCommit($project, 'a.txt');
+        $project->write('a.txt', content: "first\n");
+        $this->gitCommit($project, file: 'a.txt');
         $git = new GitInfo($project->dir);
 
         $said = null;
@@ -216,7 +216,7 @@ final class GitInfoTest extends TestCase
         $project->git('add', '-A');
         $project->git('commit', '-q', '-m', 'init');
         foreach (['[id].txt', 'i.txt', 'd.txt'] as $file) {
-            $project->write($file, "changed\n");
+            $project->write($file, content: "changed\n");
         }
         $git = new GitInfo($project->dir);
 
@@ -252,9 +252,9 @@ final class GitInfoTest extends TestCase
                 $staged[$file] = $ok->isOk();
             });
         }
-        $this->assertCount(1, Probe::get($lane, 'running'), 'the second add waits for the first');
+        $this->assertCount(1, Probe::get($lane, property: 'running'), 'the second add waits for the first');
         $git->branch(static function (): void {});
-        $this->assertCount(2, Probe::get($lane, 'running'), 'a read does not wait');
+        $this->assertCount(2, Probe::get($lane, property: 'running'), 'a read does not wait');
 
         $this->await(static function () use (&$staged): bool {
             return 2 === \count($staged);
@@ -270,15 +270,15 @@ final class GitInfoTest extends TestCase
 
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "first\n");
-        $this->gitCommit($project, 'a.txt');
+        $project->write('a.txt', content: "first\n");
+        $this->gitCommit($project, file: 'a.txt');
 
         $git = new GitInfo($project->dir);
-        $lane = Probe::get(Probe::get($git, 'runner'), 'lane');
+        $lane = Probe::get(Probe::get($git, property: 'runner'), property: 'lane');
         $busy = static fn (): bool => 0 !== $lane->inFlight();
         $this->assertFalse($busy(), 'idle before any op is dispatched');
 
-        $project->write('a.txt', "first\nsecond\n");
+        $project->write('a.txt', content: "first\nsecond\n");
         $done = false;
         $git->stage($project->path('a.txt'), static function () use (&$done): void {
             $done = true;
@@ -301,11 +301,11 @@ final class GitInfoTest extends TestCase
 
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "line1\nline2\nline3\n");
-        $this->gitCommit($project, 'a.txt');
+        $project->write('a.txt', content: "line1\nline2\nline3\n");
+        $this->gitCommit($project, file: 'a.txt');
 
         // Modify line 2 and append a line
-        $project->write('a.txt', "line1\nCHANGED\nline3\nADDED\n");
+        $project->write('a.txt', content: "line1\nCHANGED\nline3\nADDED\n");
 
         $git = new GitInfo($project->dir);
         $this->assertTrue($git->isAvailable());
@@ -339,8 +339,8 @@ final class GitInfoTest extends TestCase
 
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "x\n");
-        $this->gitCommit($project, 'a.txt');
+        $project->write('a.txt', content: "x\n");
+        $this->gitCommit($project, file: 'a.txt');
 
         $git = new GitInfo($project->dir);
 
@@ -386,7 +386,7 @@ final class GitInfoTest extends TestCase
         $project = new TempProject([]);
         $this->gitInit($project);
         $project->git('config', 'commit.gpgsign', 'true'); // blocks an unsigned commit unless overridden
-        $project->write('a.txt', "x\n");
+        $project->write('a.txt', content: "x\n");
 
         // signCommits off => --no-gpg-sign; signoff on => a trailer.
         $git = new GitInfo($project->dir, new GitSettings(['signoff' => true, 'signCommits' => false]));
@@ -417,7 +417,7 @@ final class GitInfoTest extends TestCase
         }
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "x\n");
+        $project->write('a.txt', content: "x\n");
 
         // -S needs no gpg key to *attempt*: the flags are spliced either way, so
         // this exercises the -S / --no-verify arms regardless of signing success.
@@ -484,19 +484,19 @@ final class GitInfoTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject([]);
         $this->gitInit($project);
-        $project->write('a.txt', "one\ntwo\n");
-        $project->write('b.txt', "x\n");
-        $this->gitCommit($project, 'a.txt');
+        $project->write('a.txt', content: "one\ntwo\n");
+        $project->write('b.txt', content: "x\n");
+        $this->gitCommit($project, file: 'a.txt');
         $project->git('add', 'b.txt');
         $project->git('commit', '-q', '-m', 'b');
-        $project->write('a.txt', "one\nthree\nfour\n");
+        $project->write('a.txt', content: "one\nthree\nfour\n");
         $project->git('rm', '-q', 'b.txt');
         $project->git('commit', '-qam', 'mixed');
         $git = new GitInfo($project->dir);
 
-        $this->assertEquals(new DiffStat(2, 2), $this->stat($git, 'HEAD'));
-        $this->assertEquals(new DiffStat(1, 0), $this->stat($git, 'HEAD~1'));
-        $this->assertNull($this->stat($git, 'no-such-commit'));
+        $this->assertEquals(new DiffStat(2, 2), $this->stat($git, sha: 'HEAD'));
+        $this->assertEquals(new DiffStat(1, 0), $this->stat($git, sha: 'HEAD~1'));
+        $this->assertNull($this->stat($git, sha: 'no-such-commit'));
     }
 
     private function stat(GitInfo $git, string $sha): ?DiffStat

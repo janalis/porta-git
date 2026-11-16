@@ -140,8 +140,8 @@ final class GitHistoryPointerTest extends TestCase
     {
         $this->tui->setFocus($this->details);
 
-        $this->assertTrue($this->router->press($this->on($this->header, 1, \mb_strlen(' Alice · abc1234 '))));
-        $this->assertTrue($this->router->press($this->on($this->header, 0, 3)), 'the subject takes the press, and does nothing with it');
+        $this->assertTrue($this->router->press($this->on($this->header, row: 1, col: \mb_strlen(' Alice · abc1234 '))));
+        $this->assertTrue($this->router->press($this->on($this->header, row: 0, col: 3)), 'the subject takes the press, and does nothing with it');
 
         $this->assertSame(['full'], $this->copied);
         $this->assertSame($this->details, $this->tui->getFocus());

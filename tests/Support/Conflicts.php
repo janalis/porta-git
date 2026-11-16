@@ -19,10 +19,10 @@ final class Conflicts
         $project->initGit(branch: 'main');
         $project->commitAll('base');
         $project->git('checkout', '-q', '-b', 'topic');
-        $project->write('a.txt', "theirs\n");
+        $project->write('a.txt', content: "theirs\n");
         $project->commitAll('theirs');
         $project->git('checkout', '-q', 'main');
-        $project->write('a.txt', "ours\n");
+        $project->write('a.txt', content: "ours\n");
         $project->commitAll('ours');
         new Process(['git', 'merge', '-q', 'topic'], $project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH])->run();
     }

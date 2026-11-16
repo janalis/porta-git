@@ -105,9 +105,9 @@ final class GitMouseRouterInteractionTest extends TestCase
         $this->assertSame($this->diff, $this->tui->getFocus(), 'the pressed pane took focus');
 
         // Armed: a follow-up drag must actually extend the selection.
-        Probe::set($this->tui, 'renderRequested', false);
+        Probe::set($this->tui, property: 'renderRequested', value: false);
         $this->assertTrue($this->router->continueDrag($this->dragAt(col: 52, row: 3)));
-        $this->assertTrue(Probe::get($this->tui, 'renderRequested'), 'the extended selection requested a redraw');
+        $this->assertTrue(Probe::get($this->tui, property: 'renderRequested'), 'the extended selection requested a redraw');
     }
 
     public function testPressingTheDiffHeaderRowDoesNotArmTheDragSelection(): void

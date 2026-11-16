@@ -43,10 +43,10 @@ final class OperationE2eTest extends TestCase
         $project->initGit(branch: 'main');
         $project->commitAll('base');
         $project->git('checkout', '-q', '-b', 'topic');
-        $project->write('a.php', "<?php\necho 'theirs';\n");
+        $project->write('a.php', content: "<?php\necho 'theirs';\n");
         $project->commitAll('theirs');
         $project->git('checkout', '-q', 'main');
-        $project->write('a.php', "<?php\necho 'ours';\n");
+        $project->write('a.php', content: "<?php\necho 'ours';\n");
         $project->commitAll('ours');
         new Process(['git', 'rebase', 'topic'], $project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH, 'GIT_EDITOR' => 'true'])->run();
         $this->assertDirectoryExists($project->path('.git/rebase-merge'));
@@ -63,7 +63,7 @@ final class OperationE2eTest extends TestCase
             $project->path('a.php'),
             [
                 0 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
-                    $this->awaitPainted($tui, $terminal, 'rebasing 1/1 · 1 conflicted file');
+                    $this->awaitPainted($tui, $terminal, needle: 'rebasing 1/1 · 1 conflicted file');
                     $commands = Services::resolve($ide, CommandRegistry::class);
 
                     $commands->run('git:continue');
@@ -73,7 +73,7 @@ final class OperationE2eTest extends TestCase
                     // being rebased onto and "theirs" the commit being
                     // replayed — so it is theirs, on the right, that keeps
                     // this branch's line; the labels say which is which.
-                    $this->awaitPainted($tui, $terminal, '⇤ ');
+                    $this->awaitPainted($tui, $terminal, needle: '⇤ ');
                     $theirs = Services::resolve($ide, EditorPanes::class)->paneFor(MergePaneWidget::PANE_ID);
                     $this->assertInstanceOf(MergePaneWidget::class, $theirs);
                     $tui->setFocus($theirs);
@@ -83,7 +83,7 @@ final class OperationE2eTest extends TestCase
 
                     $project->git('add', 'a.php');
                     $commands->run('git:continue');
-                    $this->awaitPainted($tui, $terminal, 'Continued the rebase');
+                    $this->awaitPainted($tui, $terminal, needle: 'Continued the rebase');
                     $this->await(static fn (): bool => !\is_dir($project->path('.git/rebase-merge')), what: 'the rebase finished');
                     $this->assertSame('ours', $project->git('log', '-1', '--pretty=%s'), 'the commit replayed, its message kept');
                 },

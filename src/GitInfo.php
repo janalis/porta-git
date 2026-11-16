@@ -689,7 +689,7 @@ final readonly class GitInfo
             }
             $this->runner->runCapturing(['worktree', 'list', '--porcelain'], static function (Outcome $ok, string $out, string $errors) use ($onDone): void {
                 $none = '';
-                $ok->isOk() ? $onDone(WorktreeParser::parse($out, "\n"), $none) : $onDone(null, self::reason($errors));
+                $ok->isOk() ? $onDone(WorktreeParser::parse($out, separator: "\n"), $none) : $onDone(null, self::reason($errors));
             });
         });
     }

@@ -68,10 +68,10 @@ final class CommitHeaderWidgetTest extends TestCase
 
     public function testCompactOneRowSaysItAllAndTheSubjectGivesWay(): void
     {
-        $header = $this->header(CompactScreen::density(), 'Release the session lock before an embedded editor reloads');
+        $header = $this->header(CompactScreen::density(), subject: 'Release the session lock before an embedded editor reloads');
         $header->setStat(new DiffStat(12, 0));
 
-        $rows = self::rows($header, 50);
+        $rows = self::rows($header, width: 50);
 
         $this->assertCount(2, $rows);
         $this->assertSame(' Release the session lock bef… · f00dfac ⧉ +12 −0 ', $rows[0]);
@@ -92,18 +92,18 @@ final class CommitHeaderWidgetTest extends TestCase
         $header = $this->header();
         $header->nameFiles(2);
 
-        $this->assertSame('─ 2 changed files ────────────', self::rows($header, 30)[2]);
+        $this->assertSame('─ 2 changed files ────────────', self::rows($header, width: 30)[2]);
         $header->nameFiles(null);
-        $this->assertSame(\str_repeat('─', times: 30), self::rows($header, 30)[2]);
+        $this->assertSame(\str_repeat('─', times: 30), self::rows($header, width: 30)[2]);
     }
 
     public function testNoCommitIsTheRuleAlone(): void
     {
         $header = new CommitHeaderWidget(new Translator('en'));
 
-        $this->assertSame([\str_repeat('─', times: 10)], self::rows($header, 10));
-        $this->assertNull($header->tooltipAt(0, 1));
-        $header->handleClick(0, 1);
+        $this->assertSame([\str_repeat('─', times: 10)], self::rows($header, width: 10));
+        $this->assertNull($header->tooltipAt(0, col: 1));
+        $header->handleClick(0, relCol: 1);
         $this->assertSame([], $this->copied);
     }
 
@@ -122,13 +122,13 @@ final class CommitHeaderWidgetTest extends TestCase
         $this->assertSame(['git:header:copy', 'Copy the full commit hash', 1, $copy, $copy + 1], [$button?->key, $button?->text, $button?->row, $button?->colStart, $button?->colEnd]);
         $header->handleClick(1, $copy + 1); // just past the button
         $this->assertSame([self::SHA], $this->copied, 'past the button: nothing more');
-        $commit = $header->tooltipAt(0, 3);
+        $commit = $header->tooltipAt(0, col: 3);
         $this->assertSame(
             ['git:header:'.self::SHA, self::SHA."\nRecord the parallel flake fixes\nphcorp · ".\date('Y-m-d H:i', timestamp: 1_700_000_000), 0, 0, 50],
             [$commit?->key, $commit?->text, $commit?->row, $commit?->colStart, $commit?->colEnd],
             'the commit in full, across the header',
         );
-        $this->assertNull($header->tooltipAt(2, 3), 'the rule says nothing');
+        $this->assertNull($header->tooltipAt(2, col: 3), 'the rule says nothing');
     }
 
     /** Too narrow for the copy button whole, there is none to press. */
@@ -136,7 +136,7 @@ final class CommitHeaderWidgetTest extends TestCase
     {
         $header = $this->header();
         $header->setStat(new DiffStat(1234, 5678));
-        $rows = self::rows($header, 16);
+        $rows = self::rows($header, width: 16);
 
         $this->assertSame('f0… +1234 −5678 ', $rows[1], 'the stat stays; the rest gives way');
         foreach (\range(0, end: 15) as $col) {
@@ -151,7 +151,7 @@ final class CommitHeaderWidgetTest extends TestCase
         $header = $this->header();
         $header->setStat(new DiffStat(6, 1));
 
-        $this->assertSame(' phc… f00dfac ⧉ +6 −1 ', self::rows($header, 22)[1]);
+        $this->assertSame(' phc… f00dfac ⧉ +6 −1 ', self::rows($header, width: 22)[1]);
     }
 
     /** Another commit's files are not this one's: the stacked count waits for its own. */
@@ -161,9 +161,9 @@ final class CommitHeaderWidgetTest extends TestCase
         $header->nameFiles(5);
 
         $header->setCommit(new LogEntry('b', 'bbbbbbb', 'Bob', 1_700_000_000, 'Next'));
-        $this->assertSame(\str_repeat('─', times: 30), self::rows($header, 30)[2]);
+        $this->assertSame(\str_repeat('─', times: 30), self::rows($header, width: 30)[2]);
         $header->setCommit(null);
         $header->nameFiles(null);
-        $this->assertSame([\str_repeat('─', times: 30)], self::rows($header, 30));
+        $this->assertSame([\str_repeat('─', times: 30)], self::rows($header, width: 30));
     }
 }

@@ -65,7 +65,7 @@ final class RepositoryStateTest extends TestCase
         // git's own lane too: the branch's answer asks two more things —
         // its remote of git, its pull request of gh — so neither lane alone
         // being quiet says the refresh is over.
-        $git = Probe::get(Probe::get(Probe::get($state, 'git'), 'runner'), 'lane');
+        $git = Probe::get(Probe::get(Probe::get($state, property: 'git'), property: 'runner'), property: 'lane');
         Assert::assertInstanceOf(ProcessLane::class, $git);
         $this->await(static function () use (&$repaints, $lane, $git): bool {
             return 0 === $lane->inFlight() && 0 === $git->inFlight() && $repaints >= 3;
@@ -79,7 +79,7 @@ final class RepositoryStateTest extends TestCase
     {
         $this->project->git('branch', 'base');
         $this->project->git('branch', '--set-upstream-to=base');
-        $this->project->write('a.txt', "two\n");
+        $this->project->write('a.txt', content: "two\n");
         $this->project->commitAll('second');
         $state = $this->state('446');
 
@@ -95,7 +95,7 @@ final class RepositoryStateTest extends TestCase
     public function testBehindCountsTheUpstreamsOwnCommits(): void
     {
         $this->project->git('checkout', '-q', '-b', 'base');
-        $this->project->write('b.txt', "b\n");
+        $this->project->write('b.txt', content: "b\n");
         $this->project->commitAll('on base');
         $this->project->git('checkout', '-q', 'main');
         $this->project->git('branch', '--set-upstream-to=base');
@@ -118,7 +118,7 @@ final class RepositoryStateTest extends TestCase
 
     public function testTheLastFetchIsWhenFetchHeadWasWritten(): void
     {
-        $this->project->write('.git/FETCH_HEAD', '');
+        $this->project->write('.git/FETCH_HEAD', content: '');
         \touch($this->project->path('.git/FETCH_HEAD'), mtime: 1_700_000_000);
         $state = $this->state();
 
@@ -136,9 +136,9 @@ final class RepositoryStateTest extends TestCase
     {
         $linked = $this->project->path('elsewhere');
         $this->project->git('worktree', 'add', '-q', '-b', 'side', $linked);
-        $this->project->write('.git/FETCH_HEAD', '');
+        $this->project->write('.git/FETCH_HEAD', content: '');
         \touch($this->project->path('.git/FETCH_HEAD'), mtime: 1_600_000_000);
-        $this->project->write('.git/worktrees/elsewhere/FETCH_HEAD', '');
+        $this->project->write('.git/worktrees/elsewhere/FETCH_HEAD', content: '');
         \touch($this->project->path('.git/worktrees/elsewhere/FETCH_HEAD'), mtime: 1_700_000_000);
         $state = $this->state(root: $linked);
 
@@ -213,7 +213,7 @@ final class RepositoryStateTest extends TestCase
         $this->settle($state);
         $this->assertSame(446, $state->pullRequest());
 
-        $this->project->write('bin/gh', "#!/bin/sh\necho 512\n");
+        $this->project->write('bin/gh', content: "#!/bin/sh\necho 512\n");
         $this->settle($state);
         $this->assertSame(446, $state->pullRequest(), 'same branch: gh is not asked again');
 
@@ -221,7 +221,7 @@ final class RepositoryStateTest extends TestCase
         $this->assertSame(512, $state->pullRequest(), 'a fetch asks again');
 
         $this->project->git('checkout', '-q', '-b', 'feature');
-        $this->project->write('bin/gh', "#!/bin/sh\necho 600\n");
+        $this->project->write('bin/gh', content: "#!/bin/sh\necho 600\n");
         $this->settle($state);
         $this->assertSame('feature', $state->branch());
         $this->assertSame(600, $state->pullRequest(), 'a new branch asks again');
@@ -231,8 +231,8 @@ final class RepositoryStateTest extends TestCase
     public function testAnAnswerForABranchLeftBehindIsDropped(): void
     {
         // Two scripts, not one rewritten: sh reads its script as it runs.
-        $this->project->write('bin/slow', "#!/bin/sh\nsleep 1\necho 111\n");
-        $this->project->write('bin/fast', "#!/bin/sh\necho 222\n");
+        $this->project->write('bin/slow', content: "#!/bin/sh\nsleep 1\necho 111\n");
+        $this->project->write('bin/fast', content: "#!/bin/sh\necho 222\n");
         \chmod($this->project->path('bin/slow'), permissions: 0o755);
         \chmod($this->project->path('bin/fast'), permissions: 0o755);
         $gh = $this->project->path('bin/slow');

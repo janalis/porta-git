@@ -53,18 +53,18 @@ final class GitTooltipsTest extends TestCase
     {
         $list = $this->changes();
 
-        $this->assertSame("Unstage this file\tSpace", $list->tooltipAt(2, 2)?->text);
-        $this->assertSame("Stage this file\tSpace", $list->tooltipAt(3, 1)?->text);
-        $this->assertSame('Stage everything', $list->tooltipAt(0, 2)?->text, "the header's box, over a mix");
+        $this->assertSame("Unstage this file\tSpace", $list->tooltipAt(2, col: 2)?->text);
+        $this->assertSame("Stage this file\tSpace", $list->tooltipAt(3, col: 1)?->text);
+        $this->assertSame('Stage everything', $list->tooltipAt(0, col: 2)?->text, "the header's box, over a mix");
     }
 
     public function testACutPathIsSaidWholeAndAWholeOneIsNot(): void
     {
         $list = $this->changes();
 
-        $this->assertSame('src/a/very/deep/directory/with/a/long/name/File.php', $list->tooltipAt(5, 20)?->text);
-        $this->assertNull($list->tooltipAt(2, 10), 'src/a.php is drawn whole');
-        $this->assertNull($list->tooltipAt(9, 10), 'past the entries');
+        $this->assertSame('src/a/very/deep/directory/with/a/long/name/File.php', $list->tooltipAt(5, col: 20)?->text);
+        $this->assertNull($list->tooltipAt(2, col: 10), 'src/a.php is drawn whole');
+        $this->assertNull($list->tooltipAt(9, col: 10), 'past the entries');
     }
 
     public function testEveryLetterGitCanShowHasWords(): void
@@ -80,7 +80,7 @@ final class GitTooltipsTest extends TestCase
         ]);
         $list->render(new RenderContext(40, 10));
 
-        $texts = \array_map(static fn (int $row): ?string => $list->tooltipAt($row, 5)?->text, \range(2, end: 7));
+        $texts = \array_map(static fn (int $row): ?string => $list->tooltipAt($row, col: 5)?->text, \range(2, end: 7));
 
         $this->assertSame(
             [
@@ -102,7 +102,7 @@ final class GitTooltipsTest extends TestCase
         $list->setEntries([new ChangeEntry('a.php', 'M', ' ')]);
         $list->render(new RenderContext(40, 5));
 
-        $this->assertSame('Unstage everything', $list->tooltipAt(0, 1)?->text);
+        $this->assertSame('Unstage everything', $list->tooltipAt(0, col: 1)?->text);
     }
 
     public function testAnEmptyListsHeaderSaysNothing(): void
@@ -110,7 +110,7 @@ final class GitTooltipsTest extends TestCase
         $list = new ChangesListWidget(new Translator('en'));
         $list->render(new RenderContext(40, 5));
 
-        $this->assertNull($list->tooltipAt(0, 1));
+        $this->assertNull($list->tooltipAt(0, col: 1));
     }
 
     public function testADisabledCommitButtonSaysWhy(): void
@@ -123,15 +123,15 @@ final class GitTooltipsTest extends TestCase
         $box->render(new RenderContext(40, 20));
         $row = $box->buttonRow();
 
-        $tip = $box->tooltipAt($row, 5);
+        $tip = $box->tooltipAt($row, col: 5);
         $this->assertSame(['git:commit', 'Write a summary first', $row], [$tip?->key, $tip?->text, $tip?->row]);
 
         $box->setMessage('Fix it');
-        $this->assertSame('Stage a change first', $box->tooltipAt($row, 5)?->text);
+        $this->assertSame('Stage a change first', $box->tooltipAt($row, col: 5)?->text);
 
         $staged = true;
-        $this->assertNull($box->tooltipAt($row, 5), 'an enabled button needs no card');
-        $this->assertNull($box->tooltipAt(0, 5), 'nor anything but the button');
+        $this->assertNull($box->tooltipAt($row, col: 5), 'an enabled button needs no card');
+        $this->assertNull($box->tooltipAt(0, col: 5), 'nor anything but the button');
     }
 
     public function testAHistoryRowSaysItselfInFull(): void
@@ -140,7 +140,7 @@ final class GitTooltipsTest extends TestCase
         $history->setCommits([new LogEntry('abcdef1234567890', 'abcdef1', 'Alice', 1_700_000_000, 'A subject long enough to be cut by the pane')]);
         $history->render(new RenderContext(30, 14));
 
-        $commit = $history->tooltipAt(1, 3);
+        $commit = $history->tooltipAt(1, col: 3);
         $this->assertSame("abcdef1234567890\nA subject long enough to be cut by the pane\nAlice · ".\date('Y-m-d H:i', timestamp: 1_700_000_000), $commit?->text);
         $this->assertSame([1, 0, 30], [$commit?->row, $commit?->colStart, $commit?->colEnd]);
     }
@@ -154,7 +154,7 @@ final class GitTooltipsTest extends TestCase
         $rows = \explode("\n", $this->plain($details->render(new RenderContext(30, 14))));
 
         $cut = (int) \array_key_first(\array_filter($rows, static fn (string $r): bool => \str_contains($r, 'pane.php')));
-        $this->assertSame('src/a/deep/path/that/will/not/fit/in/the/pane.php', $details->tooltipAt($cut, 3)?->text);
-        $this->assertNull($details->tooltipAt($cut + 1, 3), 'x.php is drawn whole');
+        $this->assertSame('src/a/deep/path/that/will/not/fit/in/the/pane.php', $details->tooltipAt($cut, col: 3)?->text);
+        $this->assertNull($details->tooltipAt($cut + 1, col: 3), 'x.php is drawn whole');
     }
 }

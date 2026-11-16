@@ -126,12 +126,12 @@ final class CommitHeaderWidget extends AbstractWidget implements MenuOverlayHost
 
             return [
                 AnsiText::truncate(' '.$subject, $width, pad: true),
-                $this->withStat($by, $sha, $stat, $width, 1),
+                $this->withStat($by, $sha, $stat, $width, row: 1),
             ];
         }
 
         // The joint goes with the sha, so a subject cut short still stands apart from it.
-        return [$this->withStat(' '.$subject.' ', $this->styles->of(Role::Dim)->apply('· ').$sha, $stat, $width, 0)];
+        return [$this->withStat(' '.$subject.' ', $this->styles->of(Role::Dim)->apply('· ').$sha, $stat, $width, row: 0)];
     }
 
     /**

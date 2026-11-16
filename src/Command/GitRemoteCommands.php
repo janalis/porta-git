@@ -183,23 +183,23 @@ final class GitRemoteCommands
         }
         // Sticky until the outcome replaces it in the same slot — the card
         // turns into the result where it stands rather than lingering beside it.
-        $this->notifier->flash($started, 600.0, self::SLOT);
+        $this->notifier->flash($started, seconds: 600.0, slot: self::SLOT);
         $this->running = $operation;
         $start(function (Outcome $ok, string $output) use ($operation, $succeeded, $onFailure): void {
             $this->running = null;
             if (!$ok->isOk() && null !== $onFailure && $onFailure($output)) {
                 // The follow-up choice is the answer; the progress card goes.
-                $this->notifier->warn($this->translator->trans('%operation% needs a choice', ['%operation%' => \ucfirst($operation->value)]), 3.0, self::SLOT);
+                $this->notifier->warn($this->translator->trans('%operation% needs a choice', ['%operation%' => \ucfirst($operation->value)]), seconds: 3.0, slot: self::SLOT);
                 $this->dispatcher->dispatch(new GitRemoteCompleted($operation->value, false));
 
                 return;
             }
             $ok->isOk()
-                ? $this->notifier->success($succeeded, 3.0, self::SLOT)
+                ? $this->notifier->success($succeeded, seconds: 3.0, slot: self::SLOT)
                 : $this->notifier->error(
                     $this->translator->trans('%operation% failed: %error%', ['%operation%' => \ucfirst($operation->value), '%error%' => self::reason($output)]),
-                    6.0,
-                    self::SLOT,
+                    seconds: 6.0,
+                    slot: self::SLOT,
                 );
             $this->dispatcher->dispatch(new GitRemoteCompleted($operation->value, $ok->isOk()));
         });

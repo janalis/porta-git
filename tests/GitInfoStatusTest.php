@@ -26,8 +26,8 @@ final class GitInfoStatusTest extends TestCase
     public function testStatusListsStagedUnstagedAndUntracked(): void
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
-        $project->write('a.txt', "one changed\n"); // unstaged edit
-        $project->write('new.txt', "fresh\n"); // untracked
+        $project->write('a.txt', content: "one changed\n"); // unstaged edit
+        $project->write('new.txt', content: "fresh\n"); // untracked
         $project->git('add', 'new.txt'); // staged add
 
         $entries = null;
@@ -53,9 +53,9 @@ final class GitInfoStatusTest extends TestCase
     public function testCachedAndWorktreeDiffsSplitTheChange(): void
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\ntwo\n"]);
-        $project->write('a.txt', "one staged\ntwo\n");
+        $project->write('a.txt', content: "one staged\ntwo\n");
         $project->git('add', 'a.txt');
-        $project->write('a.txt', "one staged\ntwo worktree\n"); // further unstaged edit
+        $project->write('a.txt', content: "one staged\ntwo worktree\n"); // further unstaged edit
 
         $cached = $this->awaitString(static fn (\Closure $done) => $git->cachedFileDiff($project->path('a.txt'), $done));
         $worktree = $this->awaitString(static fn (\Closure $done) => $git->worktreeFileDiff($project->path('a.txt'), $done));
@@ -90,7 +90,7 @@ final class GitInfoStatusTest extends TestCase
     {
         $git = $this->repo($project, committed: ['a.txt' => "alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\n"]);
         // One indent-only change (bravo) and one real change (hotel).
-        $project->write('a.txt', "alpha\n  bravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel CHANGED\n");
+        $project->write('a.txt', content: "alpha\n  bravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel CHANGED\n");
 
         $plain = $this->awaitString(static fn (\Closure $done) => $git->worktreeFileDiff($project->path('a.txt'), $done));
         $ignoring = $this->awaitString(static fn (\Closure $done) => $git->worktreeFileDiff($project->path('a.txt'), $done, whitespace: WhitespaceMode::Hidden));
@@ -103,10 +103,10 @@ final class GitInfoStatusTest extends TestCase
         $project->git('commit', '-q', '-m', 'ws');
         $sha = $project->git('log', '-1', '--format=%H');
 
-        $project->write('a.txt', "alpha\n    bravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel CHANGED\n");
+        $project->write('a.txt', content: "alpha\n    bravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel CHANGED\n");
         $project->git('add', 'a.txt');
         $cached = $this->awaitString(static fn (\Closure $done) => $git->cachedFileDiff($project->path('a.txt'), $done, whitespace: WhitespaceMode::Hidden));
-        $show = $this->awaitString(static fn (\Closure $done) => $git->commitFileDiff($sha, 'a.txt', $done, whitespace: WhitespaceMode::Hidden));
+        $show = $this->awaitString(static fn (\Closure $done) => $git->commitFileDiff($sha, relPath: 'a.txt', onDone: $done, whitespace: WhitespaceMode::Hidden));
 
         $this->assertStringNotContainsString('bravo', $cached, 'the cached -w diff hides the reindent');
         $this->assertStringNotContainsString('bravo', $show, "the commit's -w patch hides its indent hunk");
@@ -116,7 +116,7 @@ final class GitInfoStatusTest extends TestCase
     public function testUntrackedFileDiffShowsEverythingAsAdditions(): void
     {
         $git = $this->repo($project, committed: ['seed.txt' => "s\n"]);
-        $project->write('brand-new.txt', "alpha\nbeta\n");
+        $project->write('brand-new.txt', content: "alpha\nbeta\n");
 
         $diff = $this->awaitString(static fn (\Closure $done) => $git->untrackedFileDiff($project->path('brand-new.txt'), $done));
 
@@ -127,7 +127,7 @@ final class GitInfoStatusTest extends TestCase
     public function testUnstageAndDiscardRoundTrip(): void
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
-        $project->write('a.txt', "one changed\n");
+        $project->write('a.txt', content: "one changed\n");
         $project->git('add', 'a.txt');
 
         $unstaged = null;
@@ -162,8 +162,8 @@ final class GitInfoStatusTest extends TestCase
     public function testStageAllAndUnstageAllRoundTrip(): void
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
-        $project->write('a.txt', "one changed\n");
-        $project->write('new.txt', "fresh\n");
+        $project->write('a.txt', content: "one changed\n");
+        $project->write('new.txt', content: "fresh\n");
         $porcelain = static function () use ($project): array {
             $lines = [];
             \exec('git --no-optional-locks -C '.\escapeshellarg($project->dir).' status --porcelain 2>/dev/null', $lines);
@@ -197,7 +197,7 @@ final class GitInfoStatusTest extends TestCase
     public function testAmendRewritesTheLastCommitAndPrefillReadsIt(): void
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
-        $project->write('a.txt', "one more\n");
+        $project->write('a.txt', content: "one more\n");
         $project->git('add', 'a.txt');
 
         $committed = null;
@@ -231,7 +231,7 @@ final class GitInfoStatusTest extends TestCase
     public function testUndoLastCommitSoftResetsAndRefusesTheRootCommit(): void
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
-        $project->write('a.txt', "two\n");
+        $project->write('a.txt', content: "two\n");
         $project->git('add', 'a.txt');
         $project->git('commit', '-q', '-m', 'second');
 
@@ -259,11 +259,11 @@ final class GitInfoStatusTest extends TestCase
     {
         $git = $this->repo($project, committed: ['a.txt' => "one\n"]);
         $base = \trim($project->git('rev-parse', 'HEAD'));
-        $project->write('a.txt', "one\nmore\n");
+        $project->write('a.txt', content: "one\nmore\n");
         $project->git('commit', '-am', 'more');
 
         $ok = null;
-        $git->resetTo($base, 'soft', static function (Outcome $o) use (&$ok): void {
+        $git->resetTo($base, mode: 'soft', onDone: static function (Outcome $o) use (&$ok): void {
             $ok = $o->isOk();
         });
         $this->await(static function () use (&$ok): bool {
@@ -275,7 +275,7 @@ final class GitInfoStatusTest extends TestCase
 
         $project->git('commit', '-am', 'more again');
         $ok = null;
-        $git->resetTo($base, 'mixed', static function (Outcome $o) use (&$ok): void {
+        $git->resetTo($base, mode: 'mixed', onDone: static function (Outcome $o) use (&$ok): void {
             $ok = $o->isOk();
         });
         $this->await(static function () use (&$ok): bool {
@@ -330,7 +330,7 @@ final class GitInfoStatusTest extends TestCase
         $git->commitFiles('deadbeef', static function (array $files) use (&$calls): void {
             $calls[] = ['files', $files];
         });
-        $git->commitFileDiff('deadbeef', 'a.txt', static function (string $raw) use (&$calls): void {
+        $git->commitFileDiff('deadbeef', relPath: 'a.txt', onDone: static function (string $raw) use (&$calls): void {
             $calls[] = ['show', $raw];
         });
         $git->commit('msg', static function (Outcome $ok, string $out) use (&$calls): void {

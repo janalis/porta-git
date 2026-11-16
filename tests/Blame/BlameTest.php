@@ -68,7 +68,7 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->buffers->open($this->project->path('a.txt'), "one\ntwo\n");
+        $this->buffers->open($this->project->path('a.txt'), content: "one\ntwo\n");
         $this->editor->showDocument($this->project->path('a.txt'), new Document("one\ntwo\n"));
 
         return new BlameClient($this->project->dir);
@@ -80,8 +80,8 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\nCHANGED\n");
-        $this->buffers->open($this->project->path('a.txt'), "one\nCHANGED\n");
+        $this->project->write('a.txt', content: "one\nCHANGED\n");
+        $this->buffers->open($this->project->path('a.txt'), content: "one\nCHANGED\n");
 
         $announced = 0;
         $this->events->addListener(WorkingTreeChanged::class, static function () use (&$announced): void {
@@ -106,10 +106,10 @@ final class BlameTest extends TestCase
         $this->project->initGit(branch: 'main', name: 'tester', email: 't@t');
         $this->project->commitAll('init');
         $this->project->git('checkout', '-q', '-b', 'topic');
-        $this->project->write('a.txt', "one\ntheirs\n");
+        $this->project->write('a.txt', content: "one\ntheirs\n");
         $this->project->commitAll('theirs');
         $this->project->git('checkout', '-q', 'main');
-        $this->project->write('a.txt', "one\nours\n");
+        $this->project->write('a.txt', content: "one\nours\n");
         $this->project->commitAll('ours');
         new Process(['git', 'merge', '-q', 'topic'], $this->project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH])->run();
         $this->buffers->open($this->project->path('a.txt'), (string) \file_get_contents($this->project->path('a.txt')));
@@ -136,7 +136,7 @@ final class BlameTest extends TestCase
         // check can refuse. Without this, deleting that check went unnoticed:
         // the no-file-open test above flashes the SAME words by the other branch.
         $api = $this->api();
-        $this->buffers->open($this->project->path('a.txt'), "one\n");
+        $this->buffers->open($this->project->path('a.txt'), content: "one\n");
 
         new IndexCommands(new GitInfo($this->project->dir), $api)->stageCurrent();
 
@@ -149,7 +149,7 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\nsecond\n");
+        $this->project->write('a.txt', content: "one\nsecond\n");
         $this->project->commitAll('second');
 
         $announced = 0;
@@ -197,7 +197,7 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\nCHANGED\n");
+        $this->project->write('a.txt', content: "one\nCHANGED\n");
 
         // Registered on the bus directly: on() is a REGISTRATION and refuses
         // after the plugin is committed, which the rig has already done.
@@ -241,7 +241,7 @@ final class BlameTest extends TestCase
         $api = $this->api();
         $this->skipWithoutGit();
         $this->project->initGit();
-        $this->project->write('a.txt', "one\nCHANGED\n");
+        $this->project->write('a.txt', content: "one\nCHANGED\n");
 
         $announced = 0;
         $this->events->addListener(WorkingTreeChanged::class, static function () use (&$announced): void {
@@ -284,8 +284,8 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\nCHANGED\n");
-        $this->buffers->open($this->project->path('a.txt'), "one\nCHANGED\n");
+        $this->project->write('a.txt', content: "one\nCHANGED\n");
+        $this->buffers->open($this->project->path('a.txt'), content: "one\nCHANGED\n");
 
         new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: false)->refresh();
         $this->pump(0.2); // a non-event: nothing is spawned, so there is nothing to await
@@ -304,8 +304,8 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\nCHANGED\n");
-        $this->buffers->open($this->project->path('a.txt'), "one\nCHANGED\n");
+        $this->project->write('a.txt', content: "one\nCHANGED\n");
+        $this->buffers->open($this->project->path('a.txt'), content: "one\nCHANGED\n");
 
         $wanted = true;
         $marks = new ChangeMarks(new GitInfo($this->project->dir), $api, static function () use (&$wanted): bool {
@@ -330,10 +330,10 @@ final class BlameTest extends TestCase
         $api = $this->api();
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
-        $this->project->write('b.txt', "b one\n");
+        $this->project->write('b.txt', content: "b one\n");
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\nCHANGED\n");
-        $this->buffers->open($this->project->path('b.txt'), "b one\n"); // b.txt is active
+        $this->project->write('a.txt', content: "one\nCHANGED\n");
+        $this->buffers->open($this->project->path('b.txt'), content: "b one\n"); // b.txt is active
 
         new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: true)->refresh($this->project->path('a.txt'));
 
@@ -350,7 +350,7 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\nCHANGED\n");
+        $this->project->write('a.txt', content: "one\nCHANGED\n");
         $path = $this->project->path('a.txt');
 
         $marks = new ChangeMarks(new GitInfo($this->project->dir), $api, enabled: true);
@@ -369,7 +369,7 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->project->write('a.txt', "one\ntwo\nthree\n"); // a dirty extra line
+        $this->project->write('a.txt', content: "one\ntwo\nthree\n"); // a dirty extra line
         $blame = new BlameClient($this->project->dir);
 
         $lines = null;
@@ -551,8 +551,8 @@ final class BlameTest extends TestCase
         $this->skipWithoutGit();
         $this->project->initGit(name: 'tester', email: 't@t');
         $this->project->commitAll('init');
-        $this->project->write('b.txt', "fresh\n");
-        $this->buffers->open($this->project->path('b.txt'), "fresh\n");
+        $this->project->write('b.txt', content: "fresh\n");
+        $this->buffers->open($this->project->path('b.txt'), content: "fresh\n");
         $this->editor->showDocument($this->project->path('b.txt'), new Document("fresh\n"));
 
         new BlameLine(new BlameClient($this->project->dir), $api)->show();

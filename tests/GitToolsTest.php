@@ -47,10 +47,10 @@ final class GitToolsTest extends TestCase
     {
         $this->skipWithoutGit();
         $project = self::repository();
-        $project->write('a.txt', "one!\n");
-        $project->write('new.txt', "fresh\n");
+        $project->write('a.txt', content: "one!\n");
+        $project->write('new.txt', content: "fresh\n");
 
-        $status = $this->callTool(self::api($project), 'status');
+        $status = $this->callTool(self::api($project), id: 'status');
 
         $this->assertSame("## main\n M a.txt\n?? new.txt\n", $status);
     }
@@ -60,24 +60,24 @@ final class GitToolsTest extends TestCase
         $this->skipWithoutGit();
         $project = self::repository();
         $api = self::api($project);
-        $this->assertSame('No changes', $this->callTool($api, 'diff'));
+        $this->assertSame('No changes', $this->callTool($api, id: 'diff'));
 
-        $project->write('a.txt', "one!\n");
-        $project->write('b.txt', "two!\n");
+        $project->write('a.txt', content: "one!\n");
+        $project->write('b.txt', content: "two!\n");
         $project->git('add', 'b.txt');
 
-        $unstaged = $this->callTool($api, 'diff');
+        $unstaged = $this->callTool($api, id: 'diff');
         $this->assertIsString($unstaged);
         $this->assertStringContainsString('+one!', $unstaged);
         $this->assertStringNotContainsString('two!', $unstaged);
 
-        $staged = $this->callTool($api, 'diff', ['staged' => true]);
+        $staged = $this->callTool($api, id: 'diff', arguments: ['staged' => true]);
         $this->assertIsString($staged);
         $this->assertStringContainsString('+two!', $staged);
         $this->assertStringNotContainsString('one!', $staged);
 
-        $this->assertSame('No changes', $this->callTool($api, 'diff', ['staged' => true, 'path' => 'a.txt']));
-        $this->assertSame($unstaged, $this->callTool($api, 'diff', ['path' => '']), 'an empty path is no path');
+        $this->assertSame('No changes', $this->callTool($api, id: 'diff', arguments: ['staged' => true, 'path' => 'a.txt']));
+        $this->assertSame($unstaged, $this->callTool($api, id: 'diff', arguments: ['path' => '']), 'an empty path is no path');
     }
 
     public function testAFailingGitIsTheCallersError(): void
@@ -87,7 +87,7 @@ final class GitToolsTest extends TestCase
 
         $this->expectExceptionObject(new \RuntimeException('git diff failed (exit 128)'));
 
-        $this->callTool(self::api($project), 'diff', ['path' => '../outside.txt']);
+        $this->callTool(self::api($project), id: 'diff', arguments: ['path' => '../outside.txt']);
     }
 
     public function testWithNoGitItFailsAtOnceWithoutWaiting(): void
@@ -96,6 +96,6 @@ final class GitToolsTest extends TestCase
 
         $this->expectExceptionObject(new \RuntimeException('git status failed (exit 1)'));
 
-        $this->callTool(self::api($project, '/porta-no-such-git'), 'status');
+        $this->callTool(self::api($project, gitPath: '/porta-no-such-git'), id: 'status');
     }
 }

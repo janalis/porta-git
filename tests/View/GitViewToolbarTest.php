@@ -69,7 +69,7 @@ final class GitViewToolbarTest extends TestCase
         $controller->onRemoteCompleted(new GitRemoteCompleted('fetch', true));
         $this->await(fn (): bool => \str_contains($this->toolbarText(), 'Fetch'), what: 'the upstream after the fetch');
 
-        $this->project->write('a.txt', "ahead\ntwo\n");
+        $this->project->write('a.txt', content: "ahead\ntwo\n");
         $this->project->git('add', 'a.txt');
         Probe::invoke($controller, 'commit', 'Ahead');
         $this->await(fn (): bool => \str_contains($this->toolbarText(), '⇡1'), what: 'one commit ahead');
@@ -111,8 +111,8 @@ final class GitViewToolbarTest extends TestCase
     public function testAComparisonTakesTheToolbarDownAndTheViewPutsItBack(): void
     {
         $controller = $this->controller();
-        $left = $this->project->write('.porta/l.txt', "one\n");
-        $right = $this->project->write('.porta/r.txt', "two\n");
+        $left = $this->project->write('.porta/l.txt', content: "one\n");
+        $right = $this->project->write('.porta/r.txt', content: "two\n");
 
         $controller->openComparison($left, $right, static function (): void {});
         $this->assertSame([], $this->region->header()->all());
@@ -126,7 +126,7 @@ final class GitViewToolbarTest extends TestCase
     public function testAContextCycleInHistoryLeavesTheCommitsPatch(): void
     {
         $controller = $this->controller();
-        $this->project->write('a.txt', "changed\ntwo\n");
+        $this->project->write('a.txt', content: "changed\ntwo\n");
         $controller->open();
         $this->await(fn (): bool => \str_contains($this->diffText(), '+changed'), what: 'the working tree diff');
         $this->changes->setFocused(true);
@@ -148,7 +148,7 @@ final class GitViewToolbarTest extends TestCase
         $branch = \trim($this->project->git('rev-parse', '--abbrev-ref', 'HEAD'));
         $this->await(fn (): bool => \str_contains($this->toolbarText(), $branch), what: 'the branch');
         $this->project->git('checkout', '-q', '-b', 'from-the-terminal');
-        Probe::set($controller, 'ticks', 4); // the next tick is a re-read
+        Probe::set($controller, property: 'ticks', value: 4); // the next tick is a re-read
 
         $this->await(fn (): bool => \str_contains($this->toolbarText(), 'from-the-terminal'), timeout: 5.0, what: 'the re-read');
         $this->addToAssertionCount(1);
@@ -226,7 +226,7 @@ final class GitViewToolbarTest extends TestCase
             return \count(\array_intersect_key($seen, ['◜' => 1, '◝' => 1, '◞' => 1])) >= 2;
         }, what: 'the icon to turn');
         $this->assertStringContainsString('Fetching…', $this->toolbarText());
-        $this->await(fn (): bool => '↻' === $this->remoteIcon() && null === Probe::get($controller, 'spinner'), what: 'the icon to rest after the fetch');
+        $this->await(fn (): bool => '↻' === $this->remoteIcon() && null === Probe::get($controller, property: 'spinner'), what: 'the icon to rest after the fetch');
         $this->assertStringNotContainsString('Fetching', $this->toolbarText());
     }
 
@@ -239,11 +239,11 @@ final class GitViewToolbarTest extends TestCase
         $this->await($controller->isOpen(...));
 
         $this->remoteCommands->fetch();
-        $this->await(static fn (): bool => null !== Probe::get($controller, 'spinner'), what: 'the poll to see the fetch'); // the object, re-read each time
+        $this->await(static fn (): bool => null !== Probe::get($controller, property: 'spinner'), what: 'the poll to see the fetch'); // the object, re-read each time
         $this->assertNotSame('↻', $this->remoteIcon());
 
         $controller->close();
-        $this->assertNull(Probe::get($controller, 'spinner'), 'a closed view turns nothing');
+        $this->assertNull(Probe::get($controller, property: 'spinner'), 'a closed view turns nothing');
         $this->assertSame('↻', $this->remoteIcon());
     }
 
@@ -255,10 +255,10 @@ final class GitViewToolbarTest extends TestCase
         $this->remoteCommands->fetch();
 
         $controller->open();
-        $this->assertNotNull(Probe::get($controller, 'spinner'));
+        $this->assertNotNull(Probe::get($controller, property: 'spinner'));
 
         $controller->onRemoteCompleted(new GitRemoteCompleted('fetch', true));
-        $this->assertNull(Probe::get($controller, 'spinner'));
+        $this->assertNull(Probe::get($controller, property: 'spinner'));
         $this->assertSame('↻', $this->remoteIcon());
     }
 
@@ -266,7 +266,7 @@ final class GitViewToolbarTest extends TestCase
     public function testHistoryHeadsTheColumnsWithTheCommitAndItsStat(): void
     {
         $controller = $this->controller();
-        $this->project->write('a.txt', "one\ntwo\nthree\n");
+        $this->project->write('a.txt', content: "one\ntwo\nthree\n");
         $this->project->commitAll('second');
         $controller->open();
         $controller->onViewModeRequested(new GitViewModeRequested(GitViewMode::History));
@@ -279,7 +279,7 @@ final class GitViewToolbarTest extends TestCase
     public function testAStatForACommitLeftBehindIsDropped(): void
     {
         $controller = $this->controller();
-        $this->project->write('a.txt', "one\ntwo\nthree\n");
+        $this->project->write('a.txt', content: "one\ntwo\nthree\n");
         $this->project->commitAll('second');
         $controller->open();
         $controller->onViewModeRequested(new GitViewModeRequested(GitViewMode::History));
@@ -287,7 +287,7 @@ final class GitViewToolbarTest extends TestCase
         $first = new LogEntry(\trim($this->project->git('rev-parse', 'HEAD~1')), 'x', 'x', 0, 'init');
 
         Probe::invoke($controller, 'loadCommitFiles', $first);
-        $this->awaitLanes([Probe::get(Probe::get($this->git, 'runner'), 'lane')]);
+        $this->awaitLanes([Probe::get(Probe::get($this->git, property: 'runner'), property: 'lane')]);
 
         $this->assertStringContainsString('+1 −0', $this->headerText(), 'still the selected commit\'s');
     }
@@ -302,7 +302,7 @@ final class GitViewToolbarTest extends TestCase
         $controller->onViewModeRequested(new GitViewModeRequested(GitViewMode::History));
         $this->assertSame([44, 29, 45], Probe::invoke($controller, 'columns', 120), 'History: the files take two fifths of the rest');
 
-        Probe::set($this->region->split('columns'), 'narrow', true);
+        Probe::set($this->region->split('columns'), property: 'narrow', value: true);
         $this->assertSame([44, 75], Probe::invoke($controller, 'columns', 120), 'stacked, there is one column again');
     }
 
@@ -314,12 +314,12 @@ final class GitViewToolbarTest extends TestCase
         $controller->onViewModeRequested(new GitViewModeRequested(GitViewMode::History));
         $this->await(fn (): bool => 2 === $this->details->fileCount(), what: 'the files: a.txt and .gitignore');
 
-        Probe::set($this->region->split('columns'), 'narrow', true);
+        Probe::set($this->region->split('columns'), property: 'narrow', value: true);
         Probe::invoke($controller, 'stack', true);
         $this->assertStringContainsString('─ 2 changed files', $this->headerText());
-        $this->assertSame(SplitShape::Stacked, Probe::get($this->details, 'stacked') ? SplitShape::Stacked : SplitShape::Beside);
+        $this->assertSame(SplitShape::Stacked, Probe::get($this->details, property: 'stacked') ? SplitShape::Stacked : SplitShape::Beside);
 
-        $this->project->write('b.txt', "b\n");
+        $this->project->write('b.txt', content: "b\n");
         $this->project->commitAll('third');
         Probe::invoke($controller, 'reloadHistory', HistoryReload::SelectFirst); // the newest on top, selected
         $this->await(fn (): bool => \str_contains($this->headerText(), '─ 1 changed file '), what: 'the new commit\'s count');
@@ -342,9 +342,9 @@ final class GitViewToolbarTest extends TestCase
         $box = fn (): string => AnsiUtils::stripAnsiCodes(\implode("\n", $this->commitBox->render(new RenderContext(44, 30))));
         $this->await(static fn (): bool => \str_contains($box(), 'Commit to '.$branch), what: 'the branch, nothing staged');
 
-        $this->project->write('a.txt', "staged\n");
+        $this->project->write('a.txt', content: "staged\n");
         $this->project->git('add', 'a.txt');
-        Probe::invoke($controller, 'refresh');
+        Probe::invoke($controller, method: 'refresh');
 
         $this->await(static fn (): bool => \str_contains($box(), 'Commit 1 file to '.$branch), what: 'the staged file');
         $this->assertStringNotContainsString('Commit to branch', $box());

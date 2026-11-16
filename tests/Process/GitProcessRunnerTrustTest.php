@@ -171,7 +171,7 @@ final class GitProcessRunnerTrustTest extends TestCase
         ];
         yield 'a filter .git/info/attributes names' => [
             static function (TempProject $project): void {
-                $project->write('.git/info/attributes', "a.txt filter=x\n");
+                $project->write('.git/info/attributes', content: "a.txt filter=x\n");
                 $project->git('config', 'filter.x.clean', $project->path('hook.sh'));
                 $project->git('config', 'filter.x.required', 'true');
             },
@@ -179,7 +179,7 @@ final class GitProcessRunnerTrustTest extends TestCase
         ];
         yield 'a textconv .git/info/attributes names' => [
             static function (TempProject $project): void {
-                $project->write('.git/info/attributes', "a.txt diff=x\n");
+                $project->write('.git/info/attributes', content: "a.txt diff=x\n");
                 $project->git('config', 'diff.x.textconv', $project->path('hook.sh'));
             },
             ['diff', '--no-color', '--no-ext-diff', 'HEAD', '--', 'a.txt'],
@@ -243,7 +243,7 @@ final class GitProcessRunnerTrustTest extends TestCase
         $project->initGit();
         $project->commitAll('init');
         $project->git('config', 'include.path', '../included.cfg');
-        $project->write('.git/info/attributes', "a.txt filter=x\n");
+        $project->write('.git/info/attributes', content: "a.txt filter=x\n");
         $runner = new GitProcessRunner($project->dir);
         $this->assertSame(0, $this->pollStatus($runner), 'read once, with nothing to override');
 
@@ -271,7 +271,7 @@ final class GitProcessRunnerTrustTest extends TestCase
         $project->git('-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', $library->dir, 'lib');
         $project->commitAll('with lib');
         $project->git('config', '--file', '.git/modules/lib/config', 'filter.x.clean', $project->path('hook.sh'));
-        $project->write('.git/modules/lib/info/attributes', "s.txt filter=x\n");
+        $project->write('.git/modules/lib/info/attributes', content: "s.txt filter=x\n");
         $touch = static function () use ($project): void {
             \array_map(\unlink(...), (array) \glob($project->path('ran-*')));
             \touch($project->path('lib/s.txt'), \time() + 5);
@@ -299,7 +299,7 @@ final class GitProcessRunnerTrustTest extends TestCase
         \chmod($project->path('hook.sh'), permissions: 0o755);
         $project->initGit();
         $project->commitAll('init');
-        $project->write('.git/info/attributes', "a.txt filter=a=b\n");
+        $project->write('.git/info/attributes', content: "a.txt filter=a=b\n");
         $project->git('config', 'filter.a=b.clean', $project->path('hook.sh'));
         \touch($project->path('a.txt'), \time() + 5);
 
@@ -324,12 +324,12 @@ final class GitProcessRunnerTrustTest extends TestCase
         $project->initGit('main');
         $project->commitAll('base');
         $project->git('checkout', '-q', '-b', 'side');
-        $project->write('m.txt', "1\n2\n3x\n");
+        $project->write('m.txt', content: "1\n2\n3x\n");
         $project->commitAll('side');
         $project->git('checkout', '-q', 'main');
-        $project->write('m.txt', "1x\n2\n3\n");
+        $project->write('m.txt', content: "1x\n2\n3\n");
         $project->commitAll('main');
-        $project->write('.git/info/attributes', "m.txt merge=x\n");
+        $project->write('.git/info/attributes', content: "m.txt merge=x\n");
         $project->git('config', 'merge.x.driver', $project->path('driver.sh').' %A');
 
         $merged = null;

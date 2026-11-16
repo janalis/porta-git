@@ -51,19 +51,19 @@ final class CommitBoxWidgetTest extends TestCase
     {
         $widget = $this->widget();
         $this->assertFalse($widget->commitEnabled(), 'empty summary disables commit');
-        $this->type($widget, '   ');
+        $this->type($widget, text: '   ');
         $this->assertFalse($widget->commitEnabled(), 'spaces only: git would refuse the empty message');
         $widget->resetField();
         $widget->clear();
 
-        $this->type($widget, 'Fix parser');
+        $this->type($widget, text: 'Fix parser');
         $this->assertTrue($widget->commitEnabled());
         $this->assertSame('Fix parser', $widget->message(), 'no blank body appended without a description');
 
         $widget->handleInput("\t"); // into the description
-        $this->type($widget, 'Long');
+        $this->type($widget, text: 'Long');
         $widget->handleInput("\r");
-        $this->type($widget, 'body');
+        $this->type($widget, text: 'body');
         $this->assertSame("Fix parser\n\nLong\nbody", $widget->message());
 
         $this->staged = false;
@@ -77,7 +77,7 @@ final class CommitBoxWidgetTest extends TestCase
         $widget->handleInput("\x1b[13;5u"); // ctrl+enter with no summary
         $this->assertNull($committed);
 
-        $this->type($widget, 'Do it');
+        $this->type($widget, text: 'Do it');
         $widget->handleInput("\x1b[13;5u");
         $this->assertSame('Do it', $committed);
     }
@@ -85,18 +85,18 @@ final class CommitBoxWidgetTest extends TestCase
     public function testButtonClickCommitsAndFieldClicksMoveTheCaret(): void
     {
         $widget = $this->widget($committed);
-        $this->type($widget, 'Click me');
+        $this->type($widget, text: 'Click me');
 
         $widget->handleClick(4); // the description box starts at rel row 4, its top border
-        $this->type($widget, 'desc');
+        $this->type($widget, text: 'desc');
         $this->assertSame("Click me\n\ndesc", $widget->message());
 
         $widget->handleClick(3); // back to the summary box, by its bottom border
-        $this->type($widget, '!');
+        $this->type($widget, text: '!');
         $this->assertStringStartsWith('Click me!', $widget->message());
 
         $widget->handleClick($widget->buttonRow() - 4); // the description box's bottom border, above the amend box
-        $this->type($widget, '.');
+        $this->type($widget, text: '.');
         $this->assertSame("Click me!\n\ndesc.", $widget->message());
         $widget->handleInput("\x7f");
 
@@ -178,7 +178,7 @@ final class CommitBoxWidgetTest extends TestCase
         $widget->handleInput("\t");
 
         $widget->setAmendable(false);
-        $this->type($widget, 'fix');
+        $this->type($widget, text: 'fix');
 
         $this->assertSame('fix', $widget->message());
     }
@@ -207,7 +207,7 @@ final class CommitBoxWidgetTest extends TestCase
         $this->assertMatchesRegularExpression('/┆\s+Commit to branch\s+┆/u', $screen, 'with no summary the button is disabled: dashed');
 
         $widget->setFocused(true);
-        $this->type($widget, 'Msg');
+        $this->type($widget, text: 'Msg');
         $this->assertMatchesRegularExpression('/│\s+Commit to branch\s+│/u', $this->rendered($widget), 'enabled, it is an ordinary button');
         $this->assertStringContainsString('Ctrl+Enter', $this->rendered($widget), 'its key in its border');
 
@@ -223,19 +223,19 @@ final class CommitBoxWidgetTest extends TestCase
         $widget = new CommitBoxWidget(new Translator('en'));
         $widget->setStagedChangesProvider(static fn (): bool => true);
 
-        $widget->setCommitTarget('main', 2);
+        $widget->setCommitTarget('main', files: 2);
         $this->assertStringContainsString('Commit 2 files to main', $this->rendered($widget));
-        $widget->setCommitTarget('main', 1);
+        $widget->setCommitTarget('main', files: 1);
         $this->assertStringContainsString('Commit 1 file to main', $this->rendered($widget));
-        $widget->setCommitTarget('feature', 0);
+        $widget->setCommitTarget('feature', files: 0);
         $this->assertStringContainsString('Commit to feature', $this->rendered($widget), 'nothing staged yet: the branch alone');
-        $widget->setCommitTarget(null, 3);
+        $widget->setCommitTarget(null, files: 3);
         $this->assertStringContainsString('Commit to branch', $this->rendered($widget), 'a detached HEAD, or a branch not read yet');
 
-        $widget->setCommitTarget("ma\x1b[2Jin", 1);
+        $widget->setCommitTarget("ma\x1b[2Jin", files: 1);
         $this->assertStringNotContainsString("\x1b[2J", \implode('', $widget->render(new RenderContext(44, 30))), 'a branch name is shown, never obeyed');
 
-        $widget->setCommitTarget('main', 2);
+        $widget->setCommitTarget('main', files: 2);
         $this->rendered($widget);
         $widget->handleClick($widget->buttonRow() - 2); // the amend box's label row
         $this->assertStringContainsString('Amend last commit', $this->rendered($widget), 'amending names the commit it rewrites, not the files');
@@ -245,10 +245,10 @@ final class CommitBoxWidgetTest extends TestCase
     public function testTheSameTargetIsNoRepaint(): void
     {
         $widget = new CommitBoxWidget(new Translator('en'));
-        $widget->setCommitTarget('main', 2);
+        $widget->setCommitTarget('main', files: 2);
         $revision = $widget->getRenderRevision();
 
-        $widget->setCommitTarget('main', 2);
+        $widget->setCommitTarget('main', files: 2);
 
         $this->assertSame($revision, $widget->getRenderRevision());
     }
@@ -256,14 +256,14 @@ final class CommitBoxWidgetTest extends TestCase
     public function testSummaryBackspaceAndResetField(): void
     {
         $widget = $this->widget();
-        $this->type($widget, 'abc');
+        $this->type($widget, text: 'abc');
         $widget->handleInput("\x7f");
         $this->assertSame('ab', $widget->message());
 
         $widget->handleInput("\t"); // into the description
-        $this->type($widget, 'x');
+        $this->type($widget, text: 'x');
         $widget->resetField(); // pane re-entry lands on the summary
-        $this->type($widget, '!');
+        $this->type($widget, text: '!');
         $this->assertSame("ab!\n\nx", $widget->message());
     }
 
@@ -271,7 +271,7 @@ final class CommitBoxWidgetTest extends TestCase
     {
         $widget = $this->widget();
         $widget->onInput(static fn (string $data): bool => true);
-        $this->type($widget, 'swallowed');
+        $this->type($widget, text: 'swallowed');
         $this->assertSame('', $widget->message());
     }
 
@@ -284,7 +284,7 @@ final class CommitBoxWidgetTest extends TestCase
             $toggles[] = CommitMode::Amend === $amend;
         });
 
-        $this->type($widget, 'Reword');
+        $this->type($widget, text: 'Reword');
         $this->assertFalse($widget->commitEnabled(), 'nothing staged, no amend: disabled');
 
         $widget->handleInput("\x1bm"); // alt+m
@@ -398,7 +398,7 @@ final class CommitBoxWidgetTest extends TestCase
     public function testBackspacingIntoAMultibyteSummaryKeepsEveryLineAtWidth(): void
     {
         $widget = $this->widget();
-        $this->type($widget, 'release '); // summary is the default field
+        $this->type($widget, text: 'release '); // summary is the default field
         $widget->handleInput("\u{2014}"); // an em-dash
 
         foreach ($this->lineWidths($widget) as $width) {
@@ -415,7 +415,7 @@ final class CommitBoxWidgetTest extends TestCase
         $widget = $this->widget();
         $this->assertFalse($widget->hoverRow($widget->buttonRow()), 'a disabled button is not actionable, so it never hovers');
 
-        $this->type($widget, 'feat: something');
+        $this->type($widget, text: 'feat: something');
         $this->assertTrue($widget->hoverRow($widget->buttonRow()), 'the enabled button reacts under the pointer');
         $this->assertFalse($widget->hoverRow($widget->buttonRow()));
         $this->assertFalse($widget->hoverRow($widget->buttonRow() + 2), 'the button is three rows, and all three are the button');
@@ -475,10 +475,10 @@ final class CommitBoxWidgetTest extends TestCase
         $widget->handleInput("\t"); // on amend
 
         $widget->handleInput("\x1b[Z"); // Shift+Tab → description
-        $this->type($widget, 'd');
+        $this->type($widget, text: 'd');
         $widget->handleInput("\x1b[Z"); // → summary
         $widget->handleInput("\x1b[Z"); // stays
-        $this->type($widget, 's');
+        $this->type($widget, text: 's');
 
         $this->assertSame("s\n\nd", $widget->message());
     }
@@ -517,7 +517,7 @@ final class CommitBoxWidgetTest extends TestCase
     public function testTheSummaryMovesItsCaretAndTakesAPaste(): void
     {
         $widget = $this->widget();
-        $this->type($widget, 'Fx');
+        $this->type($widget, text: 'Fx');
         $widget->handleInput("\x1b[D");
         $widget->handleInput("\x1b[200~i\x1b[201~");
 
@@ -528,16 +528,16 @@ final class CommitBoxWidgetTest extends TestCase
     public function testAControlsClickLeavesTheCaretWhereItBelongs(): void
     {
         $widget = $this->widget($committed);
-        $this->type($widget, 'Sum');
+        $this->type($widget, text: 'Sum');
 
         $widget->handleClick($widget->buttonRow() - 2); // the amend box: it takes the focus
-        $this->type($widget, 'x');
+        $this->type($widget, text: 'x');
         $this->assertSame('Sum', $widget->message(), 'a checkbox takes no text');
 
         $widget->handleClick(1); // back to the summary
         $widget->handleClick($widget->buttonRow()); // commit
         $this->assertSame('Sum', $committed);
-        $this->type($widget, '!');
+        $this->type($widget, text: '!');
         $this->assertSame('Sum!', $widget->message(), 'the caret is still in the summary');
     }
 
@@ -557,7 +557,7 @@ final class CommitBoxWidgetTest extends TestCase
         $widget = new CommitBoxWidget(new Translator('en'));
         $widget->render(new RenderContext(40, 20));
 
-        $tip = $widget->tooltipAt($widget->buttonRow(), 5);
+        $tip = $widget->tooltipAt($widget->buttonRow(), col: 5);
         $this->assertSame([0, 40], [$tip?->colStart, $tip?->colEnd]);
     }
 }

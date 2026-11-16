@@ -37,7 +37,7 @@ final class GitPointerStagesTest extends TestCase
     private function router(): GitMouseRouter
     {
         $translator = new Translator('en');
-        $tui = TestTui::create(100, 24);
+        $tui = TestTui::create(100, rows: 24);
 
         return new GitMouseRouter(
             new HitTester(new Renderer(new StyleSheet())),

@@ -20,10 +20,10 @@ final class GitViewBinaryDiffTest extends TestCase
     public function testAChangedBinaryFileSaysSo(): void
     {
         $controller = $this->controller();
-        $this->project->write('logo.png', "\x89PNG\x00\x01");
+        $this->project->write('logo.png', content: "\x89PNG\x00\x01");
         $this->project->git('add', 'logo.png');
         $this->project->git('commit', '-q', '-m', 'logo');
-        $this->project->write('logo.png', "\x89PNG\x00\x02");
+        $this->project->write('logo.png', content: "\x89PNG\x00\x02");
         $controller->open();
 
         $this->await(fn (): bool => \str_contains($this->diffText(), 'Binary files differ'));
@@ -34,8 +34,8 @@ final class GitViewBinaryDiffTest extends TestCase
     public function testComparingTwoDifferentBinaryFilesSaysTheyDiffer(): void
     {
         $controller = $this->controller();
-        $left = $this->project->write('.porta/left.png', "\x89PNG\x00\x01");
-        $right = $this->project->write('.porta/right.png', "\x89PNG\x00\x02");
+        $left = $this->project->write('.porta/left.png', content: "\x89PNG\x00\x01");
+        $right = $this->project->write('.porta/right.png', content: "\x89PNG\x00\x02");
 
         $controller->openComparison($left, $right, static function (): void {});
 
@@ -47,7 +47,7 @@ final class GitViewBinaryDiffTest extends TestCase
     public function testAHistoryCommitThatChangedABinaryFileSaysSo(): void
     {
         $controller = $this->controller();
-        $this->project->write('logo.png', "\x89PNG\x00\x01");
+        $this->project->write('logo.png', content: "\x89PNG\x00\x01");
         $this->project->git('add', '-A');
         $this->project->git('commit', '-q', '-m', 'logo');
         $controller->open();

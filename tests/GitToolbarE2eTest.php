@@ -66,7 +66,7 @@ final class GitToolbarE2eTest extends TestCase
         // An upstream one commit behind: the remote button offers a push.
         $project->git('branch', 'base');
         $project->git('branch', '--set-upstream-to=base');
-        $project->write('a.txt', "two\n");
+        $project->write('a.txt', content: "two\n");
         $project->commitAll('second');
 
         $this->runIde(
@@ -86,11 +86,11 @@ final class GitToolbarE2eTest extends TestCase
                     // render cache. Not render() — that skips the cache, and a
                     // toolbar that kept its first, empty paint passed — and
                     // not a forced frame, which re-renders everything.
-                    $toolbar = Widgets::byId($tui, 'git-toolbar', GitToolbarWidget::class);
+                    $toolbar = Widgets::byId($tui, id: 'git-toolbar', class: GitToolbarWidget::class);
                     $text = static function () use ($tui, $toolbar): string {
                         $tui->requestRender();
                         $tui->processRender();
-                        $painted = Probe::get($toolbar, 'renderCacheLines');
+                        $painted = Probe::get($toolbar, property: 'renderCacheLines');
 
                         return $painted instanceof LineBufferInterface ? AnsiUtils::stripAnsiCodes(\implode("\n", $painted->toArray())) : '';
                     };
@@ -104,22 +104,22 @@ final class GitToolbarE2eTest extends TestCase
                     $repository = $toolbar->span(ToolbarCell::Repository);
                     $this->assertNotNull($repository);
                     $this->assertSame(
-                        Widgets::rect($renderer, Widgets::byId($tui, 'git-separator', SeparatorWidget::class))->col,
+                        Widgets::rect($renderer, Widgets::byId($tui, id: 'git-separator', class: SeparatorWidget::class))->col,
                         Widgets::rect($renderer, $toolbar)->col + $repository[1],
                     );
 
                     // Over "main", in the branch cell.
                     $branch = $toolbar->span(ToolbarCell::Branch);
                     $this->assertNotNull($branch);
-                    $tui->handleInput(self::widgetSgr($ide, 'git-toolbar', 0, 0, $branch[0] + 3));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-toolbar', 0, 0, $branch[0] + 3, release: true));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-toolbar', button: 0, row: 0, col: $branch[0] + 3));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-toolbar', button: 0, row: 0, col: $branch[0] + 3, release: true));
                     $this->frame($tui);
                     $this->assertSame(['Switch Branch…', 'New Branch…', 'Delete Branch…'], self::menuLabels($ide), 'the branch cell drops the branch verbs');
 
                     $tui->handleInput("\x1b");
                     $this->frame($tui);
-                    $tui->handleInput(self::widgetSgr($ide, 'git-toolbar', 0, 0, 2));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-toolbar', 0, 0, 2, release: true));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-toolbar', button: 0, row: 0, col: 2));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-toolbar', button: 0, row: 0, col: 2, release: true));
                     $this->frame($tui);
                     $this->assertSame(['Worktrees…', 'New Worktree…'], self::menuLabels($ide), 'the repository cell drops the worktree verbs');
                     $tui->handleInput("\x1b");
@@ -148,7 +148,7 @@ final class GitToolbarE2eTest extends TestCase
         $project = new TempProject(['src/a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit('main');
         $project->commitAll('first');
-        $project->write('src/a.txt', "one\ntwo\n");
+        $project->write('src/a.txt', content: "one\ntwo\n");
         $project->commitAll('second');
 
         $this->runIde(
@@ -160,8 +160,8 @@ final class GitToolbarE2eTest extends TestCase
                 },
                 200 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
                     $tui->handleInput('2'); // History
-                    $this->awaitPainted($tui, $terminal, '1 changed file');
-                    $this->awaitPainted($tui, $terminal, '+two'); // the first file's patch, beside it
+                    $this->awaitPainted($tui, $terminal, needle: '1 changed file');
+                    $this->awaitPainted($tui, $terminal, needle: '+two'); // the first file's patch, beside it
                     $renderer = Services::resolve($ide, Renderer::class);
                     $rect = static fn (string $id): WidgetRect => Widgets::rect($renderer, Widgets::byId($tui, $id, AbstractWidget::class));
                     $dividers = static fn (): array => [$rect('git-separator')->col, $rect('git-columns-separator')->col];
@@ -180,9 +180,9 @@ final class GitToolbarE2eTest extends TestCase
 
                     // Six columns right, by the divider between the files and the diff.
                     $from = $rect('git-columns-separator')->col;
-                    $tui->handleInput(self::widgetSgr($ide, 'git-columns-separator', 0, 3, 0));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-columns-separator', 32, 3, 6));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-columns-separator', 0, 3, 6, release: true));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-columns-separator', button: 0, row: 3, col: 0));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-columns-separator', button: 32, row: 3, col: 6));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-columns-separator', button: 0, row: 3, col: 6, release: true));
                     $this->frame($tui);
                     $this->assertGreaterThan($from, $rect('git-columns-separator')->col, 'the divider moved, as far as the diff\'s minimum lets it');
                     $this->assertSame($dividers(), $joins(), 'and the toolbar\'s cell with it');
@@ -191,7 +191,7 @@ final class GitToolbarE2eTest extends TestCase
 
                     // Narrowed until the columns stack: the divider is gone,
                     // and no join is drawn where it last stood.
-                    $terminal->simulateResize(96, 40);
+                    $terminal->simulateResize(96, rows: 40);
                     $split = Services::resolve($ide, ViewRegions::class)->find('git')?->split('columns');
                     $this->assertInstanceOf(PaneSplit::class, $split);
                     $this->await(function () use ($tui, $split): bool {

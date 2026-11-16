@@ -52,7 +52,7 @@ final class GitStagingServiceTest extends TestCase
     {
         $project = new TempProject();
         // Inside a directory made read-only, so the unlink is denied.
-        $project->write('locked/x.txt', 'data');
+        $project->write('locked/x.txt', content: 'data');
         \chmod($project->path('locked'), permissions: 0o500);
 
         $status = new StatusBarWidget();
@@ -87,7 +87,7 @@ final class GitStagingServiceTest extends TestCase
 
         foreach (['clone/', '.worktrees/feat/'] as $path) {
             $service->discard(new ChangeEntry($path, '?', '?'), static function (): void {});
-            $this->assertStringContainsString('is a git repository of its own', $this->statusRow($status, 160));
+            $this->assertStringContainsString('is a git repository of its own', $this->statusRow($status, columns: 160));
         }
 
         $this->assertFileExists($project->path('clone/work.php'));
@@ -103,7 +103,7 @@ final class GitStagingServiceTest extends TestCase
 
         foreach ([['A', 'A'], ['U', 'U'], ['D', 'U']] as [$index, $worktree]) {
             $service->discard(new ChangeEntry('both.php', $index, $worktree), static function (): void {});
-            $this->assertStringContainsString('has a conflict', $this->statusRow($status, 160));
+            $this->assertStringContainsString('has a conflict', $this->statusRow($status, columns: 160));
         }
 
         $this->assertFileExists($project->path('both.php'));
@@ -216,7 +216,7 @@ final class GitStagingServiceTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject(['a.txt' => "base\n", 'b.txt' => "b\n"]);
         Conflicts::inA($project);
-        $project->write('b.txt', "b2\n");
+        $project->write('b.txt', content: "b2\n");
         $status = new StatusBarWidget();
         $service = $this->service($project->dir, $status);
 
@@ -225,7 +225,7 @@ final class GitStagingServiceTest extends TestCase
         $this->assertSame('a.txt', $project->git('diff', '--name-only', '--diff-filter=U'), 'still conflicted');
         $this->assertSame('', $project->git('diff', '--cached', '--name-only', '--', 'b.txt'), 'nothing staged');
 
-        $project->write('a.txt', "both\n");
+        $project->write('a.txt', content: "both\n");
         $changed = false;
         $service->stageAll(static function () use (&$changed): void {
             $changed = true;
@@ -242,8 +242,8 @@ final class GitStagingServiceTest extends TestCase
         $project = new TempProject(['a.txt' => "a\n", 'b.txt' => "b\n"]);
         $project->initGit(branch: 'main');
         $project->commitAll('base');
-        $project->write('a.txt', "a2\n");
-        $project->write('b.txt', "b2\n");
+        $project->write('a.txt', content: "a2\n");
+        $project->write('b.txt', content: "b2\n");
         $project->git('add', 'a.txt', 'b.txt');
         $service = $this->service($project->dir, new StatusBarWidget());
         $changed = false;

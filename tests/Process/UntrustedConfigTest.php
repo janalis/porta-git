@@ -238,9 +238,9 @@ final class UntrustedConfigTest extends TestCase
     public function testAListingKilledMidwayIsOneThatFailed(): void
     {
         $git = $this->home->path('git');
-        $this->home->write('git', "#!/bin/sh\necho >> \"\$(dirname \"\$0\")/calls\"\nkill -KILL \$\$\n");
+        $this->home->write('git', content: "#!/bin/sh\necho >> \"\$(dirname \"\$0\")/calls\"\nkill -KILL \$\$\n");
         \chmod($git, permissions: 0o755);
-        $this->project->write('.gitmodules', "[submodule \"lib\"]\n\tpath = lib\n");
+        $this->project->write('.gitmodules', content: "[submodule \"lib\"]\n\tpath = lib\n");
         $config = UntrustedConfig::read($git, $this->project->dir);
 
         $this->assertSame(['-c', 'porta-cannot-override-this-repository'], $config->arguments);
@@ -270,7 +270,7 @@ final class UntrustedConfigTest extends TestCase
     {
         \unlink($this->home->path('.gitconfig'));
         $config = UntrustedConfig::read($this->git, $this->project->dir);
-        $this->home->write('.gitconfig', "[credential]\n\thelper = mine\n");
+        $this->home->write('.gitconfig', content: "[credential]\n\thelper = mine\n");
         $this->assertFalse($config->isCurrent($this->git), 'the one GIT_CONFIG_GLOBAL names');
 
         \putenv('GIT_CONFIG_GLOBAL');
@@ -282,7 +282,7 @@ final class UntrustedConfigTest extends TestCase
                 \putenv('XDG_CONFIG_HOME'.('xdg/git/config' === $file ? '='.$this->home->path('xdg') : ''));
                 new Filesystem()->remove([$this->home->path('.gitconfig'), $this->home->path('.config'), $this->home->path('xdg')]);
                 $config = UntrustedConfig::read($this->git, $this->project->dir);
-                $this->home->write($file, "[credential]\n\thelper = mine\n");
+                $this->home->write($file, content: "[credential]\n\thelper = mine\n");
                 $this->assertFalse($config->isCurrent($this->git), $file);
             }
         } finally {
@@ -299,7 +299,7 @@ final class UntrustedConfigTest extends TestCase
      */
     public function testEverySubmoduleItDeclaresIsIgnoredByName(): void
     {
-        $this->project->write('.gitmodules', "[submodule \"lib/a\"]\n\tpath = lib/a\n\tignore = none\n");
+        $this->project->write('.gitmodules', content: "[submodule \"lib/a\"]\n\tpath = lib/a\n\tignore = none\n");
         $this->project->git('config', 'submodule.b.ignore', 'none');
 
         $this->assertSame(
@@ -332,7 +332,7 @@ final class UntrustedConfigTest extends TestCase
             $this->assertFalse($config->isCurrent($this->git), $what);
         }
         $this->assertNotContains('filter.x.clean=', $config->arguments);
-        $this->project->write('included.cfg', "[filter \"x\"]\n\tclean = /project/evil\n");
+        $this->project->write('included.cfg', content: "[filter \"x\"]\n\tclean = /project/evil\n");
         $this->assertContains('filter.x.clean=', UntrustedConfig::read($this->git, $this->project->dir)->arguments, 'what it includes is the repository\'s');
     }
 
@@ -360,7 +360,7 @@ final class UntrustedConfigTest extends TestCase
     /** A linked worktree's `.git` names where its HEAD is. */
     public function testALinkedWorktreesBranchIsItsOwn(): void
     {
-        $this->project->write('a.txt', "a\n");
+        $this->project->write('a.txt', content: "a\n");
         $this->project->commitAll('init');
         $worktree = new TempProject();
         \rmdir($worktree->dir);

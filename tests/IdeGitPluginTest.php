@@ -82,7 +82,7 @@ final class IdeGitPluginTest extends TestCase
                     // And the entry is still in the GIT menu, not the trailing
                     // Plugins one, because core still names the id.
                     $git = \array_values(\array_filter(
-                        Probe::get($tui->getById('menu'), 'menus'),
+                        Probe::get($tui->getById('menu'), property: 'menus'),
                         static fn ($menu): bool => 'Git' === $menu->title,
                     ));
                     $this->assertCount(1, $git, 'the Git menu is built');
@@ -118,7 +118,7 @@ final class IdeGitPluginTest extends TestCase
                         });
 
                     // The plugin's own bus, reached the way the widgets reach it.
-                    Probe::get($view, 'dispatcher')->dispatch(new GitCommitted());
+                    Probe::get($view, property: 'dispatcher')->dispatch(new GitCommitted());
 
                     $this->assertSame(1, $seen, 'a core fact raised on the plugin bus arrived on core\'s');
 
@@ -142,11 +142,11 @@ final class IdeGitPluginTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
-        $project->write('src/A.php', "<?php\n\$a = 1;\n\$b = 2;\n");
+        $project->write('src/A.php', content: "<?php\n\$a = 1;\n\$b = 2;\n");
         $project->git('add', '-A');
         $project->git('commit', '-qm', 'init');
         // Line 2 modified, line 4 added, after the commit.
-        $project->write('src/A.php', "<?php\n\$a = 999;\n\$b = 2;\n\$c = 3;\n");
+        $project->write('src/A.php', content: "<?php\n\$a = 999;\n\$b = 2;\n\$c = 3;\n");
 
         $this->runIde(
             $project,
@@ -174,13 +174,13 @@ final class IdeGitPluginTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
-        $project->write('tracked.php', "<?php\n");
-        $project->write('untouched.php', "<?php\n");
-        $project->write('removed.php', "<?php\n");
+        $project->write('tracked.php', content: "<?php\n");
+        $project->write('untouched.php', content: "<?php\n");
+        $project->write('removed.php', content: "<?php\n");
         $project->git('add', '-A');
         $project->git('commit', '-qm', 'init');
-        $project->write('tracked.php', "<?php\n// changed\n");
-        $project->write('brandnew.php', "<?php\n");
+        $project->write('tracked.php', content: "<?php\n// changed\n");
+        $project->write('brandnew.php', content: "<?php\n");
         \unlink($project->path('removed.php')); // gone from disk: no tree row to mark
 
         $this->runIde(
@@ -188,7 +188,7 @@ final class IdeGitPluginTest extends TestCase
             $project->path('untouched.php'),
             [
                 600 => function (Tui $tui): void {
-                    $tree = Widgets::byId($tui, 'tree', FileTreeWidget::class);
+                    $tree = Widgets::byId($tui, id: 'tree', class: FileTreeWidget::class);
                     $rows = static function () use ($tree): string {
                         $tree->beforeRender();
 
@@ -217,8 +217,8 @@ final class IdeGitPluginTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
-        $project->write('src/moved.php', "<?php\n");
-        $project->write('anchor.php', "<?php\n");
+        $project->write('src/moved.php', content: "<?php\n");
+        $project->write('anchor.php', content: "<?php\n");
         $project->git('add', '-A');
         $project->git('commit', '-qm', 'init');
 
@@ -227,7 +227,7 @@ final class IdeGitPluginTest extends TestCase
             $project->path('anchor.php'),
             [
                 600 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
-                    $tree = Widgets::byId($tui, 'tree', FileTreeWidget::class);
+                    $tree = Widgets::byId($tui, id: 'tree', class: FileTreeWidget::class);
                     $rows = static function () use ($tree): string {
                         $tree->beforeRender();
 
@@ -272,7 +272,7 @@ final class IdeGitPluginTest extends TestCase
                     $decorations = Widgets::editor($tui)->decorations;
                     $this->assertSame([], $decorations->vcsMarks, 'committed and unmodified: no marks');
 
-                    $project->write('a.txt', "one\nCHANGED\n"); // external edit
+                    $project->write('a.txt', content: "one\nCHANGED\n"); // external edit
                     $ide->pollFilesystem();
 
                     $this->await(static fn (): bool => [] !== $decorations->vcsMarks, what: 'the reload to recompute the stripe');
@@ -377,7 +377,7 @@ final class IdeGitPluginTest extends TestCase
         // kind: the row flips, the file is written, and nothing happens.
         $this->skipWithoutGit();
         $project = self::repo();
-        $project->write('src/A.php', "<?php\n\$a = 999;\n");
+        $project->write('src/A.php', content: "<?php\n\$a = 999;\n");
 
         $this->runIde(
             $project,
@@ -392,7 +392,7 @@ final class IdeGitPluginTest extends TestCase
                     // the value. The write itself is `SettingsPluginsController`'s
                     // and is pinned in its own test; what is unproven without
                     // this is that the plugin ACTS on being told.
-                    Services::resolve($ide, PluginLifecycle::class)->onPluginSettingChanged('git', 'gutterMarks', false);
+                    Services::resolve($ide, PluginLifecycle::class)->onPluginSettingChanged('git', key: 'gutterMarks', value: false);
                     $this->frame($tui);
 
                     $this->assertStringNotContainsString("\x1b[38;5;75m┆", $joined(), 'the strip went, and took the marks with it');
@@ -423,15 +423,15 @@ final class IdeGitPluginTest extends TestCase
                 400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     $this->assertInstanceOf(ContributedView::class, $view);
-                    $settings = Probe::get($view, 'gitSettings');
+                    $settings = Probe::get($view, property: 'gitSettings');
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
                     // The view up: its poll is armed with the interval it opened with.
                     Services::resolve($ide, ViewRegistry::class)->open('git');
-                    $poll = Probe::get($view, 'poll');
+                    $poll = Probe::get($view, property: 'poll');
                     $this->assertNotNull($poll);
-                    $annotations = Probe::get(Probe::get(Probe::get($lifecycle, 'plugins'), 'instances')['git'], 'annotations');
+                    $annotations = Probe::get(Probe::get(Probe::get($lifecycle, property: 'plugins'), property: 'instances')['git'], property: 'annotations');
                     $this->assertIsObject($annotations);
-                    $this->assertFalse(Probe::get($annotations, 'enabled'));
+                    $this->assertFalse(Probe::get($annotations, property: 'enabled'));
 
                     foreach ([
                         'blameDefault' => true,
@@ -445,8 +445,8 @@ final class IdeGitPluginTest extends TestCase
                     }
 
                     $this->assertTrue($settings->blameDefault);
-                    $this->assertTrue(Probe::get($annotations, 'enabled'), 'and the annotations it seeds, at once');
-                    $this->assertNotSame($poll, Probe::get($view, 'poll'), 'the poll re-armed at the new interval');
+                    $this->assertTrue(Probe::get($annotations, property: 'enabled'), 'and the annotations it seeds, at once');
+                    $this->assertNotSame($poll, Probe::get($view, property: 'poll'), 'the poll re-armed at the new interval');
                     $this->assertTrue($settings->signCommits);
                     $this->assertTrue($settings->noVerify);
                     $this->assertTrue($settings->signoff);
@@ -459,8 +459,8 @@ final class IdeGitPluginTest extends TestCase
                     // unhandled key would OVERWRITE: every holder is truthy by
                     // default, so a default arm that wrongly applied
                     // `diffSplit => true` would be invisible against them.
-                    $lifecycle->onPluginSettingChanged('git', 'showBranch', false);
-                    $lifecycle->onPluginSettingChanged('git', 'gutterMarks', false);
+                    $lifecycle->onPluginSettingChanged('git', key: 'showBranch', value: false);
+                    $lifecycle->onPluginSettingChanged('git', key: 'gutterMarks', value: false);
                     $before = [
                         $settings->showBranch,
                         $settings->gutterMarks,
@@ -473,8 +473,8 @@ final class IdeGitPluginTest extends TestCase
                     ];
                     // The two diff toggles the VIEW writes itself: the match
                     // must not name them, and must not fall through to a holder.
-                    $lifecycle->onPluginSettingChanged('git', 'diffSplit', true);
-                    $lifecycle->onPluginSettingChanged('git', 'diffHideWhitespace', true);
+                    $lifecycle->onPluginSettingChanged('git', key: 'diffSplit', value: true);
+                    $lifecycle->onPluginSettingChanged('git', key: 'diffHideWhitespace', value: true);
                     $after = [
                         $settings->showBranch,
                         $settings->gutterMarks,
@@ -509,15 +509,15 @@ final class IdeGitPluginTest extends TestCase
                 400 => function ($tui, $terminal, Ide $ide): void {
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     $this->assertInstanceOf(ContributedView::class, $view);
-                    $git = Probe::get($view, 'git');
+                    $git = Probe::get($view, property: 'git');
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
                     $discovered = $git->binary();
                     $this->assertNotNull($discovered, 'a real repo with git on PATH');
 
-                    $lifecycle->onPluginSettingChanged('git', 'path', '/custom/bin/git');
+                    $lifecycle->onPluginSettingChanged('git', key: 'path', value: '/custom/bin/git');
                     $this->assertSame('/custom/bin/git', $git->binary(), 'the edited path is what the next spawn would use');
 
-                    $lifecycle->onPluginSettingChanged('git', 'path', '');
+                    $lifecycle->onPluginSettingChanged('git', key: 'path', value: '');
                     $this->assertSame($discovered, $git->binary(), 'and clearing it goes back to discovery');
                 },
             ],
@@ -540,7 +540,7 @@ final class IdeGitPluginTest extends TestCase
                     $shown = static fn (): string => AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->await(static fn (): bool => \str_contains($shown(), Glyphs::STATUS_BRANCH), what: 'the branch to resolve');
 
-                    Services::resolve($ide, PluginLifecycle::class)->onPluginSettingChanged('git', 'showBranch', false);
+                    Services::resolve($ide, PluginLifecycle::class)->onPluginSettingChanged('git', key: 'showBranch', value: false);
                     $terminal->clearOutput();
                     $this->frame($tui);
 
@@ -600,9 +600,9 @@ final class IdeGitPluginTest extends TestCase
                     $this->awaitGit($ide); // the boot's own status/branch reads start the count
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     $this->assertInstanceOf(ContributedView::class, $view);
-                    $general = Probe::get(Probe::get($view, 'git'), 'runner');
-                    $general = Probe::get($general, 'lane');
-                    $remote = Probe::get(Probe::get(Probe::get($view, 'remoteCommands'), 'remote'), 'lane');
+                    $general = Probe::get(Probe::get($view, property: 'git'), property: 'runner');
+                    $general = Probe::get($general, property: 'lane');
+                    $remote = Probe::get(Probe::get(Probe::get($view, property: 'remoteCommands'), property: 'remote'), property: 'lane');
 
                     // The editor half runs in the SAME lane as the view's git,
                     // asserted by OBSERVING it: run blame — an editor-half verb
@@ -655,15 +655,15 @@ final class IdeGitPluginTest extends TestCase
                     Services::resolve($ide, SettingsScope::class)->set(ConfigScope::Project);
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     $this->assertInstanceOf(ContributedView::class, $view);
-                    $diff = Probe::get($view, 'panes')->diffView;
+                    $diff = Probe::get($view, property: 'panes')->diffView;
                     $this->assertInstanceOf(DiffViewWidget::class, $diff);
-                    $this->assertTrue(Probe::get($diff, 'wrap'), 'built wrapped: the setting was on at boot');
+                    $this->assertTrue(Probe::get($diff, property: 'wrap'), 'built wrapped: the setting was on at boot');
 
                     $commands = Services::resolve($ide, CommandRegistry::class);
                     $commands->run('toggle_soft_wrap');
-                    $this->assertFalse(Probe::get($diff, 'wrap'), 'Alt+Z unwraps the diff with the editor');
+                    $this->assertFalse(Probe::get($diff, property: 'wrap'), 'Alt+Z unwraps the diff with the editor');
                     $commands->run('toggle_soft_wrap');
-                    $this->assertTrue(Probe::get($diff, 'wrap'));
+                    $this->assertTrue(Probe::get($diff, property: 'wrap'));
                 },
             ],
         );
@@ -689,7 +689,7 @@ final class IdeGitPluginTest extends TestCase
                 300 => function (Tui $tui, $terminal, Ide $ide): void {
                     $views = Services::resolve($ide, ViewRegistry::class);
                     $lifecycle = Services::resolve($ide, PluginLifecycle::class);
-                    $menuTitles = static fn (): array => \array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
+                    $menuTitles = static fn (): array => \array_column(Probe::get($tui->getById('menu'), property: 'menus'), 'title');
 
                     $this->frame($tui);
                     $this->assertNull($views->find('git'), 'off at boot');
@@ -737,8 +737,8 @@ final class IdeGitPluginTest extends TestCase
                     $this->awaitGit($ide); // the boot's own status/branch reads start the count
                     $view = Services::resolve($ide, ViewRegistry::class)->find('git');
                     $this->assertInstanceOf(ContributedView::class, $view);
-                    $general = Probe::get(Probe::get(Probe::get($view, 'git'), 'runner'), 'lane');
-                    $remote = Probe::get(Probe::get(Probe::get($view, 'remoteCommands'), 'remote'), 'lane');
+                    $general = Probe::get(Probe::get(Probe::get($view, property: 'git'), property: 'runner'), property: 'lane');
+                    $remote = Probe::get(Probe::get(Probe::get($view, property: 'remoteCommands'), property: 'remote'), property: 'lane');
 
                     $sleep = static fn (): AsyncProcess => new AsyncProcess(['sleep', '30'], \sys_get_temp_dir());
                     $general->start($sleep(), static function (): void {});
@@ -775,7 +775,7 @@ final class IdeGitPluginTest extends TestCase
             $project->path('a.php'),
             [
                 300 => function (Tui $tui, $terminal, Ide $ide): void {
-                    $tree = Widgets::byId($tui, 'tree', FileTreeWidget::class);
+                    $tree = Widgets::byId($tui, id: 'tree', class: FileTreeWidget::class);
                     // Rows are alphabetical with dot files shown, so the tree
                     // reads `.porta.json`, `a.php`, `b.php` — and the cursor
                     // starts on the first of them.
@@ -808,7 +808,7 @@ final class IdeGitPluginTest extends TestCase
                     $terminal->clearOutput();
                     $this->frame($tui);
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 3, $rect->row + 3));
-                    $this->assertTrue(Widgets::byId($tui, 'context-menu', ContextMenu::class)->isOpen(), 'the tree row menu opened');
+                    $this->assertTrue(Widgets::byId($tui, id: 'context-menu', class: ContextMenu::class)->isOpen(), 'the tree row menu opened');
                     $this->frame($tui);
                     $this->assertStringContainsString(
                         'Compare Selected Files',
@@ -841,10 +841,10 @@ final class IdeGitPluginTest extends TestCase
         $this->skipWithoutGit();
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
-        $project->write('src/A.php', "<?php\n\$a = 1;\n\$b = 2;\n");
+        $project->write('src/A.php', content: "<?php\n\$a = 1;\n\$b = 2;\n");
         $project->git('add', '-A');
         $project->git('commit', '-qm', 'init');
-        $project->write('src/A.php', "<?php\n\$a = 999;\n\$b = 2;\n"); // line 1 modified
+        $project->write('src/A.php', content: "<?php\n\$a = 999;\n\$b = 2;\n"); // line 1 modified
 
         $this->runIde(
             $project,
@@ -856,7 +856,7 @@ final class IdeGitPluginTest extends TestCase
                     $gutterMarks = static function () use ($editor): array {
                         $out = [];
                         foreach ($editor->render(new RenderContext(80, 10)) as $row => $line) {
-                            $gutter = AnsiUtils::sliceByColumn($line, 0, $editor->gutterWidth());
+                            $gutter = AnsiUtils::sliceByColumn($line, startCol: 0, length: $editor->gutterWidth());
                             if (\str_contains($gutter, Glyphs::VCS_MODIFIED)) {
                                 $out[] = 'M'.$row;
                             }
@@ -874,7 +874,7 @@ final class IdeGitPluginTest extends TestCase
                     // Split line 0, pushing everything below it down one. Nothing
                     // saves, so nothing recomputes.
                     $tui->setFocus($editor);
-                    $editor->getDocument()->setCursor(0, 0);
+                    $editor->getDocument()->setCursor(0, col: 0);
                     $tui->handleInput("\r");
 
                     $this->assertSame(

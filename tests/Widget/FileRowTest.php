@@ -15,25 +15,25 @@ final class FileRowTest extends TestCase
     /** Narrower than the letter: the letter cut to the width, not the row past it. */
     public function testNarrowerThanTheLetterIsTheLetterCut(): void
     {
-        $this->assertSame(' …', self::row('src/a.php', 2));
+        $this->assertSame(' …', self::row('src/a.php', width: 2));
     }
 
     /** Two columns of folder are room for the ellipsis and the slash; one is not. */
     public function testTwoColumnsOfFolderStillSayThereIsOne(): void
     {
-        $this->assertSame('…/x.php M ', self::row('abc/x.php', 10));
-        $this->assertSame('abc/x.php M ', self::row('abc/x.php', 12), 'the folder whole once it fits');
-        $this->assertSame('x.php  M ', self::row('abc/x.php', 9), 'one column: the name alone');
+        $this->assertSame('…/x.php M ', self::row('abc/x.php', width: 10));
+        $this->assertSame('abc/x.php M ', self::row('abc/x.php', width: 12), 'the folder whole once it fits');
+        $this->assertSame('x.php  M ', self::row('abc/x.php', width: 9), 'one column: the name alone');
     }
 
     /** The folder's end is kept by character, never by byte. */
     public function testAFoldersTailIsCutByCharacter(): void
     {
-        $this->assertSame('…sé/x.php M ', self::row('dossé/x.php', 12));
+        $this->assertSame('…sé/x.php M ', self::row('dossé/x.php', width: 12));
     }
 
     private static function row(string $path, int $width): string
     {
-        return AnsiUtils::stripAnsiCodes(FileRow::render($path, 'M', $width, Styles::dark()));
+        return AnsiUtils::stripAnsiCodes(FileRow::render($path, status: 'M', width: $width, styles: Styles::dark()));
     }
 }

@@ -125,7 +125,7 @@ final readonly class WorktreeCommands
             /** @param list<Worktree>|null $worktrees */
             function (?array $worktrees, string $reason) use ($then): void {
                 if (null === $worktrees) {
-                    $this->notifier->error($this->translator->trans('Could not list worktrees: %reason%', ['%reason%' => $reason]), 6.0);
+                    $this->notifier->error($this->translator->trans('Could not list worktrees: %reason%', ['%reason%' => $reason]), seconds: 6.0);
 
                     return;
                 }
@@ -142,7 +142,7 @@ final readonly class WorktreeCommands
      */
     private function askName(array $worktrees): void
     {
-        $this->editor->openPrompt($this->translator->trans('Worktree name'), '', function (string $name) use ($worktrees): void {
+        $this->editor->openPrompt($this->translator->trans('Worktree name'), initial: '', onSubmit: function (string $name) use ($worktrees): void {
             $name = \trim($name);
             if ('' === $name) {
                 return;
@@ -196,11 +196,11 @@ final readonly class WorktreeCommands
     {
         $done = function (Outcome $ok, string $error) use ($name, $path): void {
             if (!$ok->isOk()) {
-                $this->notifier->error($error, 6.0);
+                $this->notifier->error($error, seconds: 6.0);
 
                 return;
             }
-            $this->notifier->success($this->translator->trans('Created worktree %name%', ['%name%' => $name]), 3.0);
+            $this->notifier->success($this->translator->trans('Created worktree %name%', ['%name%' => $name]), seconds: 3.0);
             $this->editor->openListOverlay(
                 $this->translator->trans('Open %name%?', ['%name%' => $name]),
                 [
@@ -216,7 +216,7 @@ final readonly class WorktreeCommands
             ($this->repaint)();
         };
         match (true) {
-            self::NEW_BRANCH === $branch => $this->git->addWorktree($path, $name, null, $done),
+            self::NEW_BRANCH === $branch => $this->git->addWorktree($path, $name, commitish: null, onDone: $done),
             // A remote branch gets a local one of its short name, from it.
             \str_starts_with($branch, self::REMOTE_PREFIX) => $this->git->addWorktree(
                 $path,
@@ -224,7 +224,7 @@ final readonly class WorktreeCommands
                 \substr($branch, \strlen(self::REMOTE_PREFIX)),
                 $done,
             ),
-            default => $this->git->addWorktree($path, null, $branch, $done),
+            default => $this->git->addWorktree($path, newBranch: null, commitish: $branch, onDone: $done),
         };
     }
 
@@ -274,7 +274,7 @@ final readonly class WorktreeCommands
                 // `worktree move` onto a folder that exists moves the worktree
                 // INTO it, as `mv` would: a rename that buries it a level down.
                 if (\file_exists($target)) {
-                    $this->notifier->error($this->translator->trans('%path% already exists', ['%path%' => PortaHome::tilde($target)]), 6.0);
+                    $this->notifier->error($this->translator->trans('%path% already exists', ['%path%' => PortaHome::tilde($target)]), seconds: 6.0);
 
                     return;
                 }
@@ -299,7 +299,7 @@ final readonly class WorktreeCommands
 
                 return;
             }
-            $this->editor->openPrompt($this->translator->trans('Why lock %name%? (optional)', ['%name%' => $worktree->name()]), '', function (string $reason) use ($worktree): void {
+            $this->editor->openPrompt($this->translator->trans('Why lock %name%? (optional)', ['%name%' => $worktree->name()]), initial: '', onSubmit: function (string $reason) use ($worktree): void {
                 $this->git->lockWorktree($worktree->path, \trim($reason), fn (Outcome $ok, string $error) => $this->finish($ok, $error, $this->translator->trans('Locked %name%', [
                     '%name%' => $worktree->name(),
                 ])));
@@ -363,7 +363,7 @@ final readonly class WorktreeCommands
 
     private function finish(Outcome $ok, string $error, string $success): void
     {
-        $ok->isOk() ? $this->notifier->success($success, 3.0) : $this->notifier->error($error, 6.0);
+        $ok->isOk() ? $this->notifier->success($success, seconds: 3.0) : $this->notifier->error($error, seconds: 6.0);
         ($this->repaint)();
     }
 

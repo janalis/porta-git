@@ -292,7 +292,7 @@ final class WorktreeCommandsTest extends TestCase
 
     public function testAFolderThatExistsIsGitsToRefuse(): void
     {
-        $this->folder->write('topic/keep.txt', 'x');
+        $this->folder->write('topic/keep.txt', content: 'x');
 
         $this->commands()->newWorktree();
         $this->promptOpens();
@@ -475,7 +475,7 @@ final class WorktreeCommandsTest extends TestCase
     {
         // Measured: `worktree move` onto an existing folder moves it INTO it.
         $this->project->git('worktree', 'add', '-q', '-b', 'feat', $this->at('feat'));
-        $this->folder->write('taken/keep.txt', 'x');
+        $this->folder->write('taken/keep.txt', content: 'x');
 
         $this->pickAction('Rename');
         $this->key("\r");
@@ -594,7 +594,7 @@ final class WorktreeCommandsTest extends TestCase
     {
         $this->editor = new CodeEditorWidget();
         $this->statusBar = new StatusBarWidget();
-        $tui = TestTui::create(120, 24);
+        $tui = TestTui::create(120, rows: 24);
         $root ??= $this->project->dir;
 
         return new WorktreeCommands(
@@ -661,7 +661,7 @@ final class WorktreeCommandsTest extends TestCase
     private function overlay(): array
     {
         /** @var array{title: string, items: list<array{label: string, hint: string, value: string, disabled?: bool}>}|null $overlay */
-        $overlay = Probe::get(Probe::object($this->editor, 'overlayHost'), 'overlay');
+        $overlay = Probe::get(Probe::object($this->editor, 'overlayHost'), property: 'overlay');
 
         return $overlay ?? ['title' => '', 'items' => []];
     }

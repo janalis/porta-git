@@ -61,12 +61,12 @@ final class OperationCommandsTest extends TestCase
         $this->project->initGit(branch: 'main');
         $this->project->commitAll('base');
         $this->project->git('checkout', '-q', '-b', 'topic');
-        $this->project->write('a.txt', "theirs\n");
+        $this->project->write('a.txt', content: "theirs\n");
         $this->project->commitAll('theirs');
-        $this->project->write('b.txt', "b2\n");
+        $this->project->write('b.txt', content: "b2\n");
         $this->project->commitAll('also theirs');
         $this->project->git('checkout', '-q', 'main');
-        $this->project->write('a.txt', "ours\n");
+        $this->project->write('a.txt', content: "ours\n");
         $this->project->commitAll('ours');
         if ([] !== $command) {
             new Process(['git', ...$command], $this->project->dir, ['PATH' => (string) \PORTA_TEST_PRISTINE_PATH, 'GIT_EDITOR' => 'true'])->run();
@@ -80,7 +80,7 @@ final class OperationCommandsTest extends TestCase
         $git = new GitInfo($this->project->dir);
         $this->editor = new CodeEditorWidget();
         $this->statusBar = new StatusBarWidget();
-        $tui = TestTui::create(100, 24);
+        $tui = TestTui::create(100, rows: 24);
         $this->refresher = new GitRefresher($git, static function (): void {});
         $events = new EventDispatcher();
         $events->addListener(WorkingTreeChanged::class, function (): void {
@@ -235,7 +235,7 @@ final class OperationCommandsTest extends TestCase
         // The refresher still says merging, git has finished meanwhile: git
         // refuses, and its reason is what the user reads.
         $commands = $this->stopped();
-        Probe::set($this->refresher, 'operation', new OperationState(GitOperation::Merging));
+        Probe::set($this->refresher, property: 'operation', value: new OperationState(GitOperation::Merging));
 
         $commands->continue();
         $this->pumpUntil();

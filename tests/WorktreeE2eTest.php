@@ -44,7 +44,7 @@ final class WorktreeE2eTest extends TestCase
         $this->project->initGit(branch: 'main');
         // Untracked, so a worktree checks out no `.porta.json` — one would
         // put the trust question between the pick and the switch.
-        $this->project->write('.git/info/exclude', ".porta/\n.porta.json\n");
+        $this->project->write('.git/info/exclude', content: ".porta/\n.porta.json\n");
         $this->project->commitAll('init');
         $this->linked = new TempProject([]);
         $this->project->git('worktree', 'add', '-q', '-b', 'feat', $this->linked->dir);
@@ -58,7 +58,7 @@ final class WorktreeE2eTest extends TestCase
             [
                 300 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
                     $editor = Services::resolve($ide, CodeEditorWidget::class);
-                    $this->palette($tui, 'Git: Worktrees');
+                    $this->palette($tui, label: 'Git: Worktrees');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the worktree list');
                     // Its folder's name: the list is filtered by what is typed.
                     foreach (\str_split(\basename($this->linked->dir)) as $ch) {
@@ -74,7 +74,7 @@ final class WorktreeE2eTest extends TestCase
 
     public function testInALinkedWorktreeTheStatusBarSaysWhich(): void
     {
-        $this->linked->write('.porta.json', '{"enabledPlugins":["diff","git"]}');
+        $this->linked->write('.porta.json', content: '{"enabledPlugins":["diff","git"]}');
         $name = \basename($this->linked->dir);
 
         $this->runIde(

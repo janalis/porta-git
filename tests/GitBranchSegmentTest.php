@@ -45,14 +45,14 @@ final class GitBranchSegmentTest extends TestCase
     private function segment(bool $showBranch, ?string $branch, ?string $worktree = null, ?OperationState $operation = null): GitBranchSegment
     {
         $translator = new Translator('en');
-        TestTui::create(80, 24);
+        TestTui::create(80, rows: 24);
         $project = new TempProject();
         $git = new GitInfo($project->dir);
         $refresher = new GitRefresher($git, static function (): void {});
         // The branch resolves asynchronously through git; set it directly so
         // the test is about the CELL rather than about a subprocess.
-        Probe::set($refresher, 'branch', $branch);
-        Probe::set($refresher, 'operation', $operation);
+        Probe::set($refresher, property: 'branch', value: $branch);
+        Probe::set($refresher, property: 'operation', value: $operation);
         $flashes = [];
         $worktrees = GitDoubles::worktrees($git, $project->dir);
         $commands = new GitCommands(

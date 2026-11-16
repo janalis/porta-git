@@ -217,9 +217,9 @@ final class HistoryListWidget extends AbstractWidget implements FocusableInterfa
 
         match (true) {
             $this->handleGitPaneKey($data, $kb) => null,
-            $kb->matches($data, 'show_changes') => $this->events?->dispatch(new GitViewModeRequested(GitViewMode::Changes)),
+            $kb->matches($data, action: 'show_changes') => $this->events?->dispatch(new GitViewModeRequested(GitViewMode::Changes)),
             // Into the commit's files, the column beside: the next pane.
-            $kb->matches($data, 'switch_list') => $this->fire($this->onFocusNext),
+            $kb->matches($data, action: 'switch_list') => $this->fire($this->onFocusNext),
             default => $this->navigateCommits($data, $kb),
         };
     }

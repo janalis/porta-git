@@ -59,7 +59,7 @@ final class GitCommandsTest extends TestCase
     public function testCommitPromptsThenCommitsTheStagedIndex(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\ntwo\n");
+        $this->write('a.txt', contents: "one\ntwo\n");
         $this->project->git('add', '-A');
 
         $commands->commit();
@@ -148,7 +148,7 @@ final class GitCommandsTest extends TestCase
     public function testStashesPicksAStashAndPopsIt(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\nstashed\n");
+        $this->write('a.txt', contents: "one\nstashed\n");
         $this->project->git('stash', 'push', '-m', 'wip');
 
         $commands->stashes();
@@ -164,7 +164,7 @@ final class GitCommandsTest extends TestCase
     public function testStashesAppliesAStashKeepingItInTheList(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\napplied\n");
+        $this->write('a.txt', contents: "one\napplied\n");
         $this->project->git('stash', 'push', '-m', 'wip');
 
         $commands->stashes();
@@ -180,7 +180,7 @@ final class GitCommandsTest extends TestCase
     public function testStashesDropsAStash(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\ndropme\n");
+        $this->write('a.txt', contents: "one\ndropme\n");
         $this->project->git('stash', 'push', '-m', 'wip');
 
         $commands->stashes();
@@ -204,13 +204,13 @@ final class GitCommandsTest extends TestCase
     public function testTheStashPickedIsTheOneDroppedThoughTheListMovedMeanwhile(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\npicked\n");
+        $this->write('a.txt', contents: "one\npicked\n");
         $this->project->git('stash', 'push', '-m', 'picked');
 
         $commands->stashes();
         $this->overlayOpens();
         $this->key("\r"); // pick it, while it is stash@{0}
-        $this->write('a.txt', "one\nnewer\n");
+        $this->write('a.txt', contents: "one\nnewer\n");
         $this->project->git('stash', 'push', '-m', 'newer'); // now it is stash@{1}
         $this->key("\x1b[B");
         $this->key("\x1b[B"); // Drop
@@ -226,9 +226,9 @@ final class GitCommandsTest extends TestCase
     public function testAStashGoneWhileThePickersWereOpenIsNotReplacedByAnother(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\nolder\n");
+        $this->write('a.txt', contents: "one\nolder\n");
         $this->project->git('stash', 'push', '-m', 'older');
-        $this->write('a.txt', "one\npicked\n");
+        $this->write('a.txt', contents: "one\npicked\n");
         $this->project->git('stash', 'push', '-m', 'picked');
 
         $commands->stashes();
@@ -245,7 +245,7 @@ final class GitCommandsTest extends TestCase
     public function testStashesActionCanBeCancelled(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\nkeep\n");
+        $this->write('a.txt', contents: "one\nkeep\n");
         $this->project->git('stash', 'push', '-m', 'wip');
 
         $commands->stashes();
@@ -277,7 +277,7 @@ final class GitCommandsTest extends TestCase
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
         $first = \trim($this->project->git('rev-parse', 'HEAD'));
-        $this->write('a.txt', "one\ntwo\n");
+        $this->write('a.txt', contents: "one\ntwo\n");
         $this->project->git('commit', '-am', 'second');
 
         $commands->branchFromCommit(self::commitEntry($first));
@@ -308,7 +308,7 @@ final class GitCommandsTest extends TestCase
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
         $this->project->git('checkout', '-b', 'side');
-        $this->write('b.txt', "new\n");
+        $this->write('b.txt', contents: "new\n");
         $this->project->git('add', 'b.txt');
         $this->project->git('commit', '-m', 'add b');
         $pick = \trim($this->project->git('rev-parse', 'HEAD'));
@@ -327,7 +327,7 @@ final class GitCommandsTest extends TestCase
     public function testRevertCommitUndoesItWithANewCommit(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\nadded\n");
+        $this->write('a.txt', contents: "one\nadded\n");
         $this->project->git('commit', '-am', 'add line');
         $bad = \trim($this->project->git('rev-parse', 'HEAD'));
 
@@ -344,7 +344,7 @@ final class GitCommandsTest extends TestCase
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
         $base = \trim($this->project->git('rev-parse', 'HEAD'));
-        $this->write('a.txt', "one\nmore\n");
+        $this->write('a.txt', contents: "one\nmore\n");
         $this->project->git('commit', '-am', 'more');
 
         $commands->resetToCommit(self::commitEntry($base));
@@ -361,7 +361,7 @@ final class GitCommandsTest extends TestCase
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
         $base = \trim($this->project->git('rev-parse', 'HEAD'));
-        $this->write('a.txt', "one\nmore\n");
+        $this->write('a.txt', contents: "one\nmore\n");
         $this->project->git('commit', '-am', 'more');
 
         $commands->resetToCommit(self::commitEntry($base));
@@ -379,7 +379,7 @@ final class GitCommandsTest extends TestCase
     public function testResetToCommitCancelLeavesHeadAlone(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->write('a.txt', "one\nmore\n");
+        $this->write('a.txt', contents: "one\nmore\n");
         $this->project->git('commit', '-am', 'more');
         $tip = \trim($this->project->git('rev-parse', 'HEAD'));
 
@@ -407,7 +407,7 @@ final class GitCommandsTest extends TestCase
     public function testFileHistoryWithAnOpenFileIsAcceptedWhenNoGitViewIsAttached(): void
     {
         $commands = $this->commands(['a.txt' => "one\n"]);
-        $this->openInEditor('a.txt', "one\n");
+        $this->openInEditor('a.txt', contents: "one\n");
 
         // No view is registered in this rig, so `openView('git')` is a no-op —
         // but the verb must reach that branch without flashing "unavailable".
@@ -459,6 +459,26 @@ final class GitCommandsTest extends TestCase
         $this->pumpUntil();
 
         $this->assertStringContainsString('Deleted branch stale', $this->statusRow($this->statusBar));
+    }
+
+    /** `-d` only: an unmerged branch is refused, and git's own message (which names `-D`) is the flash. */
+    public function testDeletingAnUnmergedBranchFlashesGitsRefusalAndKeepsIt(): void
+    {
+        $commands = $this->commands(['a.txt' => "one\n"]);
+        $this->project->git('switch', '-q', '-c', 'wip');
+        $this->project->write('b.txt', content: "unmerged\n");
+        $this->project->git('add', 'b.txt');
+        $this->project->git('commit', '-qm', 'wip');
+        $this->project->git('switch', '-q', '-');
+
+        $commands->deleteBranch();
+        $this->overlayOpens(); // the deletable list
+        $this->key("\r"); // pick "wip" (the only deletable)
+        $this->key("\r"); // confirm "Delete"
+        $this->pumpUntil();
+
+        $this->assertStringContainsString('not fully merged', $this->statusRow($this->statusBar));
+        $this->assertStringContainsString('wip', $this->project->git('branch'), 'the branch is still there');
     }
 
     public function testBranchActionsReportUnavailableOutsideARepo(): void
@@ -689,7 +709,7 @@ final class GitCommandsTest extends TestCase
     private function overlayItems(): array
     {
         /** @var array{items: list<array{label: string, hint: string, value: string}>}|null $overlay */
-        $overlay = Probe::get(Probe::object($this->editor, 'overlayHost'), 'overlay');
+        $overlay = Probe::get(Probe::object($this->editor, 'overlayHost'), property: 'overlay');
 
         return $overlay['items'] ?? [];
     }
@@ -736,7 +756,7 @@ final class GitCommandsTest extends TestCase
         $git ??= new GitInfo($this->project->dir, lane: $this->lane);
         $this->editor = new CodeEditorWidget();
         $this->statusBar = new StatusBarWidget();
-        $this->tui = TestTui::create(100, 24);
+        $this->tui = TestTui::create(100, rows: 24);
         $translator = new Translator('en');
         $refresher = new GitRefresher($git, static function (): void {});
 

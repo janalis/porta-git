@@ -117,17 +117,17 @@ final class GitFlowsE2eTest extends TestCase
                 },
                 600 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
                     $this->frame($tui);
-                    $this->assertSame(31, Widgets::byId($tui, 'git-changes', ChangesListWidget::class)->width(), 'the seeded percent applied to the window');
+                    $this->assertSame(31, Widgets::byId($tui, id: 'git-changes', class: ChangesListWidget::class)->width(), 'the seeded percent applied to the window');
                     // Drag the git separator (region column 31, after the
                     // 31-wide sidebar) out to 51: the whole left column follows.
-                    $tui->handleInput(self::windowSgr($ide, 0, 4, 31)); // arm on the separator
-                    $tui->handleInput(self::windowSgr($ide, 32, 4, 51)); // drag right
-                    $tui->handleInput(self::windowSgr($ide, 0, 4, 51, release: true));
+                    $tui->handleInput(self::windowSgr($ide, button: 0, row: 4, col: 31)); // arm on the separator
+                    $tui->handleInput(self::windowSgr($ide, button: 32, row: 4, col: 51)); // drag right
+                    $tui->handleInput(self::windowSgr($ide, button: 0, row: 4, col: 51, release: true));
                 },
                 900 => function (Tui $tui) use ($project): void {
-                    $this->assertSame(51, Widgets::byId($tui, 'git-changes', ChangesListWidget::class)->width(), 'the drag resized the sidebar');
-                    $this->assertSame(51, Widgets::byId($tui, 'git-tabs', GitTabsWidget::class)->width(), 'the tab strip follows');
-                    $this->assertSame(51, Widgets::byId($tui, 'git-commit', CommitBoxWidget::class)->width(), 'the commit box follows');
+                    $this->assertSame(51, Widgets::byId($tui, id: 'git-changes', class: ChangesListWidget::class)->width(), 'the drag resized the sidebar');
+                    $this->assertSame(51, Widgets::byId($tui, id: 'git-tabs', class: GitTabsWidget::class)->width(), 'the tab strip follows');
+                    $this->assertSame(51, Widgets::byId($tui, id: 'git-commit', class: CommitBoxWidget::class)->width(), 'the commit box follows');
                     $layout = \json_decode((string) \file_get_contents($project->path('.porta/layout.json')), associative: true, flags: \JSON_THROW_ON_ERROR);
                     $this->assertSame(41, $layout['viewSidebarWidthPercent']['git'], 'saved as a share of the window (round(51/124))');
                     $this->assertArrayNotHasKey('gitSidebarWidthPercent', $layout, 'and the pre-move key is not rewritten');
@@ -142,10 +142,10 @@ final class GitFlowsE2eTest extends TestCase
 
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t'); // 'tester' is asserted as the blame author
-        $project->write('src/A.php', "<?php\n\$a = 1;\n");
+        $project->write('src/A.php', content: "<?php\n\$a = 1;\n");
         $project->git('add', '-A');
         $project->git('commit', '-qm', 'init');
-        $project->write('src/A.php', "<?php\n\$a = 2;\n"); // unstaged change
+        $project->write('src/A.php', content: "<?php\n\$a = 2;\n"); // unstaged change
 
         $palette = static function ($tui, string $label): void {
             $tui->handleInput("\x1b[97;6u"); // ctrl+shift+a
@@ -284,7 +284,7 @@ final class GitFlowsE2eTest extends TestCase
 
     private function menuTitles($tui): array
     {
-        return \array_column(Probe::get($tui->getById('menu'), 'menus'), 'title');
+        return \array_column(Probe::get($tui->getById('menu'), property: 'menus'), 'title');
     }
 
     public function testWithoutARepositoryTheGitChromeIsAbsent(): void
@@ -500,7 +500,7 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\r");
                 },
                 1100 => function (Tui $tui, VirtualTerminal $terminal): void {
-                    $this->awaitPainted($tui, $terminal, 'No other local branches to delete');
+                    $this->awaitPainted($tui, $terminal, needle: 'No other local branches to delete');
                     $this->assertStringContainsString('No other local branches to delete', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                 },
             ],
@@ -514,11 +514,11 @@ final class GitFlowsE2eTest extends TestCase
 
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
-        $project->write('src/A.php', "<?php\n\$a = 1;\n\$b = 2;\n");
+        $project->write('src/A.php', content: "<?php\n\$a = 1;\n\$b = 2;\n");
         $project->git('add', '-A');
         $project->git('commit', '-qm', 'init');
         // Modify line 2 and append a line after committing
-        $project->write('src/A.php', "<?php\n\$a = 999;\n\$b = 2;\n\$c = 3;\n");
+        $project->write('src/A.php', content: "<?php\n\$a = 999;\n\$b = 2;\n\$c = 3;\n");
 
         $this->runIde(
             $project,
@@ -552,8 +552,8 @@ final class GitFlowsE2eTest extends TestCase
         $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
-        $project->write('src/A.php', "<?php\n\$a = 2;\n"); // unstaged edit
-        $project->write('notes.md', "hi\n"); // untracked
+        $project->write('src/A.php', content: "<?php\n\$a = 2;\n"); // unstaged edit
+        $project->write('notes.md', content: "hi\n"); // untracked
 
         $this->runIde(
             $project,
@@ -614,7 +614,7 @@ final class GitFlowsE2eTest extends TestCase
         $project = new TempProject(['src/A.php' => "<?php\n\$a = 1;\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
-        $project->write('src/A.php', "<?php\n\$a = 2;\n"); // unstaged edit
+        $project->write('src/A.php', content: "<?php\n\$a = 2;\n"); // unstaged edit
 
         $this->runIde(
             $project,
@@ -634,7 +634,7 @@ final class GitFlowsE2eTest extends TestCase
                     // right-press that never moved focus would look identical.
                     $tui->setFocus($tui->getById('git-diff'));
                     $tui->handleInput(\sprintf("\x1b[<2;%d;%dM", $rect->col + 8, $rect->row + 3)); // right-click the first row, under the heading and its rule
-                    $this->assertTrue(Widgets::byId($tui, 'context-menu', ContextMenu::class)->isOpen(), 'right-clicking a changes row opened its menu');
+                    $this->assertTrue(Widgets::byId($tui, id: 'context-menu', class: ContextMenu::class)->isOpen(), 'right-clicking a changes row opened its menu');
                     // Asserted HERE, not after the menu action: selecting the row
                     // under the pointer and taking focus is part of answering,
                     // and it is what makes the Ctrl+F10 parity below act on this
@@ -659,7 +659,7 @@ final class GitFlowsE2eTest extends TestCase
                     $this->assertSame('git-changes', $tui->getFocus()?->getId());
                     $terminal->clearOutput();
                     $tui->handleInput("\x1b[21;5~");
-                    $this->assertTrue(Widgets::byId($tui, 'context-menu', ContextMenu::class)->isOpen(), 'Ctrl+F10 opened the row menu');
+                    $this->assertTrue(Widgets::byId($tui, id: 'context-menu', class: ContextMenu::class)->isOpen(), 'Ctrl+F10 opened the row menu');
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Unstage'));
                     $this->assertStringContainsString('Unstage', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'a staged row offers Unstage');
 
@@ -680,7 +680,7 @@ final class GitFlowsE2eTest extends TestCase
         $project = new TempProject(['f.txt' => "alpha\nbeta\ngamma\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
-        $project->write('f.txt', "alpha CHANGED\nbeta\ngamma CHANGED\n");
+        $project->write('f.txt', content: "alpha CHANGED\nbeta\ngamma CHANGED\n");
 
         $this->runIde(
             $project,
@@ -723,7 +723,7 @@ final class GitFlowsE2eTest extends TestCase
         $project = new TempProject(['a.txt' => "one\ntwo\nthree\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('init');
-        $project->write('a.txt', "one!\ntwo\nthree changed\n");
+        $project->write('a.txt', content: "one!\ntwo\nthree changed\n");
         $project->write('b.txt', 'new '.\str_repeat('long-tail ', times: 8)."\n"); // long enough to h-scroll
 
         $terminal = $this->runIde(
@@ -757,7 +757,7 @@ final class GitFlowsE2eTest extends TestCase
                     // The row clicked below only exists once `git status` has
                     // answered and the list has painted it.
                     $this->awaitGit($ide);
-                    $this->awaitPainted($tui, $terminal, 'a.txt');
+                    $this->awaitPainted($tui, $terminal, needle: 'a.txt');
                     // Click the 'File' title (row 1) to open, then again to close.
                     $tui->handleInput("\x1b[<0;3;1M");
                     $tui->handleInput("\x1b[<0;3;1m");
@@ -765,8 +765,8 @@ final class GitFlowsE2eTest extends TestCase
                     $tui->handleInput("\x1b[<0;3;1m");
                     // The changes list: its heading and rule, then a.txt. Click the checkbox.
                     $this->frame($tui);
-                    $tui->handleInput(self::widgetSgr($ide, 'git-changes', 0, 2, 2));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-changes', 0, 2, 2, release: true));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-changes', button: 0, row: 2, col: 2));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-changes', button: 0, row: 2, col: 2, release: true));
                 },
                 550 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
                     // Staging is a git subprocess, so this waits — but on the
@@ -776,51 +776,51 @@ final class GitFlowsE2eTest extends TestCase
                     // async op". Await the checkbox, then read the disk once.
                     $this->await(
                         static fn (): bool => \str_contains(
-                            AnsiUtils::stripAnsiCodes(Widgets::byId($tui, 'git-changes', ChangesListWidget::class)->render(new RenderContext(44, 5))[2] ?? ''),
+                            AnsiUtils::stripAnsiCodes(Widgets::byId($tui, id: 'git-changes', class: ChangesListWidget::class)->render(new RenderContext(44, 5))[2] ?? ''),
                             '[✓]',
                         ),
                         what: 'the changes list to show a.txt staged',
                     );
                     $this->assertContains('M  a.txt', \explode("\n", $project->git('status', '--porcelain')), 'checkbox click staged the file');
                     // Hover b.txt: a tint only — the diff must NOT load.
-                    $tui->handleInput(self::widgetSgr($ide, 'git-changes', 35, 3, 9));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-changes', button: 35, row: 3, col: 9));
                 },
                 650 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
                     // The POSITIVE first: a.txt's diff on screen is what makes
                     // "+new is absent" mean the hover declined to load, rather
                     // than that nothing has happened yet.
-                    $this->awaitPainted($tui, $terminal, 'three changed');
+                    $this->awaitPainted($tui, $terminal, needle: 'three changed');
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertStringNotContainsString('+new', $screen, 'hover alone must not load the hovered diff');
                     // Moving the pointer onto the diff pane clears the tint...
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 35, 4, 34));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 35, row: 4, col: 34));
                     // ...and a CLICK on b.txt selects it and loads its diff.
-                    $tui->handleInput(self::widgetSgr($ide, 'git-changes', 0, 3, 9));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-changes', 0, 3, 9, release: true));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-changes', button: 0, row: 3, col: 9));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-changes', button: 0, row: 3, col: 9, release: true));
                 },
                 750 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
-                    $this->awaitPainted($tui, $terminal, '+new');
+                    $this->awaitPainted($tui, $terminal, needle: '+new');
                     $this->assertStringContainsString('+new', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the click loaded the untracked diff');
                     // Horizontal wheel (trackpad code 67) over the diff pane
                     // scrolls sideways; the tree/list panes ignore it.
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 67, 4, 34));
-                    $this->assertSame(6, Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->hScroll(), 'wheel-right scrolled the diff text');
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 68, 4, 34)); // shift+wheel-up = left
-                    $this->assertSame(0, Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->hScroll());
-                    $tui->handleInput(self::widgetSgr($ide, 'git-changes', 67, 2, 9)); // over the changes list: ignored
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 67, row: 4, col: 34));
+                    $this->assertSame(6, Widgets::byId($tui, id: 'git-diff', class: DiffViewWidget::class)->hScroll(), 'wheel-right scrolled the diff text');
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 68, row: 4, col: 34)); // shift+wheel-up = left
+                    $this->assertSame(0, Widgets::byId($tui, id: 'git-diff', class: DiffViewWidget::class)->hScroll());
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-changes', button: 67, row: 2, col: 9)); // over the changes list: ignored
                     // Wheel over the diff pane scrolls it; over the list it moves
                     // the selection (keyboard-like, so it may load).
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 65, 4, 34));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-changes', 65, 2, 9));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 65, row: 4, col: 34));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-changes', button: 65, row: 2, col: 9));
                     // Press mid-text on a diff row and drag ten columns right:
                     // a char-level span arms; ctrl+c copies exactly those chars.
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 4, 14));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 32, 4, 24));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 4, 24, release: true));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 0, row: 4, col: 14));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 32, row: 4, col: 24));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 0, row: 4, col: 24, release: true));
                     $tui->handleInput("\x03");
                     // Click into the commit box summary row.
-                    $tui->handleInput(self::widgetSgr($ide, 'git-commit', 0, 1, 4));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-commit', 0, 1, 4, release: true));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-commit', button: 0, row: 1, col: 4));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-commit', button: 0, row: 1, col: 4, release: true));
                 },
                 850 => function (Tui $tui, $terminal, Ide $ide): void {
                     $raw = $terminal->getOutput();
@@ -838,8 +838,8 @@ final class GitFlowsE2eTest extends TestCase
                     $box = Services::resolve($ide, ViewWindowPresenter::class)->box();
                     $this->assertInstanceOf(ModalBox::class, $box);
                     $renderer = Services::resolve($ide, Renderer::class);
-                    $toolbarRect = $renderer->getWidgetRect(Widgets::byId($tui, 'git-toolbar', GitToolbarWidget::class));
-                    $diffRect = $renderer->getWidgetRect(Widgets::byId($tui, 'git-diff', DiffViewWidget::class));
+                    $toolbarRect = $renderer->getWidgetRect(Widgets::byId($tui, id: 'git-toolbar', class: GitToolbarWidget::class));
+                    $diffRect = $renderer->getWidgetRect(Widgets::byId($tui, id: 'git-diff', class: DiffViewWidget::class));
                     $this->assertInstanceOf(WidgetRect::class, $toolbarRect);
                     $this->assertSame($box->startRow + 1, $toolbarRect->row, 'the view toolbar is flush under the title bar');
                     $this->assertSame($box->startRow + 1 + $toolbarRect->rows, $diffRect?->row, 'the diff toolbar is right under it');
@@ -848,11 +848,11 @@ final class GitFlowsE2eTest extends TestCase
                     $this->frame($tui); // its click box goes with the next frame
                     // The gear, the toolbar's last control, drops the display
                     // settings; each pick flips its own and persists it.
-                    $this->pickFromTheGear($tui, $ide, 'Split');
-                    $this->assertTrue(Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->isSplit(), 'Split switched to side-by-side');
+                    $this->pickFromTheGear($tui, $ide, label: 'Split');
+                    $this->assertTrue(Widgets::byId($tui, id: 'git-diff', class: DiffViewWidget::class)->isSplit(), 'Split switched to side-by-side');
                     $this->frame($tui);
-                    $this->pickFromTheGear($tui, $ide, 'Hide whitespace changes');
-                    $this->assertTrue(Widgets::byId($tui, 'git-diff', DiffViewWidget::class)->isWhitespaceHidden(), 'and whitespace changes are hidden');
+                    $this->pickFromTheGear($tui, $ide, label: 'Hide whitespace changes');
+                    $this->assertTrue(Widgets::byId($tui, id: 'git-diff', class: DiffViewWidget::class)->isWhitespaceHidden(), 'and whitespace changes are hidden');
                     $tui->handleInput("\x1b");
                 },
             ],
@@ -872,10 +872,10 @@ final class GitFlowsE2eTest extends TestCase
     private function pickFromTheGear(Tui $tui, Ide $ide, string $label): void
     {
         $menu = Services::resolve($ide, ContextMenu::class);
-        $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -4));
-        $tui->handleInput(self::widgetSgr($ide, 'git-diff', 0, 0, -4, release: true));
+        $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 0, row: 0, col: -4));
+        $tui->handleInput(self::widgetSgr($ide, id: 'git-diff', button: 0, row: 0, col: -4, release: true));
         $this->assertTrue($menu->isOpen(), 'the gear dropped its menu');
-        $labels = \array_map(static fn (MenuItem $item): string => $item->label, Probe::get($menu, 'items'));
+        $labels = \array_map(static fn (MenuItem $item): string => $item->label, Probe::get($menu, property: 'items'));
         $this->assertSame(['Hide whitespace changes', '', 'Unified', 'Split'], $labels);
         $menu->runItem((int) \array_search($label, $labels, strict: true));
     }
@@ -887,7 +887,7 @@ final class GitFlowsE2eTest extends TestCase
         $project = new TempProject(['a.txt' => "one\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit();
         $project->commitAll('first commit');
-        $project->write('a.txt', "one\nmore\n");
+        $project->write('a.txt', content: "one\nmore\n");
         $project->commitAll('second commit');
 
         $terminal = $this->runIde(
@@ -900,8 +900,8 @@ final class GitFlowsE2eTest extends TestCase
                 200 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
                     $this->frame($tui);
                     // Click the [History] tab cell.
-                    $tui->handleInput(self::widgetSgr($ide, 'git-tabs', 0, 0, 13));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-tabs', 0, 0, 13, release: true));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-tabs', button: 0, row: 0, col: 13));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-tabs', button: 0, row: 0, col: 13, release: true));
                 },
                 300 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
                     // TWO subprocesses, not one: `git log` fills the history
@@ -911,21 +911,21 @@ final class GitFlowsE2eTest extends TestCase
                     // load — so await the LAST effect this step asserts on.
                     // The commit's files sit beside it now, under a legend
                     // that counts them.
-                    $this->awaitPainted($tui, $terminal, '1 changed file');
+                    $this->awaitPainted($tui, $terminal, needle: '1 changed file');
                     $screen = AnsiUtils::stripAnsiCodes($terminal->getOutput());
                     $this->assertStringContainsString('second commit', $screen);
                     // Mouse: hover tints a commit row (no selection change),
                     // wheel over the history list, click the first commit
                     // row (the tab strip and the list's header sit above it).
-                    $tui->handleInput(self::windowSgr($ide, 35, 3, 9));
-                    $tui->handleInput(self::windowSgr($ide, 65, 3, 9));
-                    $tui->handleInput(self::windowSgr($ide, 0, 2, 9));
-                    $tui->handleInput(self::windowSgr($ide, 0, 2, 9, release: true));
+                    $tui->handleInput(self::windowSgr($ide, button: 35, row: 3, col: 9));
+                    $tui->handleInput(self::windowSgr($ide, button: 65, row: 3, col: 9));
+                    $tui->handleInput(self::windowSgr($ide, button: 0, row: 2, col: 9));
+                    $tui->handleInput(self::windowSgr($ide, button: 0, row: 2, col: 9, release: true));
                 },
                 400 => function (Tui $tui, VirtualTerminal $terminal): void {
                     // The clicked commit's files settled AND its first file's
                     // patch auto-loaded — no keystroke needed to see a diff.
-                    $this->awaitPainted($tui, $terminal, '+more');
+                    $this->awaitPainted($tui, $terminal, needle: '+more');
                     $tui->handleInput("\r"); // into the files list
                     $tui->handleInput("\x1b[B"); // wiggle selection to refire the load
                     $tui->handleInput("\x1b[A");
@@ -935,9 +935,9 @@ final class GitFlowsE2eTest extends TestCase
                     // Click the [Changes] tab to switch back, and await the
                     // paint the post-run assertion reads — the loop stops 80 ms
                     // after this step, which was the only thing making it true.
-                    $tui->handleInput(self::widgetSgr($ide, 'git-tabs', 0, 0, 3));
-                    $tui->handleInput(self::widgetSgr($ide, 'git-tabs', 0, 0, 3, release: true));
-                    $this->awaitPainted($tui, $terminal, 'Working tree clean');
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-tabs', button: 0, row: 0, col: 3));
+                    $tui->handleInput(self::widgetSgr($ide, id: 'git-tabs', button: 0, row: 0, col: 3, release: true));
+                    $this->awaitPainted($tui, $terminal, needle: 'Working tree clean');
                 },
             ],
         );
@@ -952,7 +952,7 @@ final class GitFlowsE2eTest extends TestCase
 
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
-        $project->write('a.php', "<?php\n\$a = 1;\n");
+        $project->write('a.php', content: "<?php\n\$a = 1;\n");
 
         $this->runIde(
             $project,
@@ -986,14 +986,14 @@ final class GitFlowsE2eTest extends TestCase
                     $this->frame($tui);
                     $this->assertStringContainsString(
                         "\x1b[48;5;240m",
-                        \implode('', Widgets::byId($tui, 'git-tabs', GitTabsWidget::class)->render(new RenderContext(44, 1))),
+                        \implode('', Widgets::byId($tui, id: 'git-tabs', class: GitTabsWidget::class)->render(new RenderContext(44, 1))),
                         'the hovered git tab tints',
                     );
                     $tui->handleInput(\sprintf("\x1b[<35;%d;%dM", $tabsRect->col + 2, $tabsRect->row + 3)); // off the strip
                     $this->frame($tui);
                     $this->assertStringNotContainsString(
                         "\x1b[48;5;240m",
-                        \implode('', Widgets::byId($tui, 'git-tabs', GitTabsWidget::class)->render(new RenderContext(44, 1))),
+                        \implode('', Widgets::byId($tui, id: 'git-tabs', class: GitTabsWidget::class)->render(new RenderContext(44, 1))),
                         'leaving the strip clears the tint',
                     );
 
@@ -1024,7 +1024,7 @@ final class GitFlowsE2eTest extends TestCase
         $project = new TempProject(['src/A.php' => "<?php\n", '.porta.json' => '{"enabledPlugins":["diff","git"]}']);
         $project->initGit(name: 'tester', email: 't@t');
         $project->commitAll('init');
-        $project->write('other.txt', '');
+        $project->write('other.txt', content: '');
         $project->git('add', '-A');
         $project->git('commit', '-qm', 'other');
 

@@ -39,8 +39,8 @@ trait GitPaneKeys
 
             return true;
         }
-        $exit = $kb->matches($data, 'exit_view');
-        $handled = $exit || $kb->matches($data, 'focus_next_pane');
+        $exit = $kb->matches($data, action: 'exit_view');
+        $handled = $exit || $kb->matches($data, action: 'focus_next_pane');
         if ($handled) {
             $this->fire($exit ? $this->onExit : $this->onFocusNext);
         }

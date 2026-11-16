@@ -294,10 +294,10 @@ final class HistoryListWidgetTest extends TestCase
         $widget = $this->widget();
         $widget->render(new RenderContext(44, 9));
 
-        $tip = $widget->tooltipAt(3, 5);
-        $this->assertSame($tip?->text, $widget->tooltipAt(4, 5)?->text);
+        $tip = $widget->tooltipAt(3, col: 5);
+        $this->assertSame($tip?->text, $widget->tooltipAt(4, col: 5)?->text);
         $this->assertSame("full2\nOlder work\nBob · ".\date('Y-m-d H:i', self::NOW - (3 * 86_400)), $tip?->text);
-        $this->assertNull($widget->tooltipAt(2, 5), 'the hairline says nothing');
+        $this->assertNull($widget->tooltipAt(2, col: 5), 'the hairline says nothing');
     }
 
     /**

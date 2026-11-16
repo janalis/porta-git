@@ -175,10 +175,10 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
     {
         match (true) {
             ListNavigation::handleKey($data, $kb, $this->list, \count($this->entries), page: $this->lastPage) => $this->selectionMoved(),
-            $kb->matches($data, 'toggle_stage') => $this->requestStageToggle(),
-            $kb->matches($data, 'stage_all') => $this->stageAll(),
-            $kb->matches($data, 'show_history') => $this->showHistory(),
-            $kb->matches($data, 'discard') => $this->armDiscardSelected(),
+            $kb->matches($data, action: 'toggle_stage') => $this->requestStageToggle(),
+            $kb->matches($data, action: 'stage_all') => $this->stageAll(),
+            $kb->matches($data, action: 'show_history') => $this->showHistory(),
+            $kb->matches($data, action: 'discard') => $this->armDiscardSelected(),
             default => null,
         };
     }
@@ -487,8 +487,8 @@ final class ChangesListWidget extends AbstractWidget implements FocusableInterfa
         $discardWidth = FieldBox::controlWidth($discard);
         $keepWidth = FieldBox::controlWidth($keep);
         $rows = FieldBox::rowsFor($this->density->current());
-        $discardRows = FieldBox::button($discard, FieldState::Danger, false, $discardWidth, $rows, $this->styles);
-        $keepRows = FieldBox::button($keep, FieldState::Idle, false, $keepWidth, $rows, $this->styles);
+        $discardRows = FieldBox::button($discard, FieldState::Danger, hovered: false, width: $discardWidth, rows: $rows, styles: $this->styles);
+        $keepRows = FieldBox::button($keep, FieldState::Idle, hovered: false, width: $keepWidth, rows: $rows, styles: $this->styles);
         $this->confirmButtons = [
             'rows' => [$top + 1, $top + 1 + $rows],
             'discard' => [1, 1 + $discardWidth],

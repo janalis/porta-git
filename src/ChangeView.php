@@ -114,8 +114,8 @@ final readonly class ChangeView
     private function revert(DiffHunk $hunk, string $path): void
     {
         $lines = \explode("\n", (string) $this->api->documentText());
-        $removed = self::texts($hunk, '-');
-        $added = self::texts($hunk, '+');
+        $removed = self::texts($hunk, origin: '-');
+        $added = self::texts($hunk, origin: '+');
         $at = 0 === $hunk->newCount ? $hunk->newStart : $hunk->newStart - 1;
         $held = [] === $added
             ? self::around($lines, $at) === self::around(self::diskLines($path), $at)

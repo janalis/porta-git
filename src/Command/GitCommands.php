@@ -53,7 +53,7 @@ final readonly class GitCommands
         if (!$this->guardAvailable()) {
             return;
         }
-        $this->editor->openPrompt($this->translator->trans('Commit message'), '', function (string $message): void {
+        $this->editor->openPrompt($this->translator->trans('Commit message'), initial: '', onSubmit: function (string $message): void {
             if ('' === \trim($message)) {
                 return;
             }
@@ -121,7 +121,7 @@ final readonly class GitCommands
         $this->git->stashList(function (array $stashes) use ($commit, $action): void {
             $ref = \array_column($stashes, column_key: 'ref', index_key: 'commit')[$commit] ?? null;
             if (null === $ref) {
-                $this->notifier->error($this->translator->trans('Stash failed'), 6.0);
+                $this->notifier->error($this->translator->trans('Stash failed'), seconds: 6.0);
 
                 return;
             }
@@ -145,7 +145,7 @@ final readonly class GitCommands
             // Drop, the third of the three (Cancel never gets here). It never
             // touches the worktree — no marks refresh.
             default => $this->git->stashDrop($ref, function (Outcome $ok, string $error) use ($ref): void {
-                $ok->isOk() ? $this->notifier->success($this->translator->trans('Dropped %stash%', ['%stash%' => $ref]), 3.0) : $this->notifier->error($error, 6.0);
+                $ok->isOk() ? $this->notifier->success($this->translator->trans('Dropped %stash%', ['%stash%' => $ref]), seconds: 3.0) : $this->notifier->error($error, seconds: 6.0);
             }),
         };
     }
@@ -241,7 +241,7 @@ final readonly class GitCommands
         if (!$this->guardAvailable()) {
             return;
         }
-        $this->editor->openPrompt($this->translator->trans('New branch name'), '', function (string $name) use ($commit): void {
+        $this->editor->openPrompt($this->translator->trans('New branch name'), initial: '', onSubmit: function (string $name) use ($commit): void {
             $name = \trim($name);
             if ('' === $name) {
                 return;
@@ -315,7 +315,7 @@ final readonly class GitCommands
      */
     private function finishHistoryOp(Outcome $ok, string $error, string $success): void
     {
-        $ok->isOk() ? $this->notifier->success($success, 3.0) : $this->notifier->error($error, 6.0);
+        $ok->isOk() ? $this->notifier->success($success, seconds: 3.0) : $this->notifier->error($error, seconds: 6.0);
         $this->refresher->refreshBranch();
         $this->dispatcher->dispatch(new WorkingTreeChanged());
     }
@@ -475,7 +475,9 @@ final readonly class GitCommands
                         // -d only: an unmerged branch fails with git's message,
                         // which itself names the -D escape hatch.
                         $this->git->deleteBranch($name, function (Outcome $ok, string $error) use ($name): void {
-                            $ok->isOk() ? $this->notifier->success($this->translator->trans('Deleted branch %branch%', ['%branch%' => $name]), 3.0) : $this->notifier->error($error, 6.0);
+                            $ok->isOk()
+                                ? $this->notifier->success($this->translator->trans('Deleted branch %branch%', ['%branch%' => $name]), seconds: 3.0)
+                                : $this->notifier->error($error, seconds: 6.0);
                         });
                     },
                 );
@@ -495,7 +497,7 @@ final readonly class GitCommands
 
     private function promptNewBranch(): void
     {
-        $this->editor->openPrompt($this->translator->trans('New branch name'), '', function (string $name): void {
+        $this->editor->openPrompt($this->translator->trans('New branch name'), initial: '', onSubmit: function (string $name): void {
             $name = \trim($name);
             if ('' === $name) {
                 return;
@@ -512,7 +514,7 @@ final readonly class GitCommands
 
     private function finishSwitch(Outcome $ok, string $error, string $success): void
     {
-        $ok->isOk() ? $this->notifier->success($success, 3.0) : $this->notifier->error($error, 6.0);
+        $ok->isOk() ? $this->notifier->success($success, seconds: 3.0) : $this->notifier->error($error, seconds: 6.0);
         if ($ok->isOk()) {
             // HEAD moved and files may have changed on disk; the filesystem
             // poll reconciles open buffers, these refresh the chrome now.

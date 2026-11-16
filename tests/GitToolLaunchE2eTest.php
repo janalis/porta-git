@@ -48,11 +48,11 @@ final class GitToolLaunchE2eTest extends TestCase
 
         $this->runIde(
             $project,
-            null,
-            [
+            file: null,
+            steps: [
                 0 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
-                    $this->awaitPainted($tui, $terminal, "echo 'working tree';");
-                    $this->awaitPainted($tui, $terminal, "echo 'committed';");
+                    $this->awaitPainted($tui, $terminal, needle: "echo 'working tree';");
+                    $this->awaitPainted($tui, $terminal, needle: "echo 'committed';");
                     $this->assertTrue(Services::resolve($ide, ViewRegistry::class)->find('git')?->isOpen(), 'the git view shows the comparison');
                     $this->assertStringContainsString('a.php', \implode("\n", $this->screenGrid($tui, $terminal)), 'titled with the file git is diffing, not the blob');
 
@@ -73,14 +73,14 @@ final class GitToolLaunchE2eTest extends TestCase
         $project->commitAll('init');
         $proposal = new TempProject(['a.php' => "<?php\necho 'as proposed';\n"]);
 
-        $this->runIde($project, null, [
+        $this->runIde($project, file: null, steps: [
             100 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project, $proposal): void {
                 $views = Services::resolve($ide, ViewRegistry::class);
                 Services::resolve($ide, CommandRegistry::class)->run('ide_welcome');
                 $this->assertTrue($views->isOpen('welcome'), 'a modal is up when the proposal comes');
                 Services::resolve($ide, EventDispatcherInterface::class)->dispatch(new ChangeProposed($project->path('a.php'), $proposal->path('a.php')));
-                $this->awaitPainted($tui, $terminal, "echo 'as it is';");
-                $this->awaitPainted($tui, $terminal, "echo 'as proposed';");
+                $this->awaitPainted($tui, $terminal, needle: "echo 'as it is';");
+                $this->awaitPainted($tui, $terminal, needle: "echo 'as proposed';");
                 $view = $views->find('git');
                 $this->assertTrue($view?->isOpen(), 'side by side in the git view');
                 $this->assertFalse($views->isOpen('welcome'), 'which the modal yields to, rather than keeping the keys underneath');
@@ -111,11 +111,11 @@ final class GitToolLaunchE2eTest extends TestCase
 
         $this->runIde(
             $project,
-            null,
-            [
+            file: null,
+            steps: [
                 0 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide): void {
                     // Ours | result | theirs, labelled by the markers git wrote.
-                    $this->awaitPainted($tui, $terminal, '⇤ feature');
+                    $this->awaitPainted($tui, $terminal, needle: '⇤ feature');
                     $grid = \implode("\n", $this->screenGrid($tui, $terminal));
                     $this->assertStringContainsString('⇥ HEAD', $grid);
                     $this->assertStringContainsString('<<<<<<< HEAD', $grid, 'the result, in the editor');

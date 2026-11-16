@@ -63,7 +63,7 @@ final readonly class GitPluginHarness
         $project = new TempProject($files);
         $settings = new PluginSettings($project->dir, []);
         $manager = new PluginManager($events = new EventDispatcher(), $settings);
-        $tui = TestTui::create(120, 24);
+        $tui = TestTui::create(120, rows: 24);
         $status = new StatusBarWidget();
         $editor = new CodeEditorWidget();
         $manager->wireRuntime(new PluginRuntime(

@@ -128,7 +128,7 @@ final class PatchBuilderTest extends TestCase
     public function testStagingASingleLineOfAMultiLineChange(): void
     {
         [$git, $project] = $this->repo(['f.txt' => "alpha\nbeta\ngamma\n"]);
-        $project->write('f.txt', "alpha CHANGED\nbeta\ngamma CHANGED\n");
+        $project->write('f.txt', content: "alpha CHANGED\nbeta\ngamma CHANGED\n");
 
         $raw = $this->awaitDiff($git, $project->path('f.txt'), DiffSide::Worktree);
         $doc = DiffDocument::parse($raw);
@@ -148,17 +148,17 @@ final class PatchBuilderTest extends TestCase
         $this->assertNotNull($patch);
         $this->applyOk($git, $patch);
 
-        $cached = $this->gitOut($project, 'diff --cached');
+        $cached = $this->gitOut($project, args: 'diff --cached');
         $this->assertStringContainsString('+alpha CHANGED', $cached);
         $this->assertStringNotContainsString('gamma CHANGED', $cached, 'the unselected change stayed out of the index');
-        $worktree = $this->gitOut($project, 'diff');
+        $worktree = $this->gitOut($project, args: 'diff');
         $this->assertStringContainsString('+gamma CHANGED', $worktree, 'the unselected change remains in the worktree diff');
     }
 
     public function testStagingAPureInsertionAndAPureDeletion(): void
     {
         [$git, $project] = $this->repo(['f.txt' => "one\ntwo\nthree\nfour\n"]);
-        $project->write('f.txt', "one\ninserted\ntwo\nfour\n"); // +inserted, -three
+        $project->write('f.txt', content: "one\ninserted\ntwo\nfour\n"); // +inserted, -three
 
         $doc = DiffDocument::parse($this->awaitDiff($git, $project->path('f.txt'), DiffSide::Worktree));
 
@@ -175,7 +175,7 @@ final class PatchBuilderTest extends TestCase
         }
         $this->applyOk($git, (string) PatchBuilder::build('f.txt', $doc->hunks, $selected));
 
-        $cached = $this->gitOut($project, 'diff --cached');
+        $cached = $this->gitOut($project, args: 'diff --cached');
         $this->assertStringContainsString('-three', $cached);
         $this->assertStringNotContainsString('inserted', $cached);
     }
@@ -183,8 +183,8 @@ final class PatchBuilderTest extends TestCase
     public function testUnstagingViaInvertedCachedDiff(): void
     {
         [$git, $project] = $this->repo(['f.txt' => "alpha\nbeta\n"]);
-        $project->write('f.txt', "alpha CHANGED\nbeta CHANGED\n");
-        $this->gitOut($project, 'add f.txt'); // everything staged
+        $project->write('f.txt', content: "alpha CHANGED\nbeta CHANGED\n");
+        $this->gitOut($project, args: 'add f.txt'); // everything staged
 
         $doc = DiffDocument::parse($this->awaitDiff($git, $project->path('f.txt'), DiffSide::Cached));
         $inverted = \array_map(PatchBuilder::invertHunk(...), $doc->hunks);
@@ -202,10 +202,10 @@ final class PatchBuilderTest extends TestCase
         }
         $this->applyOk($git, (string) PatchBuilder::build('f.txt', $inverted, $selected));
 
-        $cached = $this->gitOut($project, 'diff --cached');
+        $cached = $this->gitOut($project, args: 'diff --cached');
         $this->assertStringContainsString('+alpha CHANGED', $cached, 'alpha stays staged');
         $this->assertStringNotContainsString('beta CHANGED', $cached, 'beta left the index');
-        $this->assertStringContainsString('+beta CHANGED', $this->gitOut($project, 'diff'), 'beta is back in the worktree diff');
+        $this->assertStringContainsString('+beta CHANGED', $this->gitOut($project, args: 'diff'), 'beta is back in the worktree diff');
     }
 
     // --- harness ---------------------------------------------------------------

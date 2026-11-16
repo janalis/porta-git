@@ -40,7 +40,7 @@ final class ChangeNavigationE2eTest extends TestCase
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "a\nb\nc\nd\ne\nf\n"]);
         $project->initGit();
         $project->commitAll('init');
-        $project->write('a.txt', "a\nB\nc\nd\nE\nf\n");
+        $project->write('a.txt', content: "a\nB\nc\nd\nE\nf\n");
 
         $this->runIde(
             $project,
@@ -65,7 +65,7 @@ final class ChangeNavigationE2eTest extends TestCase
 
                     // Two lines typed above the changes: the marks move down
                     // with them, and so does the walk.
-                    $editor->getDocument()->setCursor(0, 0);
+                    $editor->getDocument()->setCursor(0, col: 0);
                     $editor->handleInput("\r");
                     $editor->handleInput("\r");
                     $commands->run('next_change');
@@ -77,13 +77,13 @@ final class ChangeNavigationE2eTest extends TestCase
                     $this->await(static fn (): bool => "a\nB\nc\nd\nE\nf\n" === $editor->getDocument()->getText(), what: 'the typing undone');
 
                     // A click on the change mark: the caret goes there and the change shows.
-                    Services::resolve($ide, GutterClickRouter::class)->click(0, 4);
+                    Services::resolve($ide, GutterClickRouter::class)->click(0, docLine: 4);
                     $this->assertSame(4, $line());
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
-                    $items = Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['items'];
+                    $items = Probe::get(Probe::object($editor, 'overlayHost'), property: 'overlay')['items'];
                     $this->assertSame(['Revert this change', '− e', '+ E'], \array_column($items, 'label'), 'the verb first, then the change to read');
                     $this->assertSame([true, false], \array_column($items, 'disabled'), 'what it removed is greyed');
-                    $this->assertSame(0, Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['selected'], 'the selection starts on the verb');
+                    $this->assertSame(0, Probe::get(Probe::object($editor, 'overlayHost'), property: 'overlay')['selected'], 'the selection starts on the verb');
 
                     $editor->handleInput("\r");
                     $this->assertSame("a\nB\nc\nd\ne\nf\n", $editor->getDocument()->getText(), 'reverted in the buffer');
@@ -94,7 +94,7 @@ final class ChangeNavigationE2eTest extends TestCase
                     $commands = Services::resolve($ide, CommandRegistry::class);
 
                     // The buffer moved on from the disk the hunks describe: no revert.
-                    $editor->getDocument()->setCursor(1, 0);
+                    $editor->getDocument()->setCursor(1, col: 0);
                     $editor->handleInput('x');
                     $commands->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
@@ -102,7 +102,7 @@ final class ChangeNavigationE2eTest extends TestCase
                     $this->assertStringContainsString('xB', $editor->getDocument()->getText(), 'nothing replaced');
                     $this->assertContains('The buffer has changed since; save it and try again', Toasts::all($ide));
 
-                    $editor->getDocument()->setCursor(2, 0);
+                    $editor->getDocument()->setCursor(2, col: 0);
                     $commands->run('git_show_change');
                     $this->await(static fn (): bool => \in_array('No change here', Toasts::all($ide), strict: true), what: 'the answer for an unchanged line');
                 },
@@ -136,7 +136,7 @@ final class ChangeNavigationE2eTest extends TestCase
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "a\nb\nc\n"]);
         $project->initGit();
         $project->commitAll('init');
-        $project->write('a.txt', "a\nc\n");
+        $project->write('a.txt', content: "a\nc\n");
 
         $this->runIde(
             $project,
@@ -151,9 +151,9 @@ final class ChangeNavigationE2eTest extends TestCase
                     // A deletion adds no lines to check, so the lines either
                     // side of it are, against the disk. Unsaved, a line typed
                     // above it: the disk's line 2 is the buffer's 3 now.
-                    $editor->getDocument()->setCursor(0, 0);
+                    $editor->getDocument()->setCursor(0, col: 0);
                     $editor->getDocument()->insert("z\n");
-                    $editor->getDocument()->setCursor(0, 0);
+                    $editor->getDocument()->setCursor(0, col: 0);
                     $commands->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
                     $editor->handleInput("\r");
@@ -164,7 +164,7 @@ final class ChangeNavigationE2eTest extends TestCase
 
                     $commands->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
-                    $this->assertSame(['Revert this change', '− b'], \array_column(Probe::get(Probe::object($editor, 'overlayHost'), 'overlay')['items'], 'label'));
+                    $this->assertSame(['Revert this change', '− b'], \array_column(Probe::get(Probe::object($editor, 'overlayHost'), property: 'overlay')['items'], 'label'));
                     $editor->handleInput("\r");
                     $this->assertSame("a\nb\nc\n", $editor->getDocument()->getText());
                 },
@@ -182,7 +182,7 @@ final class ChangeNavigationE2eTest extends TestCase
         $project = new TempProject(['.porta.json' => '{"enabledPlugins":["diff","git"]}', 'a.txt' => "\u{FEFF}a\r\nx\r\nb\r\nc\r\nd\r\n"]);
         $project->initGit();
         $project->commitAll('init');
-        $project->write('a.txt', "\u{FEFF}a\r\nb\r\nC\r\nd\r\n");
+        $project->write('a.txt', content: "\u{FEFF}a\r\nb\r\nC\r\nd\r\n");
 
         $this->runIde(
             $project,
@@ -193,13 +193,13 @@ final class ChangeNavigationE2eTest extends TestCase
                     $this->await(static fn (): bool => 2 === \count($editor->decorations->vcsMarks), what: 'the two changes to be marked');
                     $commands = Services::resolve($ide, CommandRegistry::class);
 
-                    $editor->getDocument()->setCursor(2, 0); // C, which was c
+                    $editor->getDocument()->setCursor(2, col: 0); // C, which was c
                     $commands->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the change to show');
                     $editor->handleInput("\r");
                     $this->assertSame("a\nb\nc\nd\n", $editor->getDocument()->getText());
 
-                    $editor->getDocument()->setCursor(0, 0); // x was deleted under a
+                    $editor->getDocument()->setCursor(0, col: 0); // x was deleted under a
                     $commands->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the deletion to show');
                     $editor->handleInput("\r");
@@ -224,7 +224,7 @@ final class ChangeNavigationE2eTest extends TestCase
                 400 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
                     $editor = Widgets::editor($tui);
                     \unlink($project->path('a.txt'));
-                    $editor->getDocument()->setCursor(0, 0);
+                    $editor->getDocument()->setCursor(0, col: 0);
 
                     Services::resolve($ide, CommandRegistry::class)->run('git_show_change');
                     $this->await(static fn (): bool => EditorState::pickerOpen($editor), what: 'the whole file shown as deleted');
@@ -246,8 +246,8 @@ final class ChangeNavigationE2eTest extends TestCase
 
         $this->runIde(
             $project,
-            null,
-            [
+            file: null,
+            steps: [
                 400 => function (Tui $tui, $terminal, Ide $ide): void {
                     $commands = Services::resolve($ide, CommandRegistry::class);
                     $commands->run('git_show_change');

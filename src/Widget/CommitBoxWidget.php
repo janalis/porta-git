@@ -295,11 +295,11 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
         $kb = $this->getKeybindings();
 
         match (true) {
-            $kb->matches($data, 'exit_view') => $this->fire($this->onExit),
-            $kb->matches($data, 'commit') => $this->submit(),
-            $kb->matches($data, 'toggle_amend') => $this->toggleAmend(),
-            $kb->matches($data, 'next_field') => $this->nextField(),
-            $kb->matches($data, 'prev_field') => $this->previousField(),
+            $kb->matches($data, action: 'exit_view') => $this->fire($this->onExit),
+            $kb->matches($data, action: 'commit') => $this->submit(),
+            $kb->matches($data, action: 'toggle_amend') => $this->toggleAmend(),
+            $kb->matches($data, action: 'next_field') => $this->nextField(),
+            $kb->matches($data, action: 'prev_field') => $this->previousField(),
             default => $this->typeIntoField($data, $kb),
         };
     }
@@ -339,7 +339,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
     private function typeIntoField(string $data, Keybindings $kb): void
     {
         if (self::AMEND_FIELD === $this->activeField) {
-            if ($kb->matches($data, 'toggle_checkbox')) {
+            if ($kb->matches($data, action: 'toggle_checkbox')) {
                 $this->toggleAmend();
             }
 
@@ -356,7 +356,7 @@ final class CommitBoxWidget extends AbstractWidget implements FocusableInterface
 
     private function editSummary(string $data, Keybindings $kb): bool
     {
-        return $kb->matches($data, 'delete_char_backward')
+        return $kb->matches($data, action: 'delete_char_backward')
             ? $this->summary->backspace()
             : $this->summary->editKey($data, $kb) || $this->summary->insert($data);
     }

@@ -25,22 +25,22 @@ final readonly class GitTools
     {
         $this->api->registerTool(
             'status',
-            'The branch and every changed, staged or untracked file, as `git status --short --branch` prints it.',
-            ['type' => 'object', 'properties' => []],
-            fn (array $arguments): string => $this->run(['status', '--short', '--branch', '--untracked-files=all']),
+            description: 'The branch and every changed, staged or untracked file, as `git status --short --branch` prints it.',
+            inputSchema: ['type' => 'object', 'properties' => []],
+            handler: fn (array $arguments): string => $this->run(['status', '--short', '--branch', '--untracked-files=all']),
             effect: ToolEffect::Reads,
         );
         $this->api->registerTool(
             'diff',
-            'The working tree\'s unstaged changes as a unified diff — or, with staged, what is staged; with a path, that file only.',
-            [
+            description: 'The working tree\'s unstaged changes as a unified diff — or, with staged, what is staged; with a path, that file only.',
+            inputSchema: [
                 'type' => 'object',
                 'properties' => [
                     'path' => ['type' => 'string', 'description' => 'Project-relative'],
                     'staged' => ['type' => 'boolean'],
                 ],
             ],
-            $this->diff(...),
+            handler: $this->diff(...),
             effect: ToolEffect::Reads,
         );
     }

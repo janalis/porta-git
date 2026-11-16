@@ -122,8 +122,8 @@ final readonly class OperationCommands
                     OperationStep::Continue => 'Continued the %operation%',
                     OperationStep::Skip => 'Skipped the step and continued the %operation%',
                     OperationStep::Abort => 'Aborted the %operation%',
-                }, ['%operation%' => $this->name($operation)]), 3.0)
-                : $this->notifier->error('' === $error ? $this->translator->trans('git refused') : $error, 6.0);
+                }, ['%operation%' => $this->name($operation)]), seconds: 3.0)
+                : $this->notifier->error('' === $error ? $this->translator->trans('git refused') : $error, seconds: 6.0);
             $this->refresher->refreshBranch();
             $this->dispatcher->dispatch(new WorkingTreeChanged());
         });

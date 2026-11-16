@@ -118,7 +118,7 @@ trait GitViewRig
     {
         $this->controller?->close();
         if (null !== $this->git) {
-            $this->awaitLanes([Probe::get(Probe::get($this->git, 'runner'), 'lane'), $this->remoteLane]);
+            $this->awaitLanes([Probe::get(Probe::get($this->git, property: 'runner'), property: 'lane'), $this->remoteLane]);
         }
     }
 
@@ -197,7 +197,7 @@ trait GitViewRig
         // instead of hand-stacking the containers.
         $regions = new ViewRegions(Styles::dark());
         $this->statusBar = new StatusBarWidget();
-        $this->tui = TestTui::create(100, 24);
+        $this->tui = TestTui::create(100, rows: 24);
         $this->committed = 0;
         $dispatcher->addListener(GitCommitted::class, function (): void {
             ++$this->committed;
@@ -447,13 +447,13 @@ trait GitViewRig
      */
     private function freezeStatusPoll(GitViewController $controller): void
     {
-        EventLoop::disable((string) Probe::get($controller, 'poll'));
+        EventLoop::disable((string) Probe::get($controller, property: 'poll'));
     }
 
     /** The one lane every git call in this test class runs through. */
     private function lane(): ProcessLane
     {
-        return Probe::get(Probe::get($this->git, 'runner'), 'lane');
+        return Probe::get(Probe::get($this->git, property: 'runner'), property: 'lane');
     }
 
     private function historyText(): string

@@ -39,7 +39,7 @@ final class GitRemoteCommandsTest extends TestCase
     {
         $this->status = new StatusBarWidget();
         $this->events = [];
-        $tui = TestTui::create(100, 24);
+        $tui = TestTui::create(100, rows: 24);
         $dispatcher = new EventDispatcher();
         $dispatcher->addListener(GitRemoteCompleted::class, function (GitRemoteCompleted $event): void {
             $this->events[] = $event;
