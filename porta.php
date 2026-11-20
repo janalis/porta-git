@@ -60,11 +60,11 @@ use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\DisposablePlugin;
 use Porta\Plugin\Api\LegacyCoreSettings;
 use Porta\Plugin\Api\PluginApi;
+use Porta\Support\PathExecutables;
 use Porta\Support\ProjectPaths;
 use Porta\Workbench\Menu\MenuSurface;
 use Porta\Workbench\View\ViewServices;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Tui\Style\Style;
 
 /**
@@ -441,7 +441,7 @@ return new class('git') extends AbstractPlugin implements DisposablePlugin {
     /** @param \Closure(): ?OperationState $operation what git is in the middle of, as the status cell knows it */
     private static function repositoryState(GitInfo $git, string $root, ProcessLane $lane, \Closure $operation): RepositoryState
     {
-        return new RepositoryState($git, new PullRequestLookup($root, static fn (): ?string => new ExecutableFinder()->find('gh'), $lane), $root, $operation);
+        return new RepositoryState($git, new PullRequestLookup($root, static fn (): ?string => PathExecutables::here()->find('gh'), $lane), $root, $operation);
     }
 
     /**

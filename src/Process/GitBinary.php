@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\GitPlugin\Process;
 
-use Symfony\Component\Process\ExecutableFinder;
+use Porta\Support\PathExecutables;
 
 /**
  * Resolves the git binary {@see GitProcessRunner} and {@see GitRemote} both
@@ -19,6 +19,6 @@ final class GitBinary
             return $gitPath;
         }
 
-        return new ExecutableFinder()->find('git');
+        return PathExecutables::here()->find('git');
     }
 }
